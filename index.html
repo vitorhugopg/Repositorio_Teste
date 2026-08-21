@@ -1,11 +1,1670 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="pt-BR">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Painel do Projeto</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js" defer></script>
+<style>
+/* ============ CSS_BASE ============ */
+:root{
+  --bg:#f5f6f9; --bg-elevated:#ffffff; --bg-soft:#f0f1f5; --border:#e4e6eb;
+  --text:#1c2029; --text-muted:#68707e; --text-faint:#98a0ac;
+  --primary:#5b5bf6; --primary-hover:#4747dd; --primary-soft:#eef0ff;
+  --success:#22c55e; --success-soft:#e8f9ef; --warning:#f59e0b; --warning-soft:#fff6e6;
+  --danger:#ef4444; --danger-soft:#fdeceb; --info:#06b6d4; --info-soft:#e7fbff;
+  --radius:10px; --radius-lg:16px; --shadow-sm:0 1px 2px rgba(15,23,42,.07);
+  --shadow-md:0 6px 20px rgba(15,23,42,.10); --sidebar-w:236px;
+  --font:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,Helvetica,Arial,sans-serif;
+}
+[data-theme="dark"]{
+  --bg:#111318; --bg-elevated:#1a1c23; --bg-soft:#20232c; --border:#2b2e38;
+  --text:#eef0f5; --text-muted:#9aa1b0; --text-faint:#6c7280;
+  --primary:#8080fb; --primary-hover:#9999ff; --primary-soft:#242642;
+  --success:#34d399; --success-soft:#122a20; --warning:#fbbf24; --warning-soft:#2b2210;
+  --danger:#f87171; --danger-soft:#301616; --info:#22d3ee; --info-soft:#0d2830;
+  --shadow-sm:0 1px 2px rgba(0,0,0,.35); --shadow-md:0 8px 24px rgba(0,0,0,.45);
+}
+*,*::before,*::after{box-sizing:border-box;}
+html,body{height:100%;}
+body{margin:0;font-family:var(--font);background:var(--bg);color:var(--text);font-size:14px;line-height:1.45;-webkit-font-smoothing:antialiased;}
+button,input,select,textarea{font-family:inherit;font-size:inherit;color:inherit;}
+a{color:var(--primary);}
+h1,h2,h3,h4,p{margin:0;}
+ul{list-style:none;margin:0;padding:0;}
+::-webkit-scrollbar{width:10px;height:10px;}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:8px;}
+.app{display:flex;min-height:100vh;}
+
+/* ---------- Sidebar ---------- */
+.sidebar{width:var(--sidebar-w);flex:0 0 auto;background:var(--bg-elevated);border-right:1px solid var(--border);
+  display:flex;flex-direction:column;position:fixed;top:0;left:0;bottom:0;z-index:60;transition:transform .2s ease;}
+.sidebar-brand{display:flex;align-items:center;gap:10px;padding:18px 18px 14px;}
+.sidebar-brand .logo{width:32px;height:32px;border-radius:9px;background:linear-gradient(135deg,var(--primary),#9b8bff);display:flex;align-items:center;justify-content:center;font-size:16px;color:#fff;flex:0 0 auto;}
+.sidebar-brand .name{font-weight:700;font-size:15px;letter-spacing:.2px;}
+.sidebar-brand .name small{display:block;font-weight:500;color:var(--text-faint);font-size:11px;}
+.nav-list{flex:1;padding:6px 10px;overflow-y:auto;}
+.nav-item{display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:9px;color:var(--text-muted);cursor:pointer;font-weight:600;font-size:13.5px;margin-bottom:2px;user-select:none;}
+.nav-item svg{width:17px;height:17px;flex:0 0 auto;}
+.nav-item:hover{background:var(--bg-soft);color:var(--text);}
+.nav-item.active{background:var(--primary-soft);color:var(--primary);}
+.sidebar-foot{padding:12px;border-top:1px solid var(--border);}
+.theme-toggle{display:flex;align-items:center;justify-content:space-between;padding:8px 10px;border-radius:9px;background:var(--bg-soft);font-size:12.5px;font-weight:600;color:var(--text-muted);}
+.sidebar-close{display:none;}
+
+/* ---------- Main / Topbar ---------- */
+.main{margin-left:var(--sidebar-w);flex:1;min-width:0;display:flex;flex-direction:column;min-height:100vh;}
+.topbar{position:sticky;top:0;z-index:40;background:var(--bg);border-bottom:1px solid var(--border);padding:14px 26px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;}
+.topbar .hamburger{display:none;background:none;border:1px solid var(--border);border-radius:8px;width:34px;height:34px;align-items:center;justify-content:center;cursor:pointer;}
+.topbar h1{font-size:19px;font-weight:800;letter-spacing:-.2px;}
+.topbar .spacer{flex:1;}
+.search-box{position:relative;min-width:220px;}
+.search-box input[type="search"]{width:100%;padding:8px 12px 8px 32px;border-radius:9px;border:1px solid var(--border);background:var(--bg-elevated);}
+.search-box svg{position:absolute;left:9px;top:50%;transform:translateY(-50%);width:15px;height:15px;color:var(--text-faint);}
+.view{display:none;padding:22px 26px 90px;max-width:1500px;}
+.view.active{display:block;}
+
+/* ---------- Buttons ---------- */
+.btn{display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border-radius:9px;border:1px solid var(--border);
+  background:var(--bg-elevated);color:var(--text);font-weight:600;font-size:13px;cursor:pointer;white-space:nowrap;transition:.12s;}
+.btn svg{width:15px;height:15px;}
+.btn:hover{background:var(--bg-soft);}
+.btn-primary{background:var(--primary);border-color:var(--primary);color:#fff;}
+.btn-primary:hover{background:var(--primary-hover);}
+.btn-danger{background:var(--danger);border-color:var(--danger);color:#fff;}
+.btn-danger:hover{filter:brightness(1.08);}
+.btn-ghost{background:transparent;border-color:transparent;}
+.btn-ghost:hover{background:var(--bg-soft);}
+.btn-sm{padding:5px 9px;font-size:12px;border-radius:7px;}
+.btn-icon{width:30px;height:30px;padding:0;justify-content:center;border-radius:8px;}
+.btn:disabled{opacity:.45;cursor:not-allowed;}
+.fab{position:fixed;right:28px;bottom:28px;z-index:50;padding:13px 20px;border-radius:30px;background:var(--primary);
+  color:#fff;border:none;font-weight:700;font-size:14px;box-shadow:var(--shadow-md);cursor:pointer;display:flex;align-items:center;gap:8px;}
+.fab:hover{background:var(--primary-hover);}
+
+/* ---------- Badges ---------- */
+.badge{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:20px;font-size:11.5px;font-weight:700;white-space:nowrap;}
+.dot{width:7px;height:7px;border-radius:50%;flex:0 0 auto;}
+.tag{display:inline-flex;padding:2px 8px;border-radius:6px;background:var(--bg-soft);color:var(--text-muted);font-size:11px;font-weight:600;margin:1px;}
+
+/* ---------- Cards / grid ---------- */
+.grid-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(168px,1fr));gap:12px;margin-bottom:22px;}
+.stat-card{background:var(--bg-elevated);border:1px solid var(--border);border-radius:var(--radius-lg);padding:16px;box-shadow:var(--shadow-sm);}
+.stat-card .lbl{font-size:11.5px;font-weight:700;color:var(--text-faint);text-transform:uppercase;letter-spacing:.4px;}
+.stat-card .val{font-size:26px;font-weight:800;margin-top:6px;}
+.stat-card .sub{font-size:11.5px;color:var(--text-muted);margin-top:2px;}
+.panel{background:var(--bg-elevated);border:1px solid var(--border);border-radius:var(--radius-lg);padding:18px;box-shadow:var(--shadow-sm);margin-bottom:18px;}
+.panel-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;gap:10px;flex-wrap:wrap;}
+.panel-head h3{font-size:15px;font-weight:800;}
+.panel-head .hint{font-size:11.5px;color:var(--text-faint);font-weight:600;}
+.dash-grid{display:grid;grid-template-columns:2fr 1fr;gap:18px;}
+.dash-grid .col{min-width:0;}
+@media(max-width:1100px){.dash-grid{grid-template-columns:1fr;}}
+
+/* ---------- Progress bar ---------- */
+.progress{height:8px;border-radius:6px;background:var(--bg-soft);overflow:hidden;}
+.progress > span{display:block;height:100%;border-radius:6px;background:var(--primary);transition:width .3s;}
+.progress-lg{height:12px;}
+.progress-row{display:flex;align-items:center;gap:10px;}
+.progress-row .progress{flex:1;}
+.progress-row .pct{font-size:12px;font-weight:700;color:var(--text-muted);width:36px;text-align:right;}
+
+/* ---------- Forms ---------- */
+.form-group{margin-bottom:13px;}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+label{display:block;font-size:12px;font-weight:700;color:var(--text-muted);margin-bottom:5px;}
+input[type=text],input[type=date],input[type=number],input[type=search],input[type=url],select,textarea{
+  width:100%;padding:8px 10px;border-radius:8px;border:1px solid var(--border);background:var(--bg-elevated);color:var(--text);}
+textarea{resize:vertical;min-height:64px;}
+input:focus,select:focus,textarea:focus{outline:2px solid var(--primary-soft);border-color:var(--primary);}
+input[type=color]{width:38px;height:32px;padding:2px;border-radius:8px;border:1px solid var(--border);cursor:pointer;background:var(--bg-elevated);}
+input[type=checkbox]{width:15px;height:15px;accent-color:var(--primary);cursor:pointer;}
+.checkline{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;color:var(--text);}
+
+/* ---------- Modal ---------- */
+.overlay{position:fixed;inset:0;background:rgba(15,17,25,.5);z-index:100;display:none;align-items:flex-start;justify-content:center;padding:32px 14px;overflow-y:auto;}
+.overlay.open{display:flex;}
+.modal{background:var(--bg-elevated);border-radius:var(--radius-lg);width:100%;max-width:600px;box-shadow:var(--shadow-md);margin:auto;}
+.modal.modal-sm{max-width:400px;}
+.modal-head{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--border);}
+.modal-head h3{font-size:16px;font-weight:800;}
+.modal-body{padding:18px 20px;max-height:70vh;overflow-y:auto;}
+.modal-foot{padding:14px 20px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:8px;}
+.modal-close{background:none;border:none;cursor:pointer;color:var(--text-faint);width:28px;height:28px;border-radius:7px;display:flex;align-items:center;justify-content:center;}
+.modal-close:hover{background:var(--bg-soft);}
+fieldset{border:1px solid var(--border);border-radius:10px;padding:12px;margin:0 0 13px;}
+legend{font-size:12px;font-weight:800;padding:0 6px;color:var(--text-muted);}
+.checklist-item{display:flex;align-items:center;gap:8px;margin-bottom:6px;}
+.checklist-item span{flex:1;font-size:13px;}
+.checklist-item.done span{text-decoration:line-through;color:var(--text-faint);}
+.dep-list{max-height:130px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;padding:8px;}
+.dep-list label{display:flex;align-items:center;gap:8px;font-weight:500;color:var(--text);margin-bottom:4px;font-size:12.5px;}
+
+/* ---------- Table ---------- */
+.table-wrap{overflow-x:auto;border:1px solid var(--border);border-radius:var(--radius-lg);background:var(--bg-elevated);}
+table{width:100%;border-collapse:collapse;min-width:920px;}
+thead th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:var(--text-faint);padding:10px 12px;border-bottom:1px solid var(--border);cursor:pointer;white-space:nowrap;}
+tbody td{padding:9px 12px;border-bottom:1px solid var(--border);vertical-align:middle;font-size:13px;}
+tbody tr:last-child td{border-bottom:none;}
+tbody tr:hover{background:var(--bg-soft);}
+.phase-row td{background:var(--bg-soft);font-weight:800;padding:9px 12px;font-size:12.5px;}
+.phase-row .ph-toggle{display:flex;align-items:center;gap:8px;cursor:pointer;}
+.row-overdue{box-shadow:inset 3px 0 0 var(--danger);}
+.row-duesoon{box-shadow:inset 3px 0 0 var(--warning);}
+.row-done td{color:var(--text-faint);}
+.task-name-cell{display:flex;align-items:center;gap:7px;font-weight:700;cursor:pointer;}
+.star-btn{background:none;border:none;cursor:pointer;color:var(--text-faint);padding:0;display:flex;}
+.star-btn.active{color:var(--warning);}
+.actions-cell{display:flex;gap:4px;}
+.mini-select{width:auto;min-width:128px;padding:4px 6px;font-size:11.5px;border-radius:6px;}
+
+/* ---------- Filters ---------- */
+.filter-bar{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px;align-items:center;}
+.filter-bar select,.filter-bar input[type=date]{width:auto;padding:6px 8px;font-size:12px;}
+.phase-chips{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px;}
+.phase-chip{background:var(--bg-elevated);border:1px solid var(--border);border-radius:12px;padding:10px 14px;cursor:pointer;min-width:150px;}
+.phase-chip.collapsed{opacity:.55;}
+.phase-chip .ph-name{font-weight:800;font-size:12.5px;display:flex;justify-content:space-between;margin-bottom:6px;}
+
+/* ---------- Kanban ---------- */
+.kanban-wrap{display:flex;gap:14px;overflow-x:auto;padding-bottom:10px;}
+.kanban-col{flex:0 0 270px;background:var(--bg-soft);border-radius:var(--radius-lg);padding:10px;min-height:200px;}
+.kanban-col.dragover{outline:2px dashed var(--primary);outline-offset:-2px;}
+.kanban-col h4{font-size:12.5px;font-weight:800;padding:6px 6px 10px;display:flex;justify-content:space-between;align-items:center;}
+.kcard{background:var(--bg-elevated);border:1px solid var(--border);border-radius:10px;padding:10px;margin-bottom:8px;cursor:grab;box-shadow:var(--shadow-sm);}
+.kcard.dragging{opacity:.4;}
+.kcard .kc-title{font-weight:700;font-size:13px;margin-bottom:6px;display:flex;gap:6px;align-items:flex-start;justify-content:space-between;}
+.kcard .kc-meta{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px;font-size:11px;}
+.kcard .kc-due{font-size:11px;font-weight:700;color:var(--text-muted);margin-top:6px;}
+
+/* ---------- Gantt ---------- */
+.gantt-scroll{overflow-x:auto;border:1px solid var(--border);border-radius:var(--radius-lg);background:var(--bg-elevated);}
+.gantt-row{display:flex;border-bottom:1px solid var(--border);min-width:1000px;}
+.gantt-row:last-child{border-bottom:none;}
+.gantt-label{flex:0 0 260px;padding:8px 12px;font-size:12.5px;border-right:1px solid var(--border);position:sticky;left:0;background:var(--bg-elevated);z-index:2;}
+.gantt-label .g-sub{color:var(--text-faint);font-size:10.5px;font-weight:600;}
+.gantt-track{flex:1;position:relative;padding:8px 0;min-height:36px;}
+.gantt-bar{position:absolute;height:16px;border-radius:6px;top:10px;font-size:10px;color:#fff;display:flex;align-items:center;padding:0 6px;white-space:nowrap;overflow:hidden;font-weight:700;}
+.gantt-header{display:flex;min-width:1000px;background:var(--bg-soft);position:sticky;top:0;z-index:3;}
+.gantt-header .gantt-label{background:var(--bg-soft);}
+.gantt-today{position:absolute;top:0;bottom:0;width:2px;background:var(--danger);z-index:1;}
+.gantt-phase-head{background:var(--bg-soft);font-weight:800;padding:8px 12px;font-size:12.5px;min-width:1000px;}
+
+/* ---------- Calendar ---------- */
+.cal-nav{display:flex;align-items:center;gap:10px;margin-bottom:14px;}
+.cal-nav h3{font-size:15px;font-weight:800;min-width:170px;text-align:center;}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;}
+.cal-dow{font-size:11px;font-weight:800;color:var(--text-faint);text-align:center;padding:4px;text-transform:uppercase;}
+.cal-cell{min-height:96px;background:var(--bg-elevated);border:1px solid var(--border);border-radius:10px;padding:6px;font-size:11px;}
+.cal-cell.other-month{opacity:.4;}
+.cal-cell.today{border-color:var(--primary);box-shadow:0 0 0 1px var(--primary);}
+.cal-daynum{font-weight:800;margin-bottom:4px;}
+.cal-chip{background:var(--bg-soft);border-radius:6px;padding:2px 5px;margin-bottom:3px;font-weight:700;cursor:pointer;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+
+/* ---------- Ideas ---------- */
+.ideas-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:14px;}
+.idea-card{background:var(--bg-elevated);border:1px solid var(--border);border-radius:var(--radius-lg);padding:14px;box-shadow:var(--shadow-sm);display:flex;flex-direction:column;gap:8px;}
+.idea-card h4{font-size:14px;font-weight:800;}
+.idea-card p{font-size:12.5px;color:var(--text-muted);flex:1;}
+.idea-card .idea-foot{display:flex;justify-content:space-between;align-items:center;margin-top:4px;}
+
+/* ---------- History ---------- */
+.hist-item{display:flex;gap:12px;padding:10px 0;border-bottom:1px solid var(--border);}
+.hist-item:last-child{border-bottom:none;}
+.hist-time{width:130px;flex:0 0 auto;color:var(--text-faint);font-size:11.5px;font-weight:700;}
+.hist-icon{width:26px;height:26px;border-radius:50%;background:var(--primary-soft);color:var(--primary);display:flex;align-items:center;justify-content:center;flex:0 0 auto;}
+
+/* ---------- Alerts ---------- */
+.alert-list{display:flex;flex-direction:column;gap:8px;}
+.alert-item{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;cursor:pointer;font-size:12.5px;font-weight:700;}
+.alert-item .count{margin-left:auto;font-size:14px;font-weight:800;}
+
+/* ---------- Toast ---------- */
+#toast-container{position:fixed;bottom:20px;left:20px;z-index:200;display:flex;flex-direction:column;gap:8px;}
+.toast{background:var(--text);color:var(--bg-elevated);padding:10px 16px;border-radius:9px;font-size:13px;font-weight:600;box-shadow:var(--shadow-md);opacity:0;transform:translateY(8px);transition:.2s;}
+.toast.show{opacity:1;transform:translateY(0);}
+
+/* ---------- Attention today ---------- */
+.attn-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px;}
+.attn-card{border-radius:12px;padding:12px;border:1px solid var(--border);background:var(--bg-elevated);}
+.attn-card .attn-title{font-weight:800;font-size:13px;margin-bottom:6px;}
+
+.empty-state{text-align:center;padding:36px 14px;color:var(--text-faint);font-size:13px;font-weight:600;}
+
+/* ---------- Responsive ---------- */
+@media(max-width:900px){
+  .sidebar{transform:translateX(-100%);}
+  .sidebar.open{transform:translateX(0);}
+  .main{margin-left:0;}
+  .topbar .hamburger{display:flex;}
+  .form-row{grid-template-columns:1fr;}
+  .dash-grid{grid-template-columns:1fr;}
+  .fab{padding:0;width:52px;height:52px;border-radius:50%;justify-content:center;}
+  .fab span{display:none;}
+}
+.overlay-scrim{position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:55;display:none;}
+.overlay-scrim.open{display:block;}
+
+/* ---------- Print ---------- */
+@media print{
+  .sidebar,.topbar,.fab,#toast-container,.filter-bar,.actions-cell,.overlay-scrim,.no-print{display:none!important;}
+  .main{margin-left:0!important;}
+  .view{display:none!important;padding:0!important;}
+  .view.printing{display:block!important;}
+  body{background:#fff;}
+  .panel,.table-wrap,.gantt-scroll{box-shadow:none;border-color:#ccc;}
+  .table-wrap,.gantt-scroll,.kanban-wrap{overflow:visible!important;}
+  table{min-width:0!important;}
+}
+
+
+</style>
 </head>
 <body>
-    <p>Testando subir para o GitHub</p>
+<div class="overlay-scrim" id="scrim" onclick="closeSidebar()"></div>
+<div class="app">
+  <!-- ===================== SIDEBAR ===================== -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-brand">
+      <div class="logo">🗂️</div>
+      <div class="name">Painel do Projeto<small>Gestão &amp; Cronograma</small></div>
+    </div>
+    <ul class="nav-list" id="navList">
+      <!-- preenchido via JS -->
+    </ul>
+    <div class="sidebar-foot">
+      <div class="theme-toggle">
+        <span id="themeLabel">Tema claro</span>
+        <label class="checkline"><input type="checkbox" id="themeSwitch" onchange="toggleTheme()"></label>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ===================== MAIN ===================== -->
+  <div class="main">
+    <div class="topbar">
+      <button class="hamburger" onclick="openSidebar()">☰</button>
+      <h1 id="pageTitle">Dashboard</h1>
+      <div class="spacer"></div>
+      <div class="search-box">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input type="search" id="globalSearch" placeholder="Pesquisar tarefas..." oninput="onSearchInput(this.value)">
+      </div>
+    </div>
+
+    <!-- ============ DASHBOARD ============ -->
+    <section class="view" id="view-dashboard"></section>
+
+    <!-- ============ TAREFAS (LISTA) ============ -->
+    <section class="view" id="view-tasks"></section>
+
+    <!-- ============ KANBAN ============ -->
+    <section class="view" id="view-kanban"></section>
+
+    <!-- ============ CRONOGRAMA (GANTT) ============ -->
+    <section class="view" id="view-gantt"></section>
+
+    <!-- ============ CALENDÁRIO ============ -->
+    <section class="view" id="view-calendar"></section>
+
+    <!-- ============ BANCO DE IDEIAS ============ -->
+    <section class="view" id="view-ideas"></section>
+
+    <!-- ============ HISTÓRICO ============ -->
+    <section class="view" id="view-history"></section>
+
+    <!-- ============ CONFIGURAÇÕES ============ -->
+    <section class="view" id="view-settings"></section>
+  </div>
+</div>
+
+<button class="fab" id="fabNewTask" onclick="openTaskModal()">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+  <span>Nova Tarefa</span>
+</button>
+
+<!-- ===================== MODAL: TAREFA ===================== -->
+<div class="overlay" id="modalTask">
+  <div class="modal">
+    <div class="modal-head">
+      <h3 id="taskModalTitle">Nova tarefa</h3>
+      <button class="modal-close" onclick="closeModal('modalTask')">✕</button>
+    </div>
+    <div class="modal-body" id="taskModalBody"></div>
+    <div class="modal-foot">
+      <button class="btn" onclick="closeModal('modalTask')">Cancelar</button>
+      <button class="btn btn-primary" onclick="saveTaskFromModal()">Salvar tarefa</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== MODAL: IDEIA ===================== -->
+<div class="overlay" id="modalIdea">
+  <div class="modal modal-sm">
+    <div class="modal-head">
+      <h3 id="ideaModalTitle">Nova ideia</h3>
+      <button class="modal-close" onclick="closeModal('modalIdea')">✕</button>
+    </div>
+    <div class="modal-body" id="ideaModalBody"></div>
+    <div class="modal-foot">
+      <button class="btn" onclick="closeModal('modalIdea')">Cancelar</button>
+      <button class="btn btn-primary" onclick="saveIdeaFromModal()">Salvar ideia</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== MODAL: CONFIRMAÇÃO ===================== -->
+<div class="overlay" id="modalConfirm">
+  <div class="modal modal-sm">
+    <div class="modal-head"><h3 id="confirmTitle">Confirmar</h3><button class="modal-close" onclick="closeModal('modalConfirm')">✕</button></div>
+    <div class="modal-body"><p id="confirmMsg" style="font-size:13.5px;color:var(--text-muted)"></p></div>
+    <div class="modal-foot">
+      <button class="btn" onclick="closeModal('modalConfirm')">Cancelar</button>
+      <button class="btn btn-danger" id="confirmOkBtn">Confirmar</button>
+    </div>
+  </div>
+</div>
+
+<input type="file" id="importFileInput" accept="application/json" style="display:none" onchange="handleImportFile(this.files[0])">
+
+<div id="toast-container"></div>
+
+<script>
+/* =========================================================================
+   PAINEL DO PROJETO — cronograma interativo de gestão de projeto
+   Aplicação 100% front-end (HTML+CSS+JS), dados persistidos em localStorage.
+   ========================================================================= */
+
+/* ---------------------------------------------------------------------
+   1. CONSTANTES DE DOMÍNIO
+--------------------------------------------------------------------- */
+const STORAGE_KEY = 'pgp_dashboard_state_v1';
+
+const STATUS_LIST = ['Ideia','Não iniciado','Em planejamento','Em andamento','Aguardando terceiros','Pausado','Concluído','Cancelado'];
+const STATUS_COLOR = {
+  'Ideia':'#8b5cf6','Não iniciado':'#94a3b8','Em planejamento':'#3b82f6','Em andamento':'#06b6d4',
+  'Aguardando terceiros':'#f59e0b','Pausado':'#64748b','Concluído':'#22c55e','Cancelado':'#ef4444'
+};
+const PRIORITY_LIST = ['Baixa','Média','Alta','Urgente'];
+const PRIORITY_COLOR = {'Baixa':'#22c55e','Média':'#3b82f6','Alta':'#f97316','Urgente':'#ef4444'};
+const IMPORTANCE_LIST = [
+  {v:1,label:'1 — Muito baixa',short:'Muito baixa',color:'#94a3b8'},
+  {v:2,label:'2 — Baixa',short:'Baixa',color:'#60a5fa'},
+  {v:3,label:'3 — Média',short:'Média',color:'#fbbf24'},
+  {v:4,label:'4 — Alta',short:'Alta',color:'#fb923c'},
+  {v:5,label:'5 — Crítica',short:'Crítica',color:'#ef4444'}
+];
+const DEFAULT_CATEGORY_NAMES = ['Estratégia','Marketing','Conteúdo','Comercial','Design','Operacional','Financeiro','Tecnologia','Administrativo','Parcerias','Redes sociais','Tráfego pago','Site / Landing Page','Eventos','Outros'];
+const CATEGORY_PALETTE = ['#5b5bf6','#f97316','#22c55e','#06b6d4','#ec4899','#8b5cf6','#f59e0b','#3b82f6','#84cc16','#ef4444','#14b8a6','#a855f7','#eab308','#0ea5e9','#64748b'];
+const DEFAULT_PHASE_NAMES = ['Planejamento','Preparação','Execução','Lançamento','Pós-projeto'];
+
+const NAV_ITEMS = [
+  {id:'dashboard', label:'Dashboard', icon:'grid'},
+  {id:'tasks', label:'Tarefas', icon:'list'},
+  {id:'gantt', label:'Cronograma', icon:'gantt'},
+  {id:'kanban', label:'Kanban', icon:'kanban'},
+  {id:'calendar', label:'Calendário', icon:'calendar'},
+  {id:'ideas', label:'Banco de Ideias', icon:'bulb'},
+  {id:'history', label:'Histórico', icon:'clock'},
+  {id:'settings', label:'Configurações', icon:'cog'}
+];
+
+/* Ícones SVG inline (sem dependência externa) */
+const ICONS = {
+  grid:'<path d="M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z"/>',
+  list:'<line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/>',
+  gantt:'<line x1="3" y1="6" x2="13" y2="6"/><line x1="3" y1="12" x2="18" y2="12"/><line x1="3" y1="18" x2="10" y2="18"/>',
+  kanban:'<rect x="3" y="4" width="6" height="16" rx="1"/><rect x="10.5" y="4" width="6" height="10" rx="1"/><rect x="18" y="4" width="3" height="7" rx="1"/>',
+  calendar:'<rect x="3" y="5" width="18" height="16" rx="2"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="8" y1="3" x2="8" y2="7"/><line x1="16" y1="3" x2="16" y2="7"/>',
+  bulb:'<path d="M9 18h6M10 22h4M12 2a7 7 0 0 0-4 12.7c.6.5 1 1.3 1 2.3h6c0-1 .4-1.8 1-2.3A7 7 0 0 0 12 2z"/>',
+  clock:'<circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 16 14"/>',
+  cog:'<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.9.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.9-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.9V9c.1.7.6 1.3 1.5 1.5h.1a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>',
+  star:'<polygon points="12 2 15 9 22 9.5 17 14.5 18.5 22 12 18 5.5 22 7 14.5 2 9.5 9 9"/>',
+  edit:'<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/>',
+  copy:'<rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>',
+  trash:'<polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>',
+  check:'<polyline points="20 6 9 17 4 12"/>',
+  undo:'<path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-15-6.7L3 13"/>',
+  x:'<line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>',
+  filter:'<polygon points="22 3 2 3 10 12.5 10 19 14 21 14 12.5 22 3"/>',
+  download:'<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>',
+  upload:'<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>',
+  printer:'<polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/>',
+  link:'<path d="M10 13a5 5 0 0 0 7.5.5l2-2a5 5 0 0 0-7-7l-1 1"/><path d="M14 11a5 5 0 0 0-7.5-.5l-2 2a5 5 0 0 0 7 7l1-1"/>',
+  lock:'<rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>',
+  chevDown:'<polyline points="6 9 12 15 18 9"/>',
+  plus:'<line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>',
+  menu:'<line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>'
+};
+function svgIcon(name, extra){ return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" ${extra||''}>${ICONS[name]||''}</svg>`; }
+
+/* ---------------------------------------------------------------------
+   2. UTILITÁRIOS
+--------------------------------------------------------------------- */
+function uid(prefix){ return (prefix||'id')+'_'+Date.now().toString(36)+Math.random().toString(36).slice(2,8); }
+function todayISO(){ const d=new Date(); return d.getFullYear()+'-'+pad2(d.getMonth()+1)+'-'+pad2(d.getDate()); }
+function pad2(n){ return String(n).padStart(2,'0'); }
+function toDate(iso){ if(!iso) return null; const [y,m,d]=iso.split('-').map(Number); return new Date(y,(m||1)-1,d||1); }
+function fmtBR(iso){ if(!iso) return '—'; const d=toDate(iso); return pad2(d.getDate())+'/'+pad2(d.getMonth()+1)+'/'+d.getFullYear(); }
+function daysBetween(isoA,isoB){ const a=toDate(isoA), b=toDate(isoB); if(!a||!b) return 0; return Math.round((b-a)/86400000); }
+function addDays(iso,n){ const d=toDate(iso); d.setDate(d.getDate()+n); return d.getFullYear()+'-'+pad2(d.getMonth()+1)+'-'+pad2(d.getDate()); }
+function clamp(n,min,max){ return Math.max(min,Math.min(max,n)); }
+function escapeHtml(s){ return (s==null?'':String(s)).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function nl2list(text){ return (text||'').split(/\n|,/).map(s=>s.trim()).filter(Boolean); }
+
+/* ---------------------------------------------------------------------
+   3. ESTADO GLOBAL + PERSISTÊNCIA (localStorage)
+--------------------------------------------------------------------- */
+let state = null;
+let currentView = 'dashboard';
+let filters = {status:'',priority:'',importance:'',category:'',phase:'',owner:'',dateFrom:'',dateTo:'',onlyOverdue:false,onlyCompleted:false,onlyFavorite:false,search:''};
+let calState = {year:new Date().getFullYear(), month:new Date().getMonth()};
+let sortState = {field:'dueDate', dir:'asc'};
+let editingTaskId = null; // null = criando nova
+let editingIdeaId = null;
+let tempChecklist = [];   // checklist em edição no modal
+let tempDeps = [];        // dependências em edição no modal
+
+function defaultState(){
+  const categories = DEFAULT_CATEGORY_NAMES.map((name,i)=>({id:uid('cat'), name, color:CATEGORY_PALETTE[i%CATEGORY_PALETTE.length]}));
+  const phases = DEFAULT_PHASE_NAMES.map((name,i)=>({id:uid('ph'), name, order:i, collapsed:false}));
+  return {
+    project:{
+      name:'Lançamento de Produto Digital',
+      description:'Planejamento e execução do lançamento de um novo produto digital, do planejamento estratégico até o pós-lançamento.',
+      startDate: todayISO(),
+      endDate: addDays(todayISO(), 60),
+      owner:'',
+      notes:''
+    },
+    phases, categories, tasks:[], ideas:[], history:[],
+    settings:{theme:'light'}
+  };
+}
+
+function findCatByName(name){ return state.categories.find(c=>c.name===name); }
+function findPhaseByName(name){ return state.phases.find(p=>p.name===name); }
+
+function save(){ localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
+function load(){
+  try{
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if(raw){ const parsed = JSON.parse(raw); return normalizeState(parsed); }
+  }catch(e){ console.warn('Falha ao carregar estado salvo, iniciando novo.', e); }
+  const st = defaultState();
+  seedDemoData(st);
+  return st;
+}
+function normalizeState(parsed){
+  const base = defaultState();
+  const merged = Object.assign({}, base, parsed);
+  merged.project = Object.assign({}, base.project, parsed.project||{});
+  merged.settings = Object.assign({}, base.settings, parsed.settings||{});
+  merged.phases = Array.isArray(parsed.phases)&&parsed.phases.length ? parsed.phases : base.phases;
+  merged.categories = Array.isArray(parsed.categories)&&parsed.categories.length ? parsed.categories : base.categories;
+  merged.tasks = Array.isArray(parsed.tasks) ? parsed.tasks : [];
+  merged.ideas = Array.isArray(parsed.ideas) ? parsed.ideas : [];
+  merged.history = Array.isArray(parsed.history) ? parsed.history : [];
+  return merged;
+}
+
+/* Histórico automático (#12) */
+function addHistory(action, taskName, details){
+  state.history.unshift({id:uid('h'), date:new Date().toISOString(), action, taskName:taskName||'', details:details||''});
+  if(state.history.length>500) state.history.length=500;
+}
+
+/* ---------------------------------------------------------------------
+   4. DADOS DE DEMONSTRAÇÃO (#19)
+--------------------------------------------------------------------- */
+function seedDemoData(st){
+  const T = todayISO();
+  const cat = n => (st.categories.find(c=>c.name===n)||st.categories[0]).id;
+  const ph = n => (st.phases.find(p=>p.name===n)||st.phases[0]).id;
+  function mk(o){
+    return Object.assign({
+      id:uid('t'), description:'', owner:'Você', tags:[], links:'', notes:'',
+      favorite:false, completedAt:null, checklist:[], dependencies:[], isDemo:true,
+      createdAt:new Date().toISOString(), updatedAt:new Date().toISOString(), percent:0
+    }, o);
+  }
+  const tCriativos = mk({name:'Criar criativos', category:cat('Design'), phase:ph('Execução'), status:'Em andamento',
+    startDate:addDays(T,-16), dueDate:addDays(T,3), owner:'Ana', priority:'Alta', importance:5, percent:50, tags:['design','ads']});
+  const tCampanha = mk({name:'Criar campanha de anúncios', category:cat('Tráfego pago'), phase:ph('Execução'), status:'Não iniciado',
+    startDate:addDays(T,1), dueDate:addDays(T,15), owner:'Carlos', priority:'Alta', importance:5, percent:0, tags:['ads'], dependencies:[tCriativos.id]});
+
+  const tasks = [
+    mk({name:'Definir objetivo do projeto', category:cat('Estratégia'), phase:ph('Planejamento'), status:'Concluído',
+      startDate:addDays(T,-47), dueDate:addDays(T,-43), owner:'Você', priority:'Média', importance:5, percent:100,
+      completedAt:addDays(T,-43), favorite:true, tags:['kickoff']}),
+    mk({name:'Definir público-alvo', category:cat('Estratégia'), phase:ph('Planejamento'), status:'Concluído',
+      startDate:addDays(T,-42), dueDate:addDays(T,-38), owner:'Você', priority:'Média', importance:4, percent:100, completedAt:addDays(T,-38)}),
+    mk({name:'Definir orçamento', category:cat('Financeiro'), phase:ph('Planejamento'), status:'Em andamento',
+      startDate:addDays(T,-40), dueDate:addDays(T,2), owner:'Você', priority:'Alta', importance:5, percent:60, tags:['orçamento']}),
+    mk({name:'Criar Landing Page', category:cat('Site / Landing Page'), phase:ph('Preparação'), status:'Em andamento',
+      startDate:addDays(T,-30), dueDate:addDays(T,-1), owner:'Marina', priority:'Alta', importance:5, favorite:true,
+      checklist:[
+        {id:uid('c'),text:'Definir copy',done:true},{id:uid('c'),text:'Criar estrutura',done:true},
+        {id:uid('c'),text:'Criar design',done:true},{id:uid('c'),text:'Configurar formulário',done:false},
+        {id:uid('c'),text:'Configurar pixel',done:false},{id:uid('c'),text:'Revisar',done:false},{id:uid('c'),text:'Publicar',done:false}
+      ], tags:['site','urgente']}),
+    mk({name:'Configurar ferramentas', category:cat('Tecnologia'), phase:ph('Preparação'), status:'Concluído',
+      startDate:addDays(T,-33), dueDate:addDays(T,-25), owner:'Carlos', priority:'Média', importance:3, percent:100, completedAt:addDays(T,-25)}),
+    mk({name:'Criar identidade visual', category:cat('Design'), phase:ph('Preparação'), status:'Em andamento',
+      startDate:addDays(T,-28), dueDate:addDays(T,4), owner:'Ana', priority:'Média', importance:4, percent:40}),
+    mk({name:'Revisar contrato com fornecedor', category:cat('Administrativo'), phase:ph('Preparação'), status:'Aguardando terceiros',
+      startDate:addDays(T,-10), dueDate:addDays(T,-3), owner:'Você', priority:'Alta', importance:4, percent:20, tags:['jurídico']}),
+    tCriativos,
+    mk({name:'Criar conteúdos', category:cat('Conteúdo'), phase:ph('Execução'), status:'Em andamento',
+      startDate:addDays(T,-13), dueDate:T, owner:'Marina', priority:'Alta', importance:4, percent:70}),
+    tCampanha,
+    mk({name:'Planejar divulgação', category:cat('Marketing'), phase:ph('Execução'), status:'Não iniciado',
+      startDate:T, dueDate:addDays(T,11), owner:'Carlos', priority:'Média', importance:3, percent:0}),
+    mk({name:'Testar parceria com influenciador', category:cat('Parcerias'), phase:ph('Execução'), status:'Pausado',
+      startDate:addDays(T,-5), dueDate:addDays(T,20), owner:'Ana', priority:'Baixa', importance:2, percent:10}),
+    mk({name:'Iniciar campanha', category:cat('Tráfego pago'), phase:ph('Lançamento'), status:'Não iniciado',
+      startDate:addDays(T,16), dueDate:addDays(T,20), owner:'Carlos', priority:'Urgente', importance:5, percent:0, dependencies:[tCampanha.id]}),
+    mk({name:'Monitorar resultados', category:cat('Tráfego pago'), phase:ph('Lançamento'), status:'Não iniciado',
+      startDate:addDays(T,21), dueDate:addDays(T,35), owner:'Você', priority:'Média', importance:3, percent:0}),
+    mk({name:'Fazer ajustes', category:cat('Operacional'), phase:ph('Lançamento'), status:'Não iniciado',
+      startDate:addDays(T,30), dueDate:addDays(T,40), owner:'Você', priority:'Baixa', importance:2, percent:0}),
+    mk({name:'Imprimir banners físicos', category:cat('Eventos'), phase:ph('Lançamento'), status:'Cancelado',
+      startDate:addDays(T,-8), dueDate:addDays(T,-2), owner:'Marina', priority:'Baixa', importance:1, percent:0})
+  ];
+  st.tasks = tasks;
+
+  st.ideas = [
+    {id:uid('i'), title:'Criar programa de indicação', description:'Recompensar clientes que indicarem novos compradores.', category:cat('Comercial'), importance:3, createdAt:new Date().toISOString(), isDemo:true},
+    {id:uid('i'), title:'Parceria com micro-influenciadores', description:'Buscar criadores de nicho para ampliar alcance orgânico.', category:cat('Parcerias'), importance:4, createdAt:new Date().toISOString(), isDemo:true},
+    {id:uid('i'), title:'Testar anúncios em nova plataforma', description:'Avaliar canais alternativos de tráfego pago além dos usuais.', category:cat('Tráfego pago'), importance:3, createdAt:new Date().toISOString(), isDemo:true}
+  ];
+
+  st.history = tasks.map(t=>({id:uid('h'), date:t.createdAt, action:'Tarefa criada', taskName:t.name, details:'Dado de demonstração'}));
+}
+
+/* ---------------------------------------------------------------------
+   5. HELPERS DERIVADOS
+--------------------------------------------------------------------- */
+function getTask(id){ return state.tasks.find(t=>t.id===id); }
+function getPhase(id){ return state.phases.find(p=>p.id===id); }
+function getCategory(id){ return state.categories.find(c=>c.id===id); }
+
+function taskPercent(t){
+  if(t.status==='Concluído') return 100;
+  if(t.checklist && t.checklist.length){
+    const done = t.checklist.filter(c=>c.done).length;
+    return Math.round(done/t.checklist.length*100);
+  }
+  return clamp(t.percent||0,0,100);
+}
+function isFinished(t){ return t.status==='Concluído' || t.status==='Cancelado'; }
+function isOverdue(t){ return !isFinished(t) && t.dueDate && t.dueDate < todayISO(); }
+function isDueToday(t){ return !isFinished(t) && t.dueDate === todayISO(); }
+function isDueWithin(t,days){ return !isFinished(t) && t.dueDate && t.dueDate>=todayISO() && daysBetween(todayISO(),t.dueDate)<=days; }
+function isBlocked(t){ return (t.dependencies||[]).some(id=>{ const d=getTask(id); return d && d.status!=='Concluído'; }); }
+function blockedByNames(t){ return (t.dependencies||[]).map(id=>getTask(id)).filter(d=>d && d.status!=='Concluído').map(d=>d.name); }
+
+/* Pontuação usada em "Próximas ações" / "Atenção hoje": quanto maior, mais urgente */
+function taskScore(t){
+  if(isFinished(t)) return -9999;
+  let score = 0;
+  if(isOverdue(t)) score += 1000 + Math.min(60, -daysBetween(todayISO(),t.dueDate))*2;
+  else if(t.dueDate){ const dleft = daysBetween(todayISO(),t.dueDate); score += Math.max(0, 200 - dleft*6); }
+  score += {Baixa:0,Média:15,Alta:35,Urgente:60}[t.priority]||0;
+  score += (t.importance||1)*12;
+  if(t.status==='Em andamento') score += 10;
+  if(t.status==='Não iniciado') score += 4;
+  if(t.favorite) score += 8;
+  return score;
+}
+
+function getFilteredTasks(){
+  const s = filters.search.trim().toLowerCase();
+  return state.tasks.filter(t=>{
+    if(filters.status && t.status!==filters.status) return false;
+    if(filters.priority && t.priority!==filters.priority) return false;
+    if(filters.importance && String(t.importance)!==String(filters.importance)) return false;
+    if(filters.category && t.category!==filters.category) return false;
+    if(filters.phase && t.phase!==filters.phase) return false;
+    if(filters.owner && t.owner!==filters.owner) return false;
+    if(filters.dateFrom && (!t.dueDate || t.dueDate<filters.dateFrom)) return false;
+    if(filters.dateTo && (!t.dueDate || t.dueDate>filters.dateTo)) return false;
+    if(filters.onlyOverdue && !isOverdue(t)) return false;
+    if(filters.onlyCompleted && t.status!=='Concluído') return false;
+    if(filters.onlyFavorite && !t.favorite) return false;
+    if(s){
+      const hay = (t.name+' '+t.description+' '+(t.tags||[]).join(' ')+' '+t.owner).toLowerCase();
+      if(!hay.includes(s)) return false;
+    }
+    return true;
+  });
+}
+function clearFilters(){
+  filters = {status:'',priority:'',importance:'',category:'',phase:'',owner:'',dateFrom:'',dateTo:'',onlyOverdue:false,onlyCompleted:false,onlyFavorite:false,search:filters.search};
+  renderCurrentView();
+}
+function onSearchInput(v){ filters.search=v; renderCurrentView(); }
+
+/* ---------------------------------------------------------------------
+   6. NAVEGAÇÃO
+--------------------------------------------------------------------- */
+const VIEW_RENDERERS = {
+  dashboard: renderDashboardView,
+  tasks: renderTasksView,
+  kanban: renderKanbanView,
+  gantt: renderGanttView,
+  calendar: renderCalendarView,
+  ideas: renderIdeasView,
+  history: renderHistoryView,
+  settings: renderSettingsView
+};
+const VIEW_TITLES = {dashboard:'Dashboard', tasks:'Tarefas', kanban:'Kanban', gantt:'Cronograma', calendar:'Calendário', ideas:'Banco de Ideias', history:'Histórico', settings:'Configurações'};
+
+function buildSidebarNav(){
+  const nav = document.getElementById('navList');
+  nav.innerHTML = NAV_ITEMS.map(it=>`
+    <li class="nav-item ${it.id===currentView?'active':''}" data-nav="${it.id}" onclick="switchView('${it.id}')">
+      ${svgIcon(it.icon)}<span>${it.label}</span>
+    </li>`).join('');
+}
+function switchView(id){
+  currentView = id;
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+  document.getElementById('view-'+id).classList.add('active');
+  document.getElementById('pageTitle').textContent = VIEW_TITLES[id];
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.toggle('active', n.dataset.nav===id));
+  closeSidebar();
+  renderCurrentView();
+}
+function renderCurrentView(){ (VIEW_RENDERERS[currentView]||function(){})(); }
+function renderAll(){ save(); renderCurrentView(); }
+
+function openSidebar(){ document.getElementById('sidebar').classList.add('open'); document.getElementById('scrim').classList.add('open'); }
+function closeSidebar(){ document.getElementById('sidebar').classList.remove('open'); document.getElementById('scrim').classList.remove('open'); }
+
+/* ---------------------------------------------------------------------
+   7. TEMA
+--------------------------------------------------------------------- */
+function applyTheme(){
+  const dark = state.settings.theme==='dark';
+  document.documentElement.setAttribute('data-theme', dark?'dark':'light');
+  document.getElementById('themeSwitch').checked = dark;
+  document.getElementById('themeLabel').textContent = dark?'Tema escuro':'Tema claro';
+}
+function toggleTheme(){ state.settings.theme = state.settings.theme==='dark'?'light':'dark'; applyTheme(); save(); }
+
+/* ---------------------------------------------------------------------
+   8. TOAST + MODAL GENÉRICOS
+--------------------------------------------------------------------- */
+function toast(msg, type){
+  const c = document.getElementById('toast-container');
+  const el = document.createElement('div');
+  el.className='toast';
+  el.style.borderLeft = '3px solid '+(type==='error'?'#ef4444':type==='warn'?'#f59e0b':'#22c55e');
+  el.textContent = msg;
+  c.appendChild(el);
+  requestAnimationFrame(()=>el.classList.add('show'));
+  setTimeout(()=>{ el.classList.remove('show'); setTimeout(()=>el.remove(),250); }, 3000);
+}
+function openModal(id){ document.getElementById(id).classList.add('open'); }
+function closeModal(id){ document.getElementById(id).classList.remove('open'); }
+function confirmAction(msg, onOk, title){
+  document.getElementById('confirmTitle').textContent = title||'Confirmar ação';
+  document.getElementById('confirmMsg').textContent = msg;
+  const btn = document.getElementById('confirmOkBtn');
+  const newBtn = btn.cloneNode(true); btn.parentNode.replaceChild(newBtn, btn);
+  newBtn.addEventListener('click', ()=>{ closeModal('modalConfirm'); onOk(); });
+  openModal('modalConfirm');
+}
+
+/* ---------------------------------------------------------------------
+   9. BADGES / RENDER HELPERS COMPARTILHADOS
+--------------------------------------------------------------------- */
+function statusBadge(status){
+  const c = STATUS_COLOR[status]||'#999';
+  return `<span class="badge" style="background:${c}22;color:${c}"><span class="dot" style="background:${c}"></span>${escapeHtml(status)}</span>`;
+}
+function priorityBadge(p){
+  const c = PRIORITY_COLOR[p]||'#999';
+  return `<span class="badge" style="background:${c}22;color:${c}">${escapeHtml(p)}</span>`;
+}
+function importanceBadge(v){
+  const imp = IMPORTANCE_LIST.find(i=>i.v===Number(v))||IMPORTANCE_LIST[0];
+  return `<span class="badge" style="background:${imp.color}22;color:${imp.color}">${imp.short}</span>`;
+}
+function categoryBadge(catId){
+  const c = getCategory(catId);
+  if(!c) return '<span class="tag">Sem categoria</span>';
+  return `<span class="badge" style="background:${c.color}22;color:${c.color}">${escapeHtml(c.name)}</span>`;
+}
+function phaseName(phId){ const p=getPhase(phId); return p?p.name:'Sem fase'; }
+function ownerOptions(){
+  const owners = Array.from(new Set(state.tasks.map(t=>t.owner).filter(Boolean)));
+  return owners;
+}
+function selectOptions(list, value, allLabel){
+  let html = allLabel!==undefined ? `<option value="">${allLabel}</option>` : '';
+  list.forEach(v=>{ const val = typeof v==='object'? v.id : v; const label = typeof v==='object'? v.name : v;
+    html += `<option value="${val}" ${String(value)===String(val)?'selected':''}>${escapeHtml(label)}</option>`; });
+  return html;
+}
+function taskRowClasses(t){
+  const cls=[]; if(isOverdue(t)) cls.push('row-overdue'); else if(isDueWithin(t,3)) cls.push('row-duesoon'); if(t.status==='Concluído') cls.push('row-done');
+  return cls.join(' ');
+}
+function dueLabel(t){
+  if(!t.dueDate) return '<span style="color:var(--text-faint)">—</span>';
+  if(isOverdue(t)) return `<span style="color:var(--danger);font-weight:800">${fmtBR(t.dueDate)} ⚠️</span>`;
+  if(isDueToday(t)) return `<span style="color:var(--warning);font-weight:800">${fmtBR(t.dueDate)} (hoje)</span>`;
+  if(isDueWithin(t,3)) return `<span style="color:var(--warning);font-weight:800">${fmtBR(t.dueDate)}</span>`;
+  return fmtBR(t.dueDate);
+}
+function taskProgressMini(t){
+  const p = taskPercent(t);
+  return `<div class="progress-row" style="min-width:90px"><div class="progress"><span style="width:${p}%;background:${p===100?'var(--success)':'var(--primary)'}"></span></div><span class="pct">${p}%</span></div>`;
+}
+
+/* ---------------------------------------------------------------------
+   10. DASHBOARD (#1, #10, #11)
+--------------------------------------------------------------------- */
+function computeStats(){
+  const tasks = state.tasks;
+  const total = tasks.length;
+  const done = tasks.filter(t=>t.status==='Concluído').length;
+  const doing = tasks.filter(t=>t.status==='Em andamento').length;
+  const overdue = tasks.filter(isOverdue).length;
+  const notStarted = tasks.filter(t=>t.status==='Não iniciado' || t.status==='Ideia').length;
+  const urgent = tasks.filter(t=>t.priority==='Urgente' && !isFinished(t)).length;
+  const overallPct = total? Math.round(tasks.reduce((s,t)=>s+taskPercent(t),0)/total) : 0;
+  return {total,done,doing,overdue,notStarted,urgent,overallPct};
+}
+
+function renderDashboardView(){
+  const el = document.getElementById('view-dashboard');
+  const s = computeStats();
+  const p = state.project;
+
+  el.innerHTML = `
+    <div class="panel">
+      <div class="panel-head">
+        <div>
+          <h3>${escapeHtml(p.name)}</h3>
+          <p style="font-size:12.5px;color:var(--text-muted);margin-top:4px;max-width:640px">${escapeHtml(p.description)}</p>
+        </div>
+        <button class="btn btn-sm" onclick="switchView('settings')">${svgIcon('edit')} Editar projeto</button>
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:22px;font-size:12.5px;color:var(--text-muted);margin-top:6px">
+        <div><b style="color:var(--text)">Início:</b> ${fmtBR(p.startDate)}</div>
+        <div><b style="color:var(--text)">Conclusão prevista:</b> ${fmtBR(p.endDate)}</div>
+        <div><b style="color:var(--text)">Responsável:</b> ${escapeHtml(p.owner)||'—'}</div>
+      </div>
+    </div>
+
+    <div class="grid-cards">
+      <div class="stat-card"><div class="lbl">Progresso geral</div><div class="val">${s.overallPct}%</div><div class="progress" style="margin-top:8px"><span style="width:${s.overallPct}%"></span></div></div>
+      <div class="stat-card"><div class="lbl">Total de tarefas</div><div class="val">${s.total}</div></div>
+      <div class="stat-card"><div class="lbl">Concluídas</div><div class="val" style="color:var(--success)">${s.done}</div></div>
+      <div class="stat-card"><div class="lbl">Em andamento</div><div class="val" style="color:var(--info)">${s.doing}</div></div>
+      <div class="stat-card"><div class="lbl">Atrasadas</div><div class="val" style="color:var(--danger)">${s.overdue}</div></div>
+      <div class="stat-card"><div class="lbl">Não iniciadas</div><div class="val" style="color:var(--text-muted)">${s.notStarted}</div></div>
+    </div>
+
+    <div class="dash-grid">
+      <div class="col">
+        ${renderAlertsPanel()}
+        ${renderAttentionTodayPanel()}
+        ${renderNextActionsPanel()}
+      </div>
+      <div class="col">
+        ${renderChartsPanel()}
+        ${renderPhaseProgressPanel()}
+        ${renderNotesPanel()}
+      </div>
+    </div>
+  `;
+  drawDashboardCharts();
+}
+
+function renderAlertsPanel(){
+  const overdue = state.tasks.filter(isOverdue).length;
+  const dueToday = state.tasks.filter(isDueToday).length;
+  const due3 = state.tasks.filter(t=>isDueWithin(t,3) && !isDueToday(t)).length;
+  const urgent = state.tasks.filter(t=>t.priority==='Urgente' && !isFinished(t)).length;
+  const importantNotStarted = state.tasks.filter(t=>t.importance>=4 && (t.status==='Não iniciado'||t.status==='Ideia')).length;
+  const items = [
+    {label:'Tarefas atrasadas', count:overdue, color:'danger', filter:{onlyOverdue:true}},
+    {label:'Vencendo hoje', count:dueToday, color:'warning', filter:{dateFrom:todayISO(),dateTo:todayISO()}},
+    {label:'Vencendo nos próximos 3 dias', count:due3, color:'warning', filter:{dateFrom:addDays(todayISO(),1),dateTo:addDays(todayISO(),3)}},
+    {label:'Tarefas urgentes', count:urgent, color:'danger', filter:{priority:'Urgente'}},
+    {label:'Importantes ainda não iniciadas', count:importantNotStarted, color:'info', filter:{status:'Não iniciado'}}
+  ];
+  return `<div class="panel">
+    <div class="panel-head"><h3>⚡ Alertas inteligentes</h3></div>
+    <div class="alert-list">
+      ${items.map(it=>`
+        <div class="alert-item" style="background:var(--${it.color}-soft);color:var(--${it.color})" onclick='goFilteredTasks(${JSON.stringify(it.filter)})'>
+          ${it.label}<span class="count">${it.count}</span>
+        </div>`).join('')}
+    </div>
+  </div>`;
+}
+function goFilteredTasks(f){
+  clearFiltersSilent();
+  Object.assign(filters, f);
+  switchView('tasks');
+}
+function clearFiltersSilent(){ filters = {status:'',priority:'',importance:'',category:'',phase:'',owner:'',dateFrom:'',dateTo:'',onlyOverdue:false,onlyCompleted:false,onlyFavorite:false,search:''}; }
+
+function renderAttentionTodayPanel(){
+  const list = state.tasks.filter(t=>!isFinished(t)).map(t=>({t,score:taskScore(t)})).sort((a,b)=>b.score-a.score).slice(0,5).map(x=>x.t);
+  return `<div class="panel">
+    <div class="panel-head"><h3>🎯 O que precisa da minha atenção hoje?</h3></div>
+    ${list.length? `<div class="attn-grid">${list.map(t=>`
+      <div class="attn-card" onclick="openTaskModal('${t.id}')" style="cursor:pointer">
+        <div class="attn-title">${escapeHtml(t.name)}</div>
+        <div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:6px">${statusBadge(t.status)}${priorityBadge(t.priority)}</div>
+        <div style="font-size:11.5px;color:var(--text-muted)">Prazo: ${dueLabel(t)}</div>
+      </div>`).join('')}</div>` : '<div class="empty-state">Nada urgente por aqui. 🎉</div>'}
+  </div>`;
+}
+
+function renderNextActionsPanel(){
+  const list = state.tasks.filter(t=>!isFinished(t)).map(t=>({t,score:taskScore(t)})).sort((a,b)=>b.score-a.score).slice(0,8).map(x=>x.t);
+  return `<div class="panel">
+    <div class="panel-head"><h3>📌 Próximas ações</h3><span class="hint">Ordenado por prazo, prioridade e importância</span></div>
+    ${list.length? `<ul>${list.map(t=>`
+      <li style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border)">
+        <button class="star-btn ${t.favorite?'active':''}" onclick="toggleFavorite('${t.id}')">${svgIcon('star')}</button>
+        <div style="flex:1;min-width:0;cursor:pointer" onclick="openTaskModal('${t.id}')">
+          <div style="font-weight:700;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHtml(t.name)}</div>
+          <div style="font-size:11px;color:var(--text-muted)">${phaseName(t.phase)} · ${categoryBadge(t.category)}</div>
+        </div>
+        ${priorityBadge(t.priority)}
+        <div style="font-size:11.5px;min-width:80px;text-align:right">${dueLabel(t)}</div>
+      </li>`).join('')}</ul>` : '<div class="empty-state">Nenhuma ação pendente.</div>'}
+  </div>`;
+}
+
+function renderChartsPanel(){
+  return `<div class="panel">
+    <div class="panel-head"><h3>📊 Progresso por status e prioridade</h3></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+      <div><canvas id="chartStatus" height="170"></canvas></div>
+      <div><canvas id="chartPriority" height="170"></canvas></div>
+    </div>
+  </div>`;
+}
+function renderPhaseProgressPanel(){
+  const rows = state.phases.map(ph=>{
+    const ts = state.tasks.filter(t=>t.phase===ph.id);
+    const done = ts.filter(t=>t.status==='Concluído').length;
+    const pct = ts.length? Math.round(ts.reduce((s,t)=>s+taskPercent(t),0)/ts.length) : 0;
+    return `<div style="margin-bottom:12px">
+      <div style="display:flex;justify-content:space-between;font-size:12.5px;font-weight:700;margin-bottom:5px">
+        <span>${escapeHtml(ph.name)}</span><span style="color:var(--text-muted)">${done}/${ts.length} · ${pct}%</span>
+      </div>
+      <div class="progress"><span style="width:${pct}%"></span></div>
+    </div>`;
+  }).join('');
+  return `<div class="panel"><div class="panel-head"><h3>🗂️ Progresso por fase</h3></div>${rows||'<div class="empty-state">Nenhuma fase cadastrada.</div>'}</div>`;
+}
+function renderNotesPanel(){
+  return `<div class="panel">
+    <div class="panel-head"><h3>📝 Anotações rápidas</h3></div>
+    <textarea id="projectNotes" placeholder="Escreva lembretes e observações gerais do projeto..." style="min-height:110px" oninput="saveNotesDebounced(this.value)">${escapeHtml(state.project.notes)}</textarea>
+  </div>`;
+}
+let notesTimer=null;
+function saveNotesDebounced(v){ state.project.notes=v; clearTimeout(notesTimer); notesTimer=setTimeout(()=>save(),400); }
+
+function drawDashboardCharts(){
+  if(typeof Chart==='undefined') return;
+  const cssVar = n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+  const statusCounts = STATUS_LIST.map(s=>state.tasks.filter(t=>t.status===s).length);
+  const ctx1 = document.getElementById('chartStatus');
+  if(ctx1){ new Chart(ctx1, {type:'doughnut', data:{labels:STATUS_LIST, datasets:[{data:statusCounts, backgroundColor:STATUS_LIST.map(s=>STATUS_COLOR[s])}]},
+    options:{plugins:{legend:{display:false}},cutout:'62%'}}); }
+  const prioCounts = PRIORITY_LIST.map(p=>state.tasks.filter(t=>t.priority===p).length);
+  const ctx2 = document.getElementById('chartPriority');
+  if(ctx2){ new Chart(ctx2, {type:'bar', data:{labels:PRIORITY_LIST, datasets:[{data:prioCounts, backgroundColor:PRIORITY_LIST.map(p=>PRIORITY_COLOR[p])}]},
+    options:{plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{precision:0}}}}}); }
+}
+
+/* ---------------------------------------------------------------------
+   11. VIEW: TAREFAS (LISTA / TABELA) — #2, #3, #4, #5, #8
+--------------------------------------------------------------------- */
+function renderTasksView(){
+  const el = document.getElementById('view-tasks');
+  const owners = ownerOptions();
+  el.innerHTML = `
+    <div class="phase-chips">${state.phases.map(ph=>{
+      const ts = state.tasks.filter(t=>t.phase===ph.id);
+      const done = ts.filter(t=>t.status==='Concluído').length;
+      const pct = ts.length? Math.round(ts.reduce((s,t)=>s+taskPercent(t),0)/ts.length):0;
+      return `<div class="phase-chip ${ph.collapsed?'collapsed':''}" onclick="togglePhaseCollapse('${ph.id}')" title="Clique para recolher/expandir">
+        <div class="ph-name"><span>${escapeHtml(ph.name)}</span><span>${svgIcon('chevDown',`style="width:14px;height:14px;transform:rotate(${ph.collapsed?'-90deg':'0deg'})"`)}</span></div>
+        <div style="font-size:11px;color:var(--text-muted);margin-bottom:5px">${done}/${ts.length} concluídas</div>
+        <div class="progress"><span style="width:${pct}%"></span></div>
+      </div>`;
+    }).join('')}</div>
+
+    <div class="filter-bar">
+      <select onchange="filters.status=this.value;renderCurrentView()">${selectOptions(STATUS_LIST, filters.status, 'Todos os status')}</select>
+      <select onchange="filters.priority=this.value;renderCurrentView()">${selectOptions(PRIORITY_LIST, filters.priority, 'Todas prioridades')}</select>
+      <select onchange="filters.importance=this.value;renderCurrentView()">${selectOptions(IMPORTANCE_LIST.map(i=>({id:i.v,name:i.label})), filters.importance, 'Toda importância')}</select>
+      <select onchange="filters.category=this.value;renderCurrentView()">${selectOptions(state.categories, filters.category, 'Todas categorias')}</select>
+      <select onchange="filters.phase=this.value;renderCurrentView()">${selectOptions(state.phases, filters.phase, 'Todas fases')}</select>
+      <select onchange="filters.owner=this.value;renderCurrentView()">${selectOptions(owners, filters.owner, 'Todos responsáveis')}</select>
+      <input type="date" value="${filters.dateFrom}" onchange="filters.dateFrom=this.value;renderCurrentView()" title="Prazo a partir de">
+      <input type="date" value="${filters.dateTo}" onchange="filters.dateTo=this.value;renderCurrentView()" title="Prazo até">
+      <label class="checkline"><input type="checkbox" ${filters.onlyOverdue?'checked':''} onchange="filters.onlyOverdue=this.checked;renderCurrentView()"> Atrasadas</label>
+      <label class="checkline"><input type="checkbox" ${filters.onlyCompleted?'checked':''} onchange="filters.onlyCompleted=this.checked;renderCurrentView()"> Concluídas</label>
+      <label class="checkline"><input type="checkbox" ${filters.onlyFavorite?'checked':''} onchange="filters.onlyFavorite=this.checked;renderCurrentView()"> ⭐ Favoritas</label>
+      <button class="btn btn-sm btn-ghost" onclick="clearFilters()">${svgIcon('x')} Limpar filtros</button>
+      <div class="spacer"></div>
+      <button class="btn btn-sm" onclick="exportCSV()">${svgIcon('download')} CSV</button>
+      <button class="btn btn-sm" onclick="printView('gantt')">${svgIcon('printer')} Imprimir</button>
+    </div>
+
+    <div class="table-wrap"><table>
+      <thead><tr>
+        <th style="width:26px"></th>
+        <th onclick="setSort('name')">Tarefa</th>
+        <th onclick="setSort('category')">Categoria</th>
+        <th onclick="setSort('status')">Status</th>
+        <th onclick="setSort('priority')">Prioridade</th>
+        <th onclick="setSort('importance')">Importância</th>
+        <th onclick="setSort('percent')">%</th>
+        <th onclick="setSort('startDate')">Início</th>
+        <th onclick="setSort('dueDate')">Prazo</th>
+        <th onclick="setSort('owner')">Responsável</th>
+        <th>Ações</th>
+      </tr></thead>
+      <tbody>${renderTaskTableBody()}</tbody>
+    </table></div>
+  `;
+}
+
+function togglePhaseCollapse(id){ const ph=getPhase(id); ph.collapsed=!ph.collapsed; save(); renderCurrentView(); }
+
+function setSort(field){
+  if(sortState.field===field) sortState.dir = sortState.dir==='asc'?'desc':'asc';
+  else { sortState.field=field; sortState.dir='asc'; }
+  renderCurrentView();
+}
+function sortTasks(list){
+  const f=sortState.field, dir=sortState.dir==='asc'?1:-1;
+  return list.slice().sort((a,b)=>{
+    let av,bv;
+    if(f==='percent'){ av=taskPercent(a); bv=taskPercent(b); }
+    else if(f==='category'){ av=(getCategory(a.category)||{}).name||''; bv=(getCategory(b.category)||{}).name||''; }
+    else { av=a[f]||''; bv=b[f]||''; }
+    if(av<bv) return -1*dir; if(av>bv) return 1*dir; return 0;
+  });
+}
+
+function renderTaskTableBody(){
+  const filtered = getFilteredTasks();
+  let html = '';
+  const grouped = state.phases.slice().sort((a,b)=>a.order-b.order);
+  grouped.forEach(ph=>{
+    const ts = sortTasks(filtered.filter(t=>t.phase===ph.id));
+    if(!ts.length && (filters.phase && filters.phase!==ph.id)) return;
+    const allTs = state.tasks.filter(t=>t.phase===ph.id);
+    const done = allTs.filter(t=>t.status==='Concluído').length;
+    const pct = allTs.length? Math.round(allTs.reduce((s,t)=>s+taskPercent(t),0)/allTs.length):0;
+    html += `<tr class="phase-row"><td colspan="11">
+      <div class="ph-toggle" onclick="togglePhaseCollapse('${ph.id}')">
+        ${svgIcon('chevDown',`style="width:14px;height:14px;transform:rotate(${ph.collapsed?'-90deg':'0deg'})"`)}
+        <span>${escapeHtml(ph.name)}</span>
+        <span style="color:var(--text-muted);font-weight:600">${allTs.length} tarefas · ${done} concluídas · ${pct}%</span>
+      </div></td></tr>`;
+    if(!ph.collapsed){
+      if(!ts.length) html += `<tr><td colspan="11"><div class="empty-state">Nenhuma tarefa nesta fase com os filtros atuais.</div></td></tr>`;
+      ts.forEach(t=> html += taskTableRow(t));
+    }
+  });
+  const noPhaseTasks = sortTasks(filtered.filter(t=>!getPhase(t.phase)));
+  if(noPhaseTasks.length){
+    html += `<tr class="phase-row"><td colspan="11">Sem fase</td></tr>`;
+    noPhaseTasks.forEach(t=> html += taskTableRow(t));
+  }
+  if(!filtered.length) html += `<tr><td colspan="11"><div class="empty-state">Nenhuma tarefa encontrada. Ajuste os filtros ou crie uma nova tarefa.</div></td></tr>`;
+  return html;
+}
+
+function taskTableRow(t){
+  return `<tr class="${taskRowClasses(t)}">
+    <td><button class="star-btn ${t.favorite?'active':''}" onclick="toggleFavorite('${t.id}')">${svgIcon('star')}</button></td>
+    <td><div class="task-name-cell" onclick="openTaskModal('${t.id}')">
+        ${t.status==='Concluído'?`<span style="color:var(--success)">${svgIcon('check',`style="width:15px;height:15px"`)}</span>`:''}
+        ${escapeHtml(t.name)} ${isBlocked(t)?`<span title="Bloqueada por: ${escapeHtml(blockedByNames(t).join(', '))}">${svgIcon('lock',`style="width:13px;height:13px;color:var(--warning)"`)}</span>`:''}
+      </div>
+      ${t.tags&&t.tags.length? `<div>${t.tags.map(tg=>`<span class="tag">#${escapeHtml(tg)}</span>`).join('')}</div>`:''}
+    </td>
+    <td>${categoryBadge(t.category)}</td>
+    <td><select class="mini-select" onchange="quickChangeStatus('${t.id}',this.value)">${selectOptions(STATUS_LIST.map(s=>({id:s,name:s})), t.status)}</select></td>
+    <td><select class="mini-select" onchange="quickChangePriority('${t.id}',this.value)">${selectOptions(PRIORITY_LIST.map(p=>({id:p,name:p})), t.priority)}</select></td>
+    <td>${importanceBadge(t.importance)}</td>
+    <td>${taskProgressMini(t)}</td>
+    <td>${fmtBR(t.startDate)}</td>
+    <td>${dueLabel(t)}</td>
+    <td>${escapeHtml(t.owner)||'—'}</td>
+    <td class="actions-cell">
+      ${t.status==='Concluído'
+        ? `<button class="btn btn-icon btn-ghost" title="Reabrir" onclick="reopenTask('${t.id}')">${svgIcon('undo')}</button>`
+        : `<button class="btn btn-icon btn-ghost" title="Concluir" onclick="completeTask('${t.id}')">${svgIcon('check')}</button>`}
+      <button class="btn btn-icon btn-ghost" title="Editar" onclick="openTaskModal('${t.id}')">${svgIcon('edit')}</button>
+      <button class="btn btn-icon btn-ghost" title="Duplicar" onclick="duplicateTask('${t.id}')">${svgIcon('copy')}</button>
+      <button class="btn btn-icon btn-ghost" title="Excluir" onclick="deleteTask('${t.id}')">${svgIcon('trash')}</button>
+    </td>
+  </tr>`;
+}
+
+/* ---------------------------------------------------------------------
+   12. AÇÕES RÁPIDAS SOBRE TAREFAS — #3
+--------------------------------------------------------------------- */
+function toggleFavorite(id){ const t=getTask(id); if(!t) return; t.favorite=!t.favorite; t.updatedAt=new Date().toISOString(); renderAll(); }
+
+function completeTask(id){
+  const t=getTask(id); if(!t) return;
+  t.status='Concluído'; t.percent=100; t.completedAt=todayISO(); t.updatedAt=new Date().toISOString();
+  if(t.checklist&&t.checklist.length) t.checklist.forEach(c=>c.done=true);
+  addHistory('Tarefa concluída', t.name);
+  renderAll(); toast('Tarefa marcada como concluída ✅');
+}
+function reopenTask(id){
+  const t=getTask(id); if(!t) return;
+  t.status='Em andamento'; t.completedAt=null; t.updatedAt=new Date().toISOString();
+  addHistory('Mudança de status', t.name, 'Reaberta (Concluído → Em andamento)');
+  renderAll(); toast('Tarefa reaberta');
+}
+function quickChangeStatus(id, newStatus){
+  const t=getTask(id); if(!t) return;
+  const old = t.status; t.status = newStatus; t.updatedAt=new Date().toISOString();
+  if(newStatus==='Concluído'){ t.percent=100; t.completedAt=todayISO(); if(t.checklist) t.checklist.forEach(c=>c.done=true); }
+  else if(old==='Concluído'){ t.completedAt=null; }
+  addHistory('Mudança de status', t.name, `${old} → ${newStatus}`);
+  renderAll();
+}
+function quickChangePriority(id, newPriority){
+  const t=getTask(id); if(!t) return;
+  const old=t.priority; t.priority=newPriority; t.updatedAt=new Date().toISOString();
+  addHistory('Tarefa editada', t.name, `Prioridade: ${old} → ${newPriority}`);
+  renderAll();
+}
+function duplicateTask(id){
+  const t=getTask(id); if(!t) return;
+  const copy = JSON.parse(JSON.stringify(t));
+  copy.id = uid('t'); copy.name = t.name+' (cópia)'; copy.status='Não iniciado'; copy.percent=0; copy.completedAt=null;
+  copy.checklist = (t.checklist||[]).map(c=>({id:uid('c'),text:c.text,done:false}));
+  copy.createdAt = new Date().toISOString(); copy.updatedAt = copy.createdAt; copy.isDemo=false;
+  state.tasks.push(copy);
+  addHistory('Tarefa criada', copy.name, 'Duplicada de "'+t.name+'"');
+  renderAll(); toast('Tarefa duplicada');
+}
+function deleteTask(id){
+  const t=getTask(id); if(!t) return;
+  confirmAction(`Excluir a tarefa "${t.name}"? Essa ação não pode ser desfeita.`, ()=>{
+    state.tasks = state.tasks.filter(x=>x.id!==id);
+    state.tasks.forEach(x=>{ x.dependencies = (x.dependencies||[]).filter(d=>d!==id); });
+    addHistory('Tarefa excluída', t.name);
+    renderAll(); toast('Tarefa excluída', 'warn');
+  }, 'Excluir tarefa');
+}
+
+/* ---------------------------------------------------------------------
+   13. MODAL DE TAREFA — criação/edição (#2, #18)
+--------------------------------------------------------------------- */
+function openTaskModal(id, prefill){
+  editingTaskId = id || null;
+  const t = id ? getTask(id) : Object.assign({
+    name:'', description:'', category:state.categories[0]?.id||'', phase:state.phases[0]?.id||'',
+    startDate:todayISO(), dueDate:addDays(todayISO(),7), owner:'', status:'Não iniciado', priority:'Média',
+    importance:3, percent:0, tags:[], links:'', notes:'', favorite:false, dependencies:[], checklist:[]
+  }, prefill||{});
+  tempChecklist = (t.checklist||[]).map(c=>({...c}));
+  tempDeps = (t.dependencies||[]).slice();
+
+  document.getElementById('taskModalTitle').textContent = id ? 'Editar tarefa' : 'Nova tarefa';
+  document.getElementById('taskModalBody').innerHTML = `
+    <div class="form-group"><label>Nome da tarefa *</label><input type="text" id="f_name" value="${escapeHtml(t.name)}" placeholder="Ex: Criar campanha de anúncios"></div>
+    <div class="form-group"><label>Descrição / observações</label><textarea id="f_description" placeholder="Detalhes sobre a tarefa...">${escapeHtml(t.description)}</textarea></div>
+
+    <div class="form-row">
+      <div class="form-group"><label>Categoria</label><select id="f_category">${selectOptions(state.categories, t.category)}</select></div>
+      <div class="form-group"><label>Fase do projeto</label><select id="f_phase">${selectOptions(state.phases, t.phase)}</select></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Data de início</label><input type="date" id="f_startDate" value="${t.startDate||''}"></div>
+      <div class="form-group"><label>Data limite</label><input type="date" id="f_dueDate" value="${t.dueDate||''}"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Responsável</label><input type="text" id="f_owner" value="${escapeHtml(t.owner)}" placeholder="Nome do responsável"></div>
+      <div class="form-group"><label>Status</label><select id="f_status">${selectOptions(STATUS_LIST.map(s=>({id:s,name:s})), t.status)}</select></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Prioridade</label><select id="f_priority">${selectOptions(PRIORITY_LIST.map(p=>({id:p,name:p})), t.priority)}</select></div>
+      <div class="form-group"><label>Grau de importância</label><select id="f_importance">${selectOptions(IMPORTANCE_LIST.map(i=>({id:i.v,name:i.label})), t.importance)}</select></div>
+    </div>
+    <div class="form-group">
+      <label>Percentual de conclusão (%) <span style="font-weight:500;color:var(--text-faint)">— calculado automaticamente se houver checklist</span></label>
+      <input type="number" id="f_percent" min="0" max="100" value="${taskPercent(t)}" ${((t.checklist||[]).length)?'disabled':''}>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Tags (separadas por vírgula)</label><input type="text" id="f_tags" value="${escapeHtml((t.tags||[]).join(', '))}" placeholder="ex: urgente, site"></div>
+      <div class="form-group"><label style="display:flex;align-items:center;gap:6px;margin-top:22px"><input type="checkbox" id="f_favorite" ${t.favorite?'checked':''}> Marcar como favorita ⭐</label></div>
+    </div>
+    <div class="form-group"><label>Links / referências (um por linha)</label><textarea id="f_links" placeholder="https://...">${escapeHtml(t.links)}</textarea></div>
+    <div class="form-group"><label>Observações adicionais</label><textarea id="f_notes">${escapeHtml(t.notes)}</textarea></div>
+
+    <fieldset>
+      <legend>✅ Checklist / subtarefas</legend>
+      <div id="checklistBox">${renderChecklistItems()}</div>
+      <div style="display:flex;gap:6px;margin-top:6px">
+        <input type="text" id="newChecklistText" placeholder="Novo item do checklist" onkeydown="if(event.key==='Enter'){event.preventDefault();addChecklistItem();}">
+        <button type="button" class="btn btn-sm" onclick="addChecklistItem()">${svgIcon('plus')} Adicionar</button>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>🔗 Tarefas dependentes</legend>
+      <div class="dep-list" id="depList">${renderDepOptions()}</div>
+    </fieldset>
+  `;
+  openModal('modalTask');
+}
+
+function renderChecklistItems(){
+  if(!tempChecklist.length) return '<div style="font-size:12px;color:var(--text-faint)">Nenhum item ainda.</div>';
+  return tempChecklist.map((c,i)=>`
+    <div class="checklist-item ${c.done?'done':''}">
+      <input type="checkbox" ${c.done?'checked':''} onchange="tempChecklist[${i}].done=this.checked;refreshChecklist()">
+      <span>${escapeHtml(c.text)}</span>
+      <button type="button" class="btn btn-icon btn-ghost btn-sm" onclick="tempChecklist.splice(${i},1);refreshChecklist()">${svgIcon('x')}</button>
+    </div>`).join('');
+}
+function refreshChecklist(){
+  document.getElementById('checklistBox').innerHTML = renderChecklistItems();
+  const pctInput = document.getElementById('f_percent');
+  if(pctInput){
+    if(tempChecklist.length){ pctInput.disabled=true; pctInput.value = Math.round(tempChecklist.filter(c=>c.done).length/tempChecklist.length*100); }
+    else pctInput.disabled=false;
+  }
+}
+function addChecklistItem(){
+  const inp = document.getElementById('newChecklistText');
+  const v = inp.value.trim(); if(!v) return;
+  tempChecklist.push({id:uid('c'), text:v, done:false});
+  inp.value=''; refreshChecklist();
+}
+function renderDepOptions(){
+  const others = state.tasks.filter(t=>t.id!==editingTaskId);
+  if(!others.length) return '<div style="font-size:12px;color:var(--text-faint)">Nenhuma outra tarefa cadastrada.</div>';
+  return others.map(t=>`
+    <label><input type="checkbox" value="${t.id}" ${tempDeps.includes(t.id)?'checked':''} onchange="toggleDep('${t.id}',this.checked)"> ${escapeHtml(t.name)} ${statusBadge(t.status)}</label>`).join('');
+}
+function toggleDep(id, checked){ if(checked){ if(!tempDeps.includes(id)) tempDeps.push(id); } else { tempDeps = tempDeps.filter(d=>d!==id); } }
+
+function saveTaskFromModal(){
+  const name = document.getElementById('f_name').value.trim();
+  if(!name){ toast('Informe o nome da tarefa', 'error'); return; }
+  const status = document.getElementById('f_status').value;
+  const isNew = !editingTaskId;
+  const t = isNew ? {id:uid('t'), createdAt:new Date().toISOString(), isDemo:false, completedAt:null} : getTask(editingTaskId);
+  const prevStatus = t.status;
+
+  t.name = name;
+  t.description = document.getElementById('f_description').value.trim();
+  t.category = document.getElementById('f_category').value;
+  t.phase = document.getElementById('f_phase').value;
+  t.startDate = document.getElementById('f_startDate').value;
+  t.dueDate = document.getElementById('f_dueDate').value;
+  t.owner = document.getElementById('f_owner').value.trim();
+  t.status = status;
+  t.priority = document.getElementById('f_priority').value;
+  t.importance = Number(document.getElementById('f_importance').value);
+  t.tags = nl2list(document.getElementById('f_tags').value);
+  t.links = document.getElementById('f_links').value.trim();
+  t.notes = document.getElementById('f_notes').value.trim();
+  t.favorite = document.getElementById('f_favorite').checked;
+  t.checklist = tempChecklist.slice();
+  t.dependencies = tempDeps.slice();
+  t.percent = clamp(Number(document.getElementById('f_percent').value)||0, 0, 100);
+  if(t.checklist.length) t.percent = Math.round(t.checklist.filter(c=>c.done).length/t.checklist.length*100);
+  if(status==='Concluído'){ t.percent=100; if(!t.completedAt) t.completedAt=todayISO(); }
+  else if(prevStatus==='Concluído' && status!=='Concluído'){ t.completedAt=null; }
+  t.updatedAt = new Date().toISOString();
+
+  if(isNew){ state.tasks.push(t); addHistory('Tarefa criada', t.name); toast('Tarefa criada'); }
+  else { addHistory('Tarefa editada', t.name); toast('Tarefa atualizada'); }
+
+  closeModal('modalTask');
+  renderAll();
+}
+
+/* ---------------------------------------------------------------------
+   14. VIEW: KANBAN — #4 (drag & drop)
+--------------------------------------------------------------------- */
+function renderKanbanView(){
+  const el = document.getElementById('view-kanban');
+  const filtered = getFilteredTasks();
+  el.innerHTML = `<div class="kanban-wrap">${STATUS_LIST.map(st=>{
+    const ts = filtered.filter(t=>t.status===st);
+    return `<div class="kanban-col" data-status="${st}" ondragover="kanbanDragOver(event)" ondragleave="kanbanDragLeave(event)" ondrop="kanbanDrop(event,'${st}')">
+      <h4><span style="color:${STATUS_COLOR[st]}">● ${st}</span><span style="color:var(--text-faint)">${ts.length}</span></h4>
+      ${ts.map(t=>kanbanCard(t)).join('') || '<div class="empty-state" style="padding:16px 4px">Sem tarefas</div>'}
+    </div>`;
+  }).join('')}</div>`;
+}
+function kanbanCard(t){
+  return `<div class="kcard" draggable="true" data-id="${t.id}" ondragstart="kanbanDragStart(event,'${t.id}')" ondragend="kanbanDragEnd(event)" onclick="openTaskModal('${t.id}')">
+    <div class="kc-title">
+      <span>${escapeHtml(t.name)}</span>
+      <button class="star-btn ${t.favorite?'active':''}" onclick="event.stopPropagation();toggleFavorite('${t.id}')">${svgIcon('star')}</button>
+    </div>
+    <div class="kc-meta">${categoryBadge(t.category)}${priorityBadge(t.priority)}${importanceBadge(t.importance)}</div>
+    ${isBlocked(t)?`<div style="font-size:10.5px;color:var(--warning);margin-top:5px;display:flex;align-items:center;gap:4px">${svgIcon('lock',`style="width:11px;height:11px"`)} Bloqueada</div>`:''}
+    ${taskProgressMini(t)}
+    <div class="kc-due">${dueLabel(t)}</div>
+  </div>`;
+}
+let dragTaskId = null;
+function kanbanDragStart(ev,id){ dragTaskId=id; ev.target.classList.add('dragging'); ev.dataTransfer.effectAllowed='move'; ev.dataTransfer.setData('text/plain', id); }
+function kanbanDragEnd(ev){ ev.target.classList.remove('dragging'); }
+function kanbanDragOver(ev){ ev.preventDefault(); ev.currentTarget.classList.add('dragover'); }
+function kanbanDragLeave(ev){ ev.currentTarget.classList.remove('dragover'); }
+function kanbanDrop(ev,status){
+  ev.preventDefault(); ev.currentTarget.classList.remove('dragover');
+  const id = dragTaskId || ev.dataTransfer.getData('text/plain');
+  const t = getTask(id); if(!t) return;
+  if(t.status===status) return;
+  const old=t.status; t.status=status; t.updatedAt=new Date().toISOString();
+  if(status==='Concluído'){ t.percent=100; t.completedAt=todayISO(); if(t.checklist) t.checklist.forEach(c=>c.done=true); }
+  else if(old==='Concluído'){ t.completedAt=null; }
+  addHistory('Mudança de status', t.name, `${old} → ${status} (kanban)`);
+  dragTaskId=null; renderAll();
+}
+
+/* ---------------------------------------------------------------------
+   15. VIEW: CRONOGRAMA (GANTT) — #4
+--------------------------------------------------------------------- */
+function renderGanttView(){
+  const el = document.getElementById('view-gantt');
+  const filtered = getFilteredTasks();
+  const withDates = filtered.filter(t=>t.startDate && t.dueDate);
+  if(!withDates.length){ el.innerHTML = '<div class="panel"><div class="empty-state">Nenhuma tarefa com datas definidas para exibir no cronograma.</div></div>'; return; }
+
+  let minD = withDates.reduce((m,t)=> t.startDate<m?t.startDate:m, withDates[0].startDate);
+  let maxD = withDates.reduce((m,t)=> t.dueDate>m?t.dueDate:m, withDates[0].dueDate);
+  minD = addDays(minD,-2); maxD = addDays(maxD,2);
+  const totalDays = Math.max(1, daysBetween(minD,maxD));
+  const pctOf = iso => clamp(daysBetween(minD,iso)/totalDays*100, 0, 100);
+  const todayPct = pctOf(todayISO());
+
+  // marcadores semanais
+  let weekMarks = ''; for(let d=0; d<=totalDays; d+=7){ const iso=addDays(minD,d); weekMarks += `<div style="position:absolute;left:${d/totalDays*100}%;top:0;bottom:0;border-left:1px dashed var(--border);font-size:9.5px;color:var(--text-faint);padding-left:3px">${fmtBR(iso)}</div>`; }
+
+  let rows = `<div class="gantt-header"><div class="gantt-label">Fase / Tarefa</div>
+    <div class="gantt-track" style="position:relative">${weekMarks}</div></div>`;
+
+  state.phases.forEach(ph=>{
+    const ts = sortTasks(withDates.filter(t=>t.phase===ph.id));
+    if(!ts.length) return;
+    rows += `<div class="gantt-phase-head">${escapeHtml(ph.name)} <span style="color:var(--text-muted);font-weight:600">(${ts.length} tarefas)</span></div>`;
+    ts.forEach(t=>{
+      const left = pctOf(t.startDate), right = pctOf(t.dueDate);
+      const width = Math.max(1.2, right-left);
+      const dur = Math.max(1, daysBetween(t.startDate,t.dueDate));
+      rows += `<div class="gantt-row">
+        <div class="gantt-label">${escapeHtml(t.name)}<div class="g-sub">${fmtBR(t.startDate)} → ${fmtBR(t.dueDate)} · ${dur}d</div></div>
+        <div class="gantt-track">
+          <div class="gantt-today" style="left:${todayPct}%"></div>
+          <div class="gantt-bar" title="${escapeHtml(t.name)}: ${fmtBR(t.startDate)} a ${fmtBR(t.dueDate)} (${dur} dias) — ${t.status}"
+               style="left:${left}%;width:${width}%;background:${STATUS_COLOR[t.status]}" onclick="openTaskModal('${t.id}')">${taskPercent(t)}%</div>
+        </div>
+      </div>`;
+    });
+  });
+  const noPhase = sortTasks(withDates.filter(t=>!getPhase(t.phase)));
+  if(noPhase.length){
+    rows += `<div class="gantt-phase-head">Sem fase</div>`;
+    noPhase.forEach(t=>{
+      const left=pctOf(t.startDate), width=Math.max(1.2,pctOf(t.dueDate)-pctOf(t.startDate));
+      rows += `<div class="gantt-row"><div class="gantt-label">${escapeHtml(t.name)}</div><div class="gantt-track">
+        <div class="gantt-bar" style="left:${left}%;width:${width}%;background:${STATUS_COLOR[t.status]}" onclick="openTaskModal('${t.id}')">${taskPercent(t)}%</div></div></div>`;
+    });
+  }
+
+  el.innerHTML = `<div class="panel-head"><h3 style="margin-bottom:10px">📅 Cronograma / Gantt</h3><span class="hint">Linha vermelha = hoje (${fmtBR(todayISO())})</span></div>
+    <div class="gantt-scroll">${rows}</div>`;
+}
+
+/* ---------------------------------------------------------------------
+   16. VIEW: CALENDÁRIO — #4
+--------------------------------------------------------------------- */
+const MONTH_NAMES = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+const DOW_NAMES = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
+function calNav(delta){ calState.month += delta; if(calState.month<0){calState.month=11;calState.year--;} if(calState.month>11){calState.month=0;calState.year++;} renderCurrentView(); }
+function calToday(){ calState={year:new Date().getFullYear(),month:new Date().getMonth()}; renderCurrentView(); }
+
+function renderCalendarView(){
+  const el = document.getElementById('view-calendar');
+  const {year,month} = calState;
+  const first = new Date(year,month,1);
+  const startOffset = first.getDay();
+  const daysInMonth = new Date(year,month+1,0).getDate();
+  const daysInPrevMonth = new Date(year,month,0).getDate();
+  const filtered = getFilteredTasks();
+  const tasksByDate = {};
+  filtered.forEach(t=>{
+    if(t.dueDate){ (tasksByDate[t.dueDate]=tasksByDate[t.dueDate]||[]).push({t,kind:'due'}); }
+    if(t.startDate && t.startDate!==t.dueDate){ (tasksByDate[t.startDate]=tasksByDate[t.startDate]||[]).push({t,kind:'start'}); }
+  });
+
+  let cells = '';
+  for(let i=startOffset-1;i>=0;i--){ const d=daysInPrevMonth-i; cells += calCell(year,month-1,d,true,tasksByDate); }
+  for(let d=1; d<=daysInMonth; d++){ cells += calCell(year,month,d,false,tasksByDate); }
+  const totalCells = startOffset+daysInMonth;
+  const trailing = (7 - (totalCells % 7)) % 7;
+  for(let d=1; d<=trailing; d++){ cells += calCell(year,month+1,d,true,tasksByDate); }
+
+  el.innerHTML = `
+    <div class="cal-nav">
+      <button class="btn btn-icon" onclick="calNav(-1)">‹</button>
+      <h3>${MONTH_NAMES[month]} ${year}</h3>
+      <button class="btn btn-icon" onclick="calNav(1)">›</button>
+      <button class="btn btn-sm" onclick="calToday()">Hoje</button>
+    </div>
+    <div class="cal-grid">
+      ${DOW_NAMES.map(d=>`<div class="cal-dow">${d}</div>`).join('')}
+      ${cells}
+    </div>`;
+}
+function calCell(y,m,d,other,tasksByDate){
+  const nd = new Date(y,m,d);
+  const iso = nd.getFullYear()+'-'+pad2(nd.getMonth()+1)+'-'+pad2(nd.getDate());
+  const isToday = iso===todayISO();
+  const items = (tasksByDate[iso]||[]).slice(0,4);
+  const extra = (tasksByDate[iso]||[]).length - items.length;
+  return `<div class="cal-cell ${other?'other-month':''} ${isToday?'today':''}">
+    <div class="cal-daynum">${d}</div>
+    ${items.map(x=>`<div class="cal-chip" style="background:${STATUS_COLOR[x.t.status]}22;color:${STATUS_COLOR[x.t.status]}" title="${escapeHtml(x.t.name)}" onclick="openTaskModal('${x.t.id}')">${x.kind==='start'?'▶ ':''}${escapeHtml(x.t.name)}</div>`).join('')}
+    ${extra>0? `<div style="color:var(--text-faint);font-size:10px">+${extra} mais</div>`:''}
+  </div>`;
+}
+
+/* ---------------------------------------------------------------------
+   17. VIEW: BANCO DE IDEIAS — #7
+--------------------------------------------------------------------- */
+function renderIdeasView(){
+  const el = document.getElementById('view-ideas');
+  el.innerHTML = `
+    <div class="panel-head"><h3>💡 Banco de Ideias</h3>
+      <button class="btn btn-primary btn-sm" onclick="openIdeaModal()">${svgIcon('plus')} Nova ideia</button>
+    </div>
+    <div class="ideas-grid">${state.ideas.length? state.ideas.map(ideaCard).join('') : '<div class="empty-state">Nenhuma ideia registrada ainda. Anote qualquer ideia antes de virar tarefa!</div>'}</div>
+  `;
+}
+function ideaCard(i){
+  const imp = IMPORTANCE_LIST.find(x=>x.v===Number(i.importance))||IMPORTANCE_LIST[0];
+  return `<div class="idea-card">
+    <h4>${escapeHtml(i.title)}</h4>
+    <p>${escapeHtml(i.description)}</p>
+    <div style="display:flex;gap:5px;flex-wrap:wrap">${categoryBadge(i.category)}<span class="badge" style="background:${imp.color}22;color:${imp.color}">${imp.short}</span></div>
+    <div class="idea-foot">
+      <span style="font-size:11px;color:var(--text-faint)">${fmtBR(i.createdAt.slice(0,10))}</span>
+      <div style="display:flex;gap:4px">
+        <button class="btn btn-icon btn-ghost btn-sm" title="Editar" onclick="openIdeaModal('${i.id}')">${svgIcon('edit')}</button>
+        <button class="btn btn-icon btn-ghost btn-sm" title="Excluir" onclick="deleteIdea('${i.id}')">${svgIcon('trash')}</button>
+      </div>
+    </div>
+    <button class="btn btn-primary btn-sm" onclick="convertIdeaToTask('${i.id}')">Transformar em tarefa →</button>
+  </div>`;
+}
+function openIdeaModal(id){
+  editingIdeaId = id||null;
+  const i = id ? state.ideas.find(x=>x.id===id) : {title:'',description:'',category:state.categories[0]?.id||'',importance:3};
+  document.getElementById('ideaModalTitle').textContent = id? 'Editar ideia':'Nova ideia';
+  document.getElementById('ideaModalBody').innerHTML = `
+    <div class="form-group"><label>Título *</label><input type="text" id="fi_title" value="${escapeHtml(i.title)}"></div>
+    <div class="form-group"><label>Descrição</label><textarea id="fi_description">${escapeHtml(i.description)}</textarea></div>
+    <div class="form-row">
+      <div class="form-group"><label>Categoria</label><select id="fi_category">${selectOptions(state.categories, i.category)}</select></div>
+      <div class="form-group"><label>Importância</label><select id="fi_importance">${selectOptions(IMPORTANCE_LIST.map(x=>({id:x.v,name:x.label})), i.importance)}</select></div>
+    </div>`;
+  openModal('modalIdea');
+}
+function saveIdeaFromModal(){
+  const title = document.getElementById('fi_title').value.trim();
+  if(!title){ toast('Informe um título para a ideia','error'); return; }
+  if(editingIdeaId){
+    const i = state.ideas.find(x=>x.id===editingIdeaId);
+    i.title=title; i.description=document.getElementById('fi_description').value.trim();
+    i.category=document.getElementById('fi_category').value; i.importance=Number(document.getElementById('fi_importance').value);
+    toast('Ideia atualizada');
+  } else {
+    state.ideas.push({id:uid('i'), title, description:document.getElementById('fi_description').value.trim(),
+      category:document.getElementById('fi_category').value, importance:Number(document.getElementById('fi_importance').value),
+      createdAt:new Date().toISOString(), isDemo:false});
+    toast('Ideia registrada');
+  }
+  closeModal('modalIdea'); renderAll();
+}
+function deleteIdea(id){
+  const i = state.ideas.find(x=>x.id===id); if(!i) return;
+  confirmAction(`Excluir a ideia "${i.title}"?`, ()=>{ state.ideas = state.ideas.filter(x=>x.id!==id); renderAll(); toast('Ideia excluída','warn'); }, 'Excluir ideia');
+}
+function convertIdeaToTask(id){
+  const i = state.ideas.find(x=>x.id===id); if(!i) return;
+  state.ideas = state.ideas.filter(x=>x.id!==id);
+  openTaskModal(null, {name:i.title, description:i.description, category:i.category, importance:i.importance, status:'Não iniciado', tags:['de-ideia']});
+  toast('Ideia pronta para virar tarefa — complete os dados e salve');
+}
+
+/* ---------------------------------------------------------------------
+   18. VIEW: HISTÓRICO — #12
+--------------------------------------------------------------------- */
+const HISTORY_ICON = {'Tarefa criada':'plus','Tarefa editada':'edit','Mudança de status':'chevDown','Tarefa concluída':'check','Tarefa excluída':'trash'};
+function renderHistoryView(){
+  const el = document.getElementById('view-history');
+  el.innerHTML = `<div class="panel-head"><h3>🕘 Histórico de alterações</h3><span class="hint">${state.history.length} registros</span></div>
+    <div class="panel">${state.history.length? state.history.map(h=>{
+      const d = new Date(h.date);
+      return `<div class="hist-item">
+        <div class="hist-time">${pad2(d.getDate())}/${pad2(d.getMonth()+1)}/${d.getFullYear()} ${pad2(d.getHours())}:${pad2(d.getMinutes())}</div>
+        <div class="hist-icon">${svgIcon(HISTORY_ICON[h.action]||'clock', 'style="width:14px;height:14px"')}</div>
+        <div><b>${escapeHtml(h.action)}</b> — ${escapeHtml(h.taskName)}${h.details?`<div style="color:var(--text-muted);font-size:12px">${escapeHtml(h.details)}</div>`:''}</div>
+      </div>`;
+    }).join('') : '<div class="empty-state">Nenhum registro ainda.</div>'}</div>`;
+}
+
+/* ---------------------------------------------------------------------
+   19. VIEW: CONFIGURAÇÕES — #6, #13, #14, #15(tema)
+--------------------------------------------------------------------- */
+function renderSettingsView(){
+  const el = document.getElementById('view-settings');
+  const p = state.project;
+  el.innerHTML = `
+    <div class="panel">
+      <div class="panel-head"><h3>📁 Dados do projeto</h3></div>
+      <div class="form-group"><label>Nome do projeto</label><input type="text" id="s_name" value="${escapeHtml(p.name)}"></div>
+      <div class="form-group"><label>Descrição</label><textarea id="s_description">${escapeHtml(p.description)}</textarea></div>
+      <div class="form-row">
+        <div class="form-group"><label>Data de início</label><input type="date" id="s_startDate" value="${p.startDate||''}"></div>
+        <div class="form-group"><label>Data prevista para conclusão</label><input type="date" id="s_endDate" value="${p.endDate||''}"></div>
+      </div>
+      <div class="form-group"><label>Responsável pelo projeto</label><input type="text" id="s_owner" value="${escapeHtml(p.owner)}"></div>
+      <button class="btn btn-primary btn-sm" onclick="saveProjectSettings()">Salvar dados do projeto</button>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head"><h3>🗂️ Fases do projeto</h3></div>
+      <div id="phaseMgrList">${renderPhaseMgr()}</div>
+      <div style="display:flex;gap:6px;margin-top:8px">
+        <input type="text" id="newPhaseName" placeholder="Nome da nova fase">
+        <button class="btn btn-sm" onclick="addPhase()">${svgIcon('plus')} Adicionar fase</button>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head"><h3>🏷️ Categorias</h3></div>
+      <div id="catMgrList">${renderCategoryMgr()}</div>
+      <div style="display:flex;gap:6px;margin-top:8px;align-items:center">
+        <input type="text" id="newCatName" placeholder="Nome da nova categoria">
+        <input type="color" id="newCatColor" value="#5b5bf6">
+        <button class="btn btn-sm" onclick="addCategory()">${svgIcon('plus')} Adicionar categoria</button>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head"><h3>💾 Backup e exportações</h3></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn" onclick="exportJSON()">${svgIcon('download')} Exportar backup (.json)</button>
+        <button class="btn" onclick="document.getElementById('importFileInput').click()">${svgIcon('upload')} Importar backup</button>
+        <button class="btn" onclick="exportCSV()">${svgIcon('download')} Exportar tarefas (.csv)</button>
+        <button class="btn" onclick="printView('gantt')">${svgIcon('printer')} Imprimir cronograma</button>
+        <button class="btn" onclick="printView('dashboard')">${svgIcon('printer')} Imprimir visão geral</button>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head"><h3>⚠️ Dados de demonstração</h3></div>
+      <p style="font-size:12.5px;color:var(--text-muted);margin-bottom:10px">Remove todas as tarefas e ideias de exemplo carregadas na primeira execução. As fases e categorias padrão são mantidas.</p>
+      <button class="btn btn-danger btn-sm" onclick="clearDemoData()">Remover dados de demonstração</button>
+    </div>
+  `;
+}
+function saveProjectSettings(){
+  const p = state.project;
+  p.name = document.getElementById('s_name').value.trim() || p.name;
+  p.description = document.getElementById('s_description').value.trim();
+  p.startDate = document.getElementById('s_startDate').value;
+  p.endDate = document.getElementById('s_endDate').value;
+  p.owner = document.getElementById('s_owner').value.trim();
+  save(); toast('Dados do projeto atualizados');
+}
+
+function renderPhaseMgr(){
+  return state.phases.slice().sort((a,b)=>a.order-b.order).map((ph,idx,arr)=>`
+    <div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border)">
+      <input type="text" value="${escapeHtml(ph.name)}" onchange="renamePhase('${ph.id}',this.value)" style="flex:1">
+      <button class="btn btn-icon btn-ghost btn-sm" title="Mover para cima" ${idx===0?'disabled':''} onclick="movePhase('${ph.id}',-1)">↑</button>
+      <button class="btn btn-icon btn-ghost btn-sm" title="Mover para baixo" ${idx===arr.length-1?'disabled':''} onclick="movePhase('${ph.id}',1)">↓</button>
+      <button class="btn btn-icon btn-ghost btn-sm" title="Excluir" onclick="deletePhase('${ph.id}')">${svgIcon('trash')}</button>
+    </div>`).join('');
+}
+function addPhase(){
+  const inp = document.getElementById('newPhaseName'); const v = inp.value.trim(); if(!v) return;
+  state.phases.push({id:uid('ph'), name:v, order:state.phases.length, collapsed:false});
+  inp.value=''; save(); renderCurrentView(); toast('Fase adicionada');
+}
+function renamePhase(id,name){ const ph=getPhase(id); if(ph && name.trim()){ ph.name=name.trim(); save(); } }
+function movePhase(id,dir){
+  const arr = state.phases.slice().sort((a,b)=>a.order-b.order);
+  const i = arr.findIndex(p=>p.id===id); const j=i+dir;
+  if(j<0||j>=arr.length) return;
+  [arr[i].order, arr[j].order] = [arr[j].order, arr[i].order];
+  save(); renderCurrentView();
+}
+function deletePhase(id){
+  confirmAction('Excluir esta fase? As tarefas associadas ficarão sem fase.', ()=>{
+    state.phases = state.phases.filter(p=>p.id!==id);
+    state.tasks.forEach(t=>{ if(t.phase===id) t.phase=''; });
+    save(); renderCurrentView(); toast('Fase removida','warn');
+  }, 'Excluir fase');
+}
+
+function renderCategoryMgr(){
+  return state.categories.map(c=>`
+    <div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border)">
+      <input type="color" value="${c.color}" onchange="recolorCategory('${c.id}',this.value)">
+      <input type="text" value="${escapeHtml(c.name)}" onchange="renameCategory('${c.id}',this.value)" style="flex:1">
+      <button class="btn btn-icon btn-ghost btn-sm" title="Excluir" onclick="deleteCategory('${c.id}')">${svgIcon('trash')}</button>
+    </div>`).join('');
+}
+function addCategory(){
+  const inp = document.getElementById('newCatName'); const v = inp.value.trim(); if(!v) return;
+  const color = document.getElementById('newCatColor').value;
+  state.categories.push({id:uid('cat'), name:v, color});
+  inp.value=''; save(); renderCurrentView(); toast('Categoria adicionada');
+}
+function renameCategory(id,name){ const c=getCategory(id); if(c && name.trim()){ c.name=name.trim(); save(); } }
+function recolorCategory(id,color){ const c=getCategory(id); if(c){ c.color=color; save(); renderCurrentView(); } }
+function deleteCategory(id){
+  confirmAction('Excluir esta categoria? As tarefas associadas ficarão sem categoria.', ()=>{
+    state.categories = state.categories.filter(c=>c.id!==id);
+    state.tasks.forEach(t=>{ if(t.category===id) t.category=''; });
+    save(); renderCurrentView(); toast('Categoria removida','warn');
+  }, 'Excluir categoria');
+}
+
+function clearDemoData(){
+  confirmAction('Remover todas as tarefas e ideias de demonstração? Essa ação não pode ser desfeita.', ()=>{
+    state.tasks = state.tasks.filter(t=>!t.isDemo);
+    state.ideas = state.ideas.filter(i=>!i.isDemo);
+    addHistory('Tarefa excluída', '', 'Dados de demonstração removidos em lote');
+    renderAll(); toast('Dados de demonstração removidos','warn');
+  }, 'Remover dados de demonstração');
+}
+
+/* ---------------------------------------------------------------------
+   20. EXPORTAÇÃO / IMPORTAÇÃO / IMPRESSÃO — #13, #14
+--------------------------------------------------------------------- */
+function downloadBlob(content, filename, mime){
+  const blob = new Blob([content], {type:mime});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href=url; a.download=filename; document.body.appendChild(a); a.click();
+  document.body.removeChild(a); URL.revokeObjectURL(url);
+}
+function exportJSON(){
+  downloadBlob(JSON.stringify(state,null,2), `backup-projeto-${todayISO()}.json`, 'application/json');
+  toast('Backup JSON exportado');
+}
+function handleImportFile(file){
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = e=>{
+    try{
+      const parsed = JSON.parse(e.target.result);
+      confirmAction('Importar este backup substituirá todos os dados atuais. Deseja continuar?', ()=>{
+        state = normalizeState(parsed);
+        applyTheme(); buildSidebarNav(); save(); switchView('dashboard');
+        toast('Backup importado com sucesso');
+      }, 'Importar backup');
+    }catch(err){ toast('Arquivo inválido. Selecione um backup .json gerado por este sistema.', 'error'); }
+  };
+  reader.readAsText(file);
+  document.getElementById('importFileInput').value = '';
+}
+function csvEscape(v){ const s=String(v==null?'':v); return /[",;\n]/.test(s) ? '"'+s.replace(/"/g,'""')+'"' : s; }
+function exportCSV(){
+  const headers = ['Nome','Descrição','Categoria','Fase','Início','Prazo','Responsável','Status','Prioridade','Importância','Percentual','Tags','Favorita'];
+  const rows = state.tasks.map(t=>[
+    t.name, t.description, (getCategory(t.category)||{}).name||'', phaseName(t.phase), fmtBR(t.startDate), fmtBR(t.dueDate),
+    t.owner, t.status, t.priority, t.importance, taskPercent(t)+'%', (t.tags||[]).join(' '), t.favorite?'Sim':'Não'
+  ]);
+  const csv = '﻿'+[headers, ...rows].map(r=>r.map(csvEscape).join(',')).join('\r\n');
+  downloadBlob(csv, `tarefas-${todayISO()}.csv`, 'text/csv;charset=utf-8');
+  toast('CSV exportado');
+}
+function printView(viewId){
+  switchView(viewId);
+  document.getElementById('view-'+viewId).classList.add('printing');
+  setTimeout(()=>{ window.print(); document.getElementById('view-'+viewId).classList.remove('printing'); }, 60);
+}
+
+/* ---------------------------------------------------------------------
+   21. INICIALIZAÇÃO
+--------------------------------------------------------------------- */
+function init(){
+  state = load();
+  buildSidebarNav();
+  applyTheme();
+  switchView('dashboard');
+}
+document.addEventListener('DOMContentLoaded', init);
+</script>
 </body>
 </html>
