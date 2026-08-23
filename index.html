@@ -208,6 +208,18 @@ tbody tr:hover{background:var(--bg-soft);}
 .idea-card p{font-size:12.5px;color:var(--text-muted);flex:1;}
 .idea-card .idea-foot{display:flex;justify-content:space-between;align-items:center;margin-top:4px;}
 
+/* ---------- Metas do Ano ---------- */
+.goals-board{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;}
+.goals-col h4{display:flex;justify-content:space-between;align-items:center;font-size:13px;font-weight:800;margin-bottom:10px;padding-bottom:8px;border-bottom:2px solid var(--border);}
+.goal-card{background:var(--bg-elevated);border:1px solid var(--border);border-radius:var(--radius-lg);padding:13px;box-shadow:var(--shadow-sm);margin-bottom:12px;}
+.goal-card.goal-overdue{box-shadow:inset 3px 0 0 var(--danger);}
+.goal-card.goal-done{opacity:.75;}
+.goal-card .goal-title{display:flex;align-items:center;gap:6px;font-weight:800;font-size:13.5px;}
+.goal-card p{font-size:12px;color:var(--text-muted);margin:6px 0;}
+.goal-dates{display:flex;justify-content:space-between;font-size:11.5px;color:var(--text-muted);font-weight:600;margin-bottom:10px;}
+.goal-actions{display:flex;gap:6px;flex-wrap:wrap;}
+@media(max-width:900px){.goals-board{grid-template-columns:1fr;}}
+
 /* ---------- History ---------- */
 .hist-item{display:flex;gap:12px;padding:10px 0;border-bottom:1px solid var(--border);}
 .hist-item:last-child{border-bottom:none;}
@@ -310,6 +322,9 @@ tbody tr:hover{background:var(--bg-soft);}
     <!-- ============ BANCO DE IDEIAS ============ -->
     <section class="view" id="view-ideas"></section>
 
+    <!-- ============ METAS DO ANO ============ -->
+    <section class="view" id="view-goals"></section>
+
     <!-- ============ HISTÓRICO ============ -->
     <section class="view" id="view-history"></section>
 
@@ -349,6 +364,21 @@ tbody tr:hover{background:var(--bg-soft);}
     <div class="modal-foot">
       <button class="btn" onclick="closeModal('modalIdea')">Cancelar</button>
       <button class="btn btn-primary" onclick="saveIdeaFromModal()">Salvar ideia</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== MODAL: META ===================== -->
+<div class="overlay" id="modalGoal">
+  <div class="modal modal-sm">
+    <div class="modal-head">
+      <h3 id="goalModalTitle">Nova meta</h3>
+      <button class="modal-close" onclick="closeModal('modalGoal')">✕</button>
+    </div>
+    <div class="modal-body" id="goalModalBody"></div>
+    <div class="modal-foot">
+      <button class="btn" onclick="closeModal('modalGoal')">Cancelar</button>
+      <button class="btn btn-primary" onclick="saveGoalFromModal()">Salvar meta</button>
     </div>
   </div>
 </div>
@@ -394,6 +424,11 @@ const IMPORTANCE_LIST = [
   {v:4,label:'4 — Alta',short:'Alta',color:'#fb923c'},
   {v:5,label:'5 — Crítica',short:'Crítica',color:'#ef4444'}
 ];
+const GOAL_TERM_LIST = ['Curto','Médio','Longo'];
+const GOAL_TERM_LABEL = {Curto:'Curto prazo', Médio:'Médio prazo', Longo:'Longo prazo'};
+const GOAL_TERM_COLOR = {Curto:'#06b6d4', Médio:'#f59e0b', Longo:'#8b5cf6'};
+const GOAL_STATUS_LIST = ['Não iniciada','Em andamento','Concluída'];
+const GOAL_STATUS_COLOR = {'Não iniciada':'#94a3b8','Em andamento':'#3b82f6','Concluída':'#22c55e'};
 const DEFAULT_CATEGORY_NAMES = ['Estratégia','Marketing','Conteúdo','Comercial','Design','Operacional','Financeiro','Tecnologia','Administrativo','Parcerias','Redes sociais','Tráfego pago','Site / Landing Page','Eventos','Outros'];
 const CATEGORY_PALETTE = ['#5b5bf6','#f97316','#22c55e','#06b6d4','#ec4899','#8b5cf6','#f59e0b','#3b82f6','#84cc16','#ef4444','#14b8a6','#a855f7','#eab308','#0ea5e9','#64748b'];
 const DEFAULT_PHASE_NAMES = ['Planejamento','Preparação','Execução','Lançamento','Pós-projeto'];
@@ -405,6 +440,7 @@ const NAV_ITEMS = [
   {id:'kanban', label:'Kanban', icon:'kanban'},
   {id:'calendar', label:'Calendário', icon:'calendar'},
   {id:'ideas', label:'Banco de Ideias', icon:'bulb'},
+  {id:'goals', label:'Metas do Ano', icon:'flag'},
   {id:'history', label:'Histórico', icon:'clock'},
   {id:'settings', label:'Configurações', icon:'cog'}
 ];
@@ -418,6 +454,7 @@ const ICONS = {
   calendar:'<rect x="3" y="5" width="18" height="16" rx="2"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="8" y1="3" x2="8" y2="7"/><line x1="16" y1="3" x2="16" y2="7"/>',
   bulb:'<path d="M9 18h6M10 22h4M12 2a7 7 0 0 0-4 12.7c.6.5 1 1.3 1 2.3h6c0-1 .4-1.8 1-2.3A7 7 0 0 0 12 2z"/>',
   clock:'<circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 16 14"/>',
+  flag:'<line x1="4" y1="22" x2="4" y2="2"/><path d="M4 4h13l-2.5 4.5L20 13H4"/>',
   cog:'<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.9.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.9-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.9V9c.1.7.6 1.3 1.5 1.5h.1a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>',
   star:'<polygon points="12 2 15 9 22 9.5 17 14.5 18.5 22 12 18 5.5 22 7 14.5 2 9.5 9 9"/>',
   edit:'<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/>',
@@ -462,6 +499,7 @@ let calState = {year:new Date().getFullYear(), month:new Date().getMonth()};
 let sortState = {field:'dueDate', dir:'asc'};
 let editingTaskId = null; // null = criando nova
 let editingIdeaId = null;
+let editingGoalId = null;
 let tempChecklist = [];   // checklist em edição no modal
 let tempDeps = [];        // dependências em edição no modal
 
@@ -477,7 +515,7 @@ function defaultState(){
       owner:'',
       notes:''
     },
-    phases, categories, tasks:[], ideas:[], history:[],
+    phases, categories, tasks:[], ideas:[], goals:[], history:[],
     settings:{theme:'light'}
   };
 }
@@ -504,6 +542,7 @@ function normalizeState(parsed){
   merged.categories = Array.isArray(parsed.categories)&&parsed.categories.length ? parsed.categories : base.categories;
   merged.tasks = Array.isArray(parsed.tasks) ? parsed.tasks : [];
   merged.ideas = Array.isArray(parsed.ideas) ? parsed.ideas : [];
+  merged.goals = Array.isArray(parsed.goals) ? parsed.goals : [];
   merged.history = Array.isArray(parsed.history) ? parsed.history : [];
   return merged;
 }
@@ -577,6 +616,19 @@ function seedDemoData(st){
     {id:uid('i'), title:'Criar programa de indicação', description:'Recompensar clientes que indicarem novos compradores.', category:cat('Comercial'), importance:3, createdAt:new Date().toISOString(), isDemo:true},
     {id:uid('i'), title:'Parceria com micro-influenciadores', description:'Buscar criadores de nicho para ampliar alcance orgânico.', category:cat('Parcerias'), importance:4, createdAt:new Date().toISOString(), isDemo:true},
     {id:uid('i'), title:'Testar anúncios em nova plataforma', description:'Avaliar canais alternativos de tráfego pago além dos usuais.', category:cat('Tráfego pago'), importance:3, createdAt:new Date().toISOString(), isDemo:true}
+  ];
+
+  st.goals = [
+    {id:uid('g'), title:'Lançar o produto no mercado', description:'Finalizar o lançamento com a campanha ativa e a landing page publicada.',
+      term:'Curto', startDate:addDays(T,-20), dueDate:addDays(T,25), status:'Em andamento', completedAt:null, createdAt:new Date().toISOString(), isDemo:true},
+    {id:uid('g'), title:'Atingir 1.000 clientes ativos', description:'Consolidar a base de clientes após o lançamento, com foco em retenção.',
+      term:'Médio', startDate:T, dueDate:addDays(T,150), status:'Não iniciada', completedAt:null, createdAt:new Date().toISOString(), isDemo:true},
+    {id:uid('g'), title:'Validar canal de aquisição principal', description:'Descobrir e comprovar o canal de tráfego pago com melhor retorno.',
+      term:'Médio', startDate:addDays(T,-30), dueDate:addDays(T,60), status:'Em andamento', completedAt:null, createdAt:new Date().toISOString(), isDemo:true},
+    {id:uid('g'), title:'Expandir para novos mercados', description:'Estudar e iniciar a expansão do produto para outras regiões/segmentos.',
+      term:'Longo', startDate:addDays(T,90), dueDate:addDays(T,330), status:'Não iniciada', completedAt:null, createdAt:new Date().toISOString(), isDemo:true},
+    {id:uid('g'), title:'Estruturar o planejamento estratégico', description:'Organizar objetivos e orçamento do projeto para o ano.',
+      term:'Curto', startDate:addDays(T,-45), dueDate:addDays(T,-38), status:'Concluída', completedAt:addDays(T,-38), createdAt:new Date().toISOString(), isDemo:true}
   ];
 
   st.history = tasks.map(t=>({id:uid('h'), date:t.createdAt, action:'Tarefa criada', taskName:t.name, details:'Dado de demonstração'}));
@@ -655,10 +707,11 @@ const VIEW_RENDERERS = {
   gantt: renderGanttView,
   calendar: renderCalendarView,
   ideas: renderIdeasView,
+  goals: renderGoalsView,
   history: renderHistoryView,
   settings: renderSettingsView
 };
-const VIEW_TITLES = {dashboard:'Dashboard', tasks:'Tarefas', kanban:'Kanban', gantt:'Cronograma', calendar:'Calendário', ideas:'Banco de Ideias', history:'Histórico', settings:'Configurações'};
+const VIEW_TITLES = {dashboard:'Dashboard', tasks:'Tarefas', kanban:'Kanban', gantt:'Cronograma', calendar:'Calendário', ideas:'Banco de Ideias', goals:'Metas do Ano', history:'Histórico', settings:'Configurações'};
 
 function buildSidebarNav(){
   const nav = document.getElementById('navList');
@@ -818,6 +871,7 @@ function renderDashboardView(){
       <div class="col">
         ${renderChartsPanel()}
         ${renderPhaseProgressPanel()}
+        ${renderGoalsSummaryPanel()}
         ${renderNotesPanel()}
       </div>
     </div>
@@ -907,6 +961,20 @@ function renderPhaseProgressPanel(){
     </div>`;
   }).join('');
   return `<div class="panel"><div class="panel-head"><h3>🗂️ Progresso por fase</h3></div>${rows||'<div class="empty-state">Nenhuma fase cadastrada.</div>'}</div>`;
+}
+function renderGoalsSummaryPanel(){
+  const rows = GOAL_TERM_LIST.map(term=>{
+    const gs = state.goals.filter(g=>g.term===term);
+    const done = gs.filter(g=>g.status==='Concluída').length;
+    const pct = gs.length? Math.round(done/gs.length*100) : 0;
+    return `<div style="margin-bottom:12px">
+      <div style="display:flex;justify-content:space-between;font-size:12.5px;font-weight:700;margin-bottom:5px">
+        <span style="color:${GOAL_TERM_COLOR[term]}">${GOAL_TERM_LABEL[term]}</span><span style="color:var(--text-muted)">${done}/${gs.length} concluídas</span>
+      </div>
+      <div class="progress"><span style="width:${pct}%;background:${GOAL_TERM_COLOR[term]}"></span></div>
+    </div>`;
+  }).join('');
+  return `<div class="panel"><div class="panel-head"><h3>🚩 Metas do ano</h3><span class="hint" style="cursor:pointer" onclick="switchView('goals')">Ver todas →</span></div>${rows}</div>`;
 }
 function renderNotesPanel(){
   return `<div class="panel">
@@ -1463,9 +1531,127 @@ function convertIdeaToTask(id){
 }
 
 /* ---------------------------------------------------------------------
+   17b. VIEW: METAS DO ANO — curto / médio / longo prazo
+--------------------------------------------------------------------- */
+let goalTermFilter = '';
+function isGoalOverdue(g){ return g.status!=='Concluída' && g.dueDate && g.dueDate<todayISO(); }
+function goalDueLabel(g){
+  if(!g.dueDate) return '<span style="color:var(--text-faint)">—</span>';
+  if(isGoalOverdue(g)) return `<span style="color:var(--danger);font-weight:800">${fmtBR(g.dueDate)} ⚠️</span>`;
+  return fmtBR(g.dueDate);
+}
+function renderGoalsView(){
+  const el = document.getElementById('view-goals');
+  const goals = state.goals.slice().sort((a,b)=>(a.dueDate||'').localeCompare(b.dueDate||''));
+
+  el.innerHTML = `
+    <div class="panel-head">
+      <h3>🚩 Metas do Ano</h3>
+      <button class="btn btn-primary btn-sm" onclick="openGoalModal()">${svgIcon('plus')} Nova meta</button>
+    </div>
+    <div class="filter-bar">
+      <button class="btn btn-sm ${goalTermFilter===''?'btn-primary':''}" onclick="goalTermFilter='';renderCurrentView()">Todas</button>
+      ${GOAL_TERM_LIST.map(t=>`<button class="btn btn-sm ${goalTermFilter===t?'btn-primary':''}" onclick="goalTermFilter='${t}';renderCurrentView()">${GOAL_TERM_LABEL[t]}</button>`).join('')}
+    </div>
+    <div class="goals-board">
+      ${GOAL_TERM_LIST.filter(t=>!goalTermFilter||goalTermFilter===t).map(term=>{
+        const ts = goals.filter(g=>g.term===term);
+        const done = ts.filter(g=>g.status==='Concluída').length;
+        return `<div class="goals-col">
+          <h4 style="color:${GOAL_TERM_COLOR[term]}">
+            <span>${GOAL_TERM_LABEL[term]}</span>
+            <span style="color:var(--text-faint);font-weight:700;font-size:11px">${done}/${ts.length}</span>
+          </h4>
+          ${ts.length? ts.map(goalCard).join('') : '<div class="empty-state" style="padding:20px 6px">Nenhuma meta cadastrada.</div>'}
+        </div>`;
+      }).join('')}
+    </div>
+  `;
+}
+function goalCard(g){
+  const overdue = isGoalOverdue(g);
+  const done = g.status==='Concluída';
+  return `<div class="goal-card ${overdue?'goal-overdue':''} ${done?'goal-done':''}">
+    <div class="goal-title">
+      ${done?`<span style="color:var(--success)">${svgIcon('check',`style="width:15px;height:15px"`)}</span>`:''}
+      <span>${escapeHtml(g.title)}</span>
+    </div>
+    ${g.description? `<p>${escapeHtml(g.description)}</p>`:''}
+    <div style="margin:6px 0"><span class="badge" style="background:${GOAL_STATUS_COLOR[g.status]}22;color:${GOAL_STATUS_COLOR[g.status]}">${g.status}</span></div>
+    <div class="goal-dates">
+      <span>Início: ${fmtBR(g.startDate)}</span>
+      <span>Prazo: ${goalDueLabel(g)}</span>
+    </div>
+    <div class="goal-actions">
+      ${done
+        ? `<button class="btn btn-sm btn-ghost" title="Reabrir" onclick="reopenGoal('${g.id}')">${svgIcon('undo')} Reabrir</button>`
+        : `<button class="btn btn-sm btn-primary" title="Marcar como concluída" onclick="completeGoal('${g.id}')">${svgIcon('check')} Concluir</button>`}
+      <button class="btn btn-icon btn-ghost btn-sm" title="Editar" onclick="openGoalModal('${g.id}')">${svgIcon('edit')}</button>
+      <button class="btn btn-icon btn-ghost btn-sm" title="Excluir" onclick="deleteGoal('${g.id}')">${svgIcon('trash')}</button>
+    </div>
+  </div>`;
+}
+function openGoalModal(id){
+  editingGoalId = id||null;
+  const g = id ? state.goals.find(x=>x.id===id) : {title:'',description:'',term:'Curto',startDate:todayISO(),dueDate:addDays(todayISO(),90),status:'Não iniciada'};
+  document.getElementById('goalModalTitle').textContent = id? 'Editar meta':'Nova meta';
+  document.getElementById('goalModalBody').innerHTML = `
+    <div class="form-group"><label>Título da meta *</label><input type="text" id="fg_title" value="${escapeHtml(g.title)}" placeholder="Ex: Atingir 1.000 clientes ativos"></div>
+    <div class="form-group"><label>Descrição</label><textarea id="fg_description">${escapeHtml(g.description)}</textarea></div>
+    <div class="form-group"><label>Prazo da meta</label><select id="fg_term">${selectOptions(GOAL_TERM_LIST.map(t=>({id:t,name:GOAL_TERM_LABEL[t]})), g.term)}</select></div>
+    <div class="form-row">
+      <div class="form-group"><label>Data de início</label><input type="date" id="fg_startDate" value="${g.startDate||''}"></div>
+      <div class="form-group"><label>Prazo para finalizar</label><input type="date" id="fg_dueDate" value="${g.dueDate||''}"></div>
+    </div>
+    <div class="form-group"><label>Status</label><select id="fg_status">${selectOptions(GOAL_STATUS_LIST.map(s=>({id:s,name:s})), g.status)}</select></div>
+  `;
+  openModal('modalGoal');
+}
+function saveGoalFromModal(){
+  const title = document.getElementById('fg_title').value.trim();
+  if(!title){ toast('Informe o título da meta', 'error'); return; }
+  const status = document.getElementById('fg_status').value;
+  const isNew = !editingGoalId;
+  const g = isNew ? {id:uid('g'), createdAt:new Date().toISOString(), isDemo:false, completedAt:null} : state.goals.find(x=>x.id===editingGoalId);
+  const prevStatus = g.status;
+  g.title = title;
+  g.description = document.getElementById('fg_description').value.trim();
+  g.term = document.getElementById('fg_term').value;
+  g.startDate = document.getElementById('fg_startDate').value;
+  g.dueDate = document.getElementById('fg_dueDate').value;
+  g.status = status;
+  if(status==='Concluída'){ if(!g.completedAt) g.completedAt=todayISO(); } else if(prevStatus==='Concluída'){ g.completedAt=null; }
+
+  if(isNew){ state.goals.push(g); addHistory('Meta criada', g.title); toast('Meta criada'); }
+  else { addHistory('Meta editada', g.title); toast('Meta atualizada'); }
+  closeModal('modalGoal'); renderAll();
+}
+function completeGoal(id){
+  const g = state.goals.find(x=>x.id===id); if(!g) return;
+  g.status='Concluída'; g.completedAt=todayISO();
+  addHistory('Meta concluída', g.title);
+  renderAll(); toast('Meta marcada como concluída 🎉');
+}
+function reopenGoal(id){
+  const g = state.goals.find(x=>x.id===id); if(!g) return;
+  g.status='Em andamento'; g.completedAt=null;
+  addHistory('Meta editada', g.title, 'Reaberta');
+  renderAll(); toast('Meta reaberta');
+}
+function deleteGoal(id){
+  const g = state.goals.find(x=>x.id===id); if(!g) return;
+  confirmAction(`Excluir a meta "${g.title}"?`, ()=>{
+    state.goals = state.goals.filter(x=>x.id!==id);
+    addHistory('Meta excluída', g.title);
+    renderAll(); toast('Meta excluída','warn');
+  }, 'Excluir meta');
+}
+
+/* ---------------------------------------------------------------------
    18. VIEW: HISTÓRICO — #12
 --------------------------------------------------------------------- */
-const HISTORY_ICON = {'Tarefa criada':'plus','Tarefa editada':'edit','Mudança de status':'chevDown','Tarefa concluída':'check','Tarefa excluída':'trash'};
+const HISTORY_ICON = {'Tarefa criada':'plus','Tarefa editada':'edit','Mudança de status':'chevDown','Tarefa concluída':'check','Tarefa excluída':'trash',
+  'Meta criada':'flag','Meta editada':'edit','Meta concluída':'check','Meta excluída':'trash'};
 function renderHistoryView(){
   const el = document.getElementById('view-history');
   el.innerHTML = `<div class="panel-head"><h3>🕘 Histórico de alterações</h3><span class="hint">${state.history.length} registros</span></div>
@@ -1600,9 +1786,10 @@ function deleteCategory(id){
 }
 
 function clearDemoData(){
-  confirmAction('Remover todas as tarefas e ideias de demonstração? Essa ação não pode ser desfeita.', ()=>{
+  confirmAction('Remover todas as tarefas, ideias e metas de demonstração? Essa ação não pode ser desfeita.', ()=>{
     state.tasks = state.tasks.filter(t=>!t.isDemo);
     state.ideas = state.ideas.filter(i=>!i.isDemo);
+    state.goals = state.goals.filter(g=>!g.isDemo);
     addHistory('Tarefa excluída', '', 'Dados de demonstração removidos em lote');
     renderAll(); toast('Dados de demonstração removidos','warn');
   }, 'Remover dados de demonstração');
