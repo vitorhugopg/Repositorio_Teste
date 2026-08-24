@@ -1,11 +1,897 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="pt-BR">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Clínica que Converte — CRM com Agente de IA para Clínicas</title>
+<meta name="description" content="O CRM feito para clínicas odontológicas e estéticas, com agente de IA embutido que ajuda sua recepção a converter mais leads em pacientes agendados.">
+<meta property="og:title" content="Clínica que Converte — CRM com Agente de IA para Clínicas">
+<meta property="og:description" content="Sua clínica não tem um problema de geração de leads. Tem um problema de conversão. Conheça o CRM com agente de IA feito para clínicas de saúde.">
+<meta property="og:type" content="website">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --navy-950:#060e1c;
+    --navy-900:#0a1730;
+    --navy-800:#0f2140;
+    --navy-700:#16305c;
+    --navy-600:#1e3f78;
+    --gold-500:#c9a24b;
+    --gold-400:#dcb968;
+    --gold-100:#f7ecd3;
+    --white:#ffffff;
+    --paper:#f7f8fb;
+    --ink-900:#0d1526;
+    --ink-700:#374359;
+    --ink-500:#67748c;
+    --line:#e4e8f0;
+    --whatsapp:#25D366;
+    --shadow-sm:0 2px 10px rgba(10,23,48,.06);
+    --shadow-md:0 12px 34px rgba(10,23,48,.10);
+    --shadow-lg:0 24px 60px rgba(10,23,48,.18);
+    --radius:16px;
+    --radius-sm:10px;
+    --maxw:1180px;
+    --serif:'Playfair Display', Georgia, serif;
+    --sans:'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  }
+
+  *{box-sizing:border-box; margin:0; padding:0;}
+  html{scroll-behavior:smooth;}
+  body{
+    font-family:var(--sans);
+    color:var(--ink-900);
+    background:var(--paper);
+    line-height:1.5;
+    -webkit-font-smoothing:antialiased;
+    overflow-x:hidden;
+  }
+  img,svg{display:block; max-width:100%;}
+  a{color:inherit; text-decoration:none;}
+  ul{list-style:none;}
+  .wrap{max-width:var(--maxw); margin:0 auto; padding:0 24px;}
+  section{position:relative;}
+  h1,h2,h3,h4{font-family:var(--serif); font-weight:700; color:var(--navy-950); line-height:1.15;}
+  .eyebrow{
+    display:inline-flex; align-items:center; gap:8px;
+    font-size:13px; font-weight:700; letter-spacing:.08em; text-transform:uppercase;
+    color:var(--gold-500); margin-bottom:14px;
+  }
+  .eyebrow::before{content:""; width:20px; height:2px; background:var(--gold-500); display:inline-block;}
+  .sec-head{max-width:640px; margin:0 auto 48px; text-align:center;}
+  .sec-head h2{font-size:clamp(28px,4vw,40px); margin-bottom:14px;}
+  .sec-head p{color:var(--ink-700); font-size:17px;}
+  .pad{padding:96px 0;}
+  @media(max-width:720px){ .pad{padding:64px 0;} }
+
+  /* buttons */
+  .btn{
+    display:inline-flex; align-items:center; justify-content:center; gap:10px;
+    padding:16px 28px; border-radius:999px; font-weight:700; font-size:15.5px;
+    border:none; cursor:pointer; transition:transform .18s ease, box-shadow .18s ease, background .18s ease;
+    white-space:nowrap;
+  }
+  .btn-whatsapp{
+    background:var(--whatsapp); color:#fff; box-shadow:0 10px 24px rgba(37,211,102,.35);
+  }
+  .btn-whatsapp:hover{transform:translateY(-2px); box-shadow:0 14px 30px rgba(37,211,102,.45);}
+  .btn-ghost{
+    background:transparent; color:var(--white); border:1.5px solid rgba(255,255,255,.35);
+  }
+  .btn-ghost:hover{background:rgba(255,255,255,.08);}
+
+  /* animations */
+  .reveal{opacity:0; transform:translateY(22px); transition:opacity .7s ease, transform .7s ease;}
+  .reveal.in{opacity:1; transform:translateY(0);}
+  .reveal-delay-1{transition-delay:.08s;}
+  .reveal-delay-2{transition-delay:.16s;}
+  .reveal-delay-3{transition-delay:.24s;}
+  .reveal-delay-4{transition-delay:.32s;}
+
+  /* ============ HEADER ============ */
+  header{
+    position:sticky; top:0; z-index:50;
+    background:rgba(6,14,28,.85); backdrop-filter:blur(10px);
+    border-bottom:1px solid rgba(255,255,255,.08);
+  }
+  header .wrap{display:flex; align-items:center; justify-content:space-between; height:76px;}
+  .brand{display:flex; align-items:center; gap:10px;}
+  .brand-badge{
+    width:38px; height:38px; border-radius:9px; background:linear-gradient(155deg,var(--gold-400),var(--gold-500));
+    display:flex; align-items:center; justify-content:center;
+    font-family:var(--serif); font-weight:800; color:var(--navy-950); font-size:15px;
+  }
+  .brand-text{color:#fff; font-weight:700; font-size:15.5px; line-height:1.2;}
+  .brand-text span{display:block; font-size:10.5px; font-weight:600; letter-spacing:.12em; color:var(--gold-400); text-transform:uppercase;}
+  .header-cta{display:none;}
+  @media(min-width:720px){ .header-cta{display:inline-flex; padding:12px 22px; font-size:14px;} }
+
+  /* ============ HERO ============ */
+  .hero{
+    background:radial-gradient(1200px 600px at 15% -10%, #12305e 0%, transparent 55%), linear-gradient(180deg,var(--navy-950),var(--navy-900) 60%, var(--navy-900));
+    color:#fff; padding:64px 0 100px; overflow:hidden;
+  }
+  .hero-grid{
+    display:grid; grid-template-columns:1fr; gap:56px; align-items:center;
+  }
+  @media(min-width:980px){ .hero-grid{grid-template-columns:1.05fr 1fr; gap:40px;} }
+  .hero h1{
+    font-size:clamp(32px,4.6vw,52px); color:#fff; letter-spacing:-.01em;
+  }
+  .hero h1 em{font-style:normal; color:var(--gold-400);}
+  .hero p.lead{
+    margin-top:20px; font-size:18px; color:#c6cfe0; max-width:520px; line-height:1.6;
+  }
+  .hero-actions{display:flex; flex-wrap:wrap; gap:14px; margin-top:32px;}
+  .hero-microcopy{margin-top:16px; font-size:13px; color:#8f9db8; display:flex; align-items:center; gap:8px;}
+  .hero-microcopy svg{width:14px; height:14px; flex-shrink:0;}
+
+  /* browser mockup */
+  .browser{
+    background:var(--navy-800); border-radius:16px; box-shadow:var(--shadow-lg);
+    border:1px solid rgba(255,255,255,.08); overflow:hidden;
+    transform:perspective(1400px) rotateY(-4deg) rotateX(1deg);
+  }
+  @media(max-width:980px){ .browser{transform:none;} }
+  .browser-bar{
+    display:flex; align-items:center; gap:6px; padding:12px 14px; background:#0c1932;
+    border-bottom:1px solid rgba(255,255,255,.06);
+  }
+  .browser-bar span{width:10px; height:10px; border-radius:50%; background:#2a3b5c;}
+  .browser-bar span:nth-child(1){background:#e05d5d;}
+  .browser-bar span:nth-child(2){background:#e0b45d;}
+  .browser-bar span:nth-child(3){background:#5ec488;}
+  .browser-bar .url{
+    margin-left:10px; font-size:11.5px; color:#7d8bab; background:#0a1730; padding:5px 12px;
+    border-radius:6px; flex:1;
+  }
+  .app{display:flex; min-height:420px; font-size:12px;}
+
+  /* sidebar */
+  .app-side{
+    width:170px; flex-shrink:0; background:var(--navy-950); padding:16px 12px;
+    display:flex; flex-direction:column; border-right:1px solid rgba(255,255,255,.06);
+  }
+  .app-logo{display:flex; align-items:center; gap:8px; padding:6px 4px 16px; border-bottom:1px solid rgba(255,255,255,.08); margin-bottom:14px;}
+  .app-logo .sq{width:26px; height:26px; border-radius:6px; background:linear-gradient(155deg,var(--gold-400),var(--gold-500)); flex-shrink:0; display:flex; align-items:center; justify-content:center; font-family:var(--serif); font-weight:800; color:var(--navy-950); font-size:10.5px;}
+  .app-logo .tx{line-height:1.25;}
+  .app-logo .tx b{display:block; color:#fff; font-size:10.5px; font-weight:700;}
+  .app-logo .tx span{font-size:8px; color:var(--gold-400); letter-spacing:.08em; font-weight:600;}
+  .app-nav{display:flex; flex-direction:column; gap:2px; flex:1;}
+  .app-nav a{
+    display:flex; align-items:center; gap:8px; padding:8px 9px; border-radius:7px;
+    color:#93a1c0; font-size:10.5px; font-weight:600; position:relative;
+  }
+  .app-nav a svg{width:13px; height:13px; flex-shrink:0;}
+  .app-nav a.active{background:rgba(201,162,75,.14); color:var(--gold-400);}
+  .app-nav a .badge{
+    margin-left:auto; background:#e0555a; color:#fff; font-size:8px; font-weight:800;
+    padding:1px 5px; border-radius:8px;
+  }
+  .app-clinic{
+    margin-top:10px; padding:10px; border-radius:9px; background:var(--navy-800);
+    border:1px solid rgba(255,255,255,.06);
+  }
+  .app-clinic b{display:block; color:#fff; font-size:9.5px; font-weight:700;}
+  .app-clinic small{display:block; color:#7d8bab; font-size:8px; margin-top:2px;}
+  .app-clinic .tag{
+    display:inline-block; margin-top:7px; font-size:7.5px; font-weight:800; letter-spacing:.05em;
+    color:var(--navy-950); background:var(--gold-400); padding:2px 6px; border-radius:5px;
+  }
+
+  /* main */
+  .app-main{flex:1; background:#f4f6fa; padding:16px 18px; min-width:0;}
+  .app-topbar{display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; flex-wrap:wrap; gap:8px;}
+  .app-topbar h4{font-family:var(--serif); font-size:14px; color:var(--navy-950); font-weight:700;}
+  .app-search{
+    background:#fff; border:1px solid var(--line); border-radius:7px; padding:5px 10px;
+    font-size:9.5px; color:var(--ink-500); flex:1; min-width:120px; max-width:220px;
+  }
+  .app-avatar{
+    width:22px; height:22px; border-radius:50%; background:var(--navy-800); color:#fff;
+    display:flex; align-items:center; justify-content:center; font-size:8.5px; font-weight:700;
+  }
+  .app-title{margin-bottom:12px;}
+  .app-title h3{font-family:var(--serif); font-size:17px; color:var(--navy-950);}
+  .app-title p{font-size:10.5px; color:var(--ink-500); margin-top:2px;}
+  .app-alert{
+    display:flex; align-items:center; justify-content:space-between; gap:10px;
+    background:#fff8e8; border:1px solid #f0dfa8; color:#8a6d1c; font-size:9.5px; font-weight:600;
+    padding:8px 12px; border-radius:8px; margin-bottom:14px;
+  }
+  .app-alert button{
+    background:var(--navy-950); color:#fff; font-size:8.5px; font-weight:700; border:none;
+    padding:5px 10px; border-radius:6px; white-space:nowrap;
+  }
+  .app-actions{display:grid; grid-template-columns:repeat(5,1fr); gap:8px; margin-bottom:16px;}
+  .app-actions .card{
+    background:#fff; border:1px solid var(--line); border-radius:9px; padding:9px 6px;
+    text-align:center; font-size:8px; font-weight:700; color:var(--ink-700);
+  }
+  .app-actions .card svg{width:15px; height:15px; margin:0 auto 6px; color:var(--navy-700);}
+  .app-actions .card.sel{border-color:var(--gold-500); box-shadow:0 0 0 1px var(--gold-500); color:var(--navy-950);}
+  .app-actions .card.sel svg{color:var(--gold-500);}
+  .app-empty{
+    text-align:center; padding:26px 10px; color:var(--ink-500); border:1px dashed var(--line);
+    border-radius:10px; background:#fff;
+  }
+  .app-empty svg{width:24px; height:24px; margin:0 auto 8px; color:#c3cbdc;}
+  .app-empty b{display:block; font-size:11px; color:var(--navy-950);}
+  .app-empty p{font-size:9px; margin-top:3px;}
+  @media(max-width:600px){
+    .app{flex-direction:column;}
+    .app-side{width:100%; flex-direction:row; align-items:center; overflow-x:auto;}
+    .app-nav{flex-direction:row;}
+    .app-clinic{display:none;}
+    .app-actions{grid-template-columns:repeat(3,1fr);}
+  }
+
+  /* floating badges over hero */
+  .float-card{
+    position:absolute; background:#fff; border-radius:12px; box-shadow:var(--shadow-md);
+    padding:12px 14px; font-size:11.5px; font-weight:600; color:var(--navy-950);
+    display:flex; align-items:center; gap:8px; z-index:2;
+  }
+  .float-card svg{width:16px; height:16px; color:var(--gold-500); flex-shrink:0;}
+  .float-1{top:-18px; right:-14px; animation:floaty 5s ease-in-out infinite;}
+  .float-2{bottom:-16px; left:-10px; animation:floaty 5s ease-in-out infinite 1.2s;}
+  @keyframes floaty{0%,100%{transform:translateY(0);}50%{transform:translateY(-8px);}}
+  @media(max-width:980px){ .float-card{display:none;} }
+
+  /* ============ PROBLEM ============ */
+  .problem{background:var(--white);}
+  .problem-list{display:grid; grid-template-columns:1fr; gap:14px; max-width:820px; margin:0 auto;}
+  @media(min-width:760px){ .problem-list{grid-template-columns:1fr 1fr;} }
+  .problem-item{
+    display:flex; gap:14px; padding:20px; background:var(--paper); border-radius:var(--radius-sm);
+    border:1px solid var(--line);
+  }
+  .problem-item .num{
+    font-family:var(--serif); font-weight:700; font-size:20px; color:var(--gold-500); flex-shrink:0; width:30px;
+  }
+  .problem-item h4{font-size:15.5px; color:var(--navy-950); margin-bottom:4px;}
+  .problem-item p{font-size:13.5px; color:var(--ink-700);}
+  .problem-verdict{
+    max-width:760px; margin:52px auto 0; text-align:center; padding:32px 28px;
+    background:var(--navy-950); border-radius:var(--radius); color:#fff;
+  }
+  .problem-verdict p{font-family:var(--serif); font-size:clamp(19px,2.6vw,25px); line-height:1.5;}
+  .problem-verdict p b{color:var(--gold-400); font-weight:700;}
+
+  /* ============ AGITATION ============ */
+  .agitation{background:var(--navy-900); color:#fff;}
+  .agitation .sec-head h2{color:#fff;}
+  .agitation .sec-head p{color:#aab5cd;}
+  .agit-row{display:grid; grid-template-columns:1fr; gap:20px; max-width:960px; margin:0 auto;}
+  @media(min-width:760px){ .agit-row{grid-template-columns:repeat(3,1fr);} }
+  .agit-card{
+    background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.08);
+    border-radius:var(--radius-sm); padding:26px 22px;
+  }
+  .agit-card svg{width:26px; height:26px; color:var(--gold-400); margin-bottom:14px;}
+  .agit-card h4{color:#fff; font-size:16px; margin-bottom:8px;}
+  .agit-card p{font-size:13.5px; color:#aab5cd; line-height:1.6;}
+
+  /* ============ SOLUTION ============ */
+  .solution{background:var(--white);}
+  .solution-grid{display:grid; grid-template-columns:1fr; gap:48px; align-items:center;}
+  @media(min-width:980px){ .solution-grid{grid-template-columns:1fr 1fr;} }
+  .solution-copy h2{font-size:clamp(26px,3.6vw,36px); margin-bottom:16px;}
+  .solution-copy p{color:var(--ink-700); font-size:16px; margin-bottom:14px;}
+  .solution-pill{
+    display:inline-flex; align-items:center; gap:8px; background:var(--navy-950); color:#fff;
+    padding:8px 16px; border-radius:999px; font-size:12.5px; font-weight:700; margin-top:8px;
+  }
+  .solution-pill svg{width:14px; height:14px; color:var(--gold-400);}
+  .funnel{
+    background:var(--paper); border:1px solid var(--line); border-radius:var(--radius); padding:26px;
+  }
+  .funnel-step{display:flex; align-items:center; gap:14px; padding:13px 0; position:relative;}
+  .funnel-step:not(:last-child)::after{
+    content:""; position:absolute; left:19px; top:44px; width:2px; height:20px; background:var(--line);
+  }
+  .funnel-dot{
+    width:38px; height:38px; border-radius:50%; background:var(--navy-950); color:var(--gold-400);
+    display:flex; align-items:center; justify-content:center; font-weight:800; font-size:14px; flex-shrink:0;
+  }
+  .funnel-step.on .funnel-dot{background:var(--gold-500); color:var(--navy-950);}
+  .funnel-tx b{display:block; font-size:14px; color:var(--navy-950); font-family:var(--serif);}
+  .funnel-tx span{font-size:12px; color:var(--ink-500);}
+
+  /* ============ FEATURES ============ */
+  .features{background:var(--paper);}
+  .feat-block{
+    display:grid; grid-template-columns:1fr; gap:36px; align-items:center;
+    padding:40px 0; border-bottom:1px solid var(--line);
+  }
+  .feat-block:last-child{border-bottom:none;}
+  @media(min-width:900px){
+    .feat-block{grid-template-columns:1fr 1fr;}
+    .feat-block.rev .feat-copy{order:2;}
+    .feat-block.rev .feat-visual{order:1;}
+  }
+  .feat-copy .tag-num{
+    display:inline-flex; width:34px; height:34px; border-radius:9px; background:var(--navy-950);
+    color:var(--gold-400); align-items:center; justify-content:center; font-family:var(--serif);
+    font-weight:800; font-size:14px; margin-bottom:16px;
+  }
+  .feat-copy h3{font-size:22px; margin-bottom:10px;}
+  .feat-copy p{color:var(--ink-700); font-size:15px;}
+  .feat-visual{
+    background:#fff; border:1px solid var(--line); border-radius:var(--radius); padding:22px;
+    box-shadow:var(--shadow-sm);
+  }
+  .chip-wrap{display:flex; flex-wrap:wrap; gap:8px;}
+  .chip{
+    background:#eef0f5; color:var(--ink-700); font-size:12px; font-weight:600; padding:8px 14px;
+    border-radius:999px;
+  }
+  .chip.gold{background:var(--gold-100); color:#8a6d1c; border:1px solid #ecd9a2;}
+  .chat-bubble{
+    background:var(--paper); border-radius:12px; padding:12px 14px; font-size:13px; color:var(--ink-700);
+    margin-bottom:10px; border:1px solid var(--line);
+  }
+  .chat-bubble.ai{background:var(--navy-950); color:#fff; border:none;}
+  .chat-bubble.ai b{color:var(--gold-400);}
+  .crm-mini-row{display:flex; align-items:center; justify-content:space-between; padding:11px 0; border-bottom:1px solid var(--line); font-size:13px;}
+  .crm-mini-row:last-child{border-bottom:none;}
+  .crm-mini-row .ok{color:#1e8a5b; font-weight:700; font-size:12px;}
+  .crm-mini-row .warn{color:#b4791a; font-weight:700; font-size:12px;}
+  .kpi-grid{display:grid; grid-template-columns:1fr 1fr; gap:14px;}
+  .kpi{background:var(--paper); border:1px solid var(--line); border-radius:10px; padding:16px;}
+  .kpi b{display:block; font-family:var(--serif); font-size:24px; color:var(--navy-950);}
+  .kpi span{font-size:11.5px; color:var(--ink-500);}
+
+  /* ============ METHOD ============ */
+  .method{background:var(--navy-950); color:#fff; text-align:center;}
+  .method-badge{
+    display:inline-flex; align-items:center; gap:10px; background:rgba(201,162,75,.12);
+    border:1px solid rgba(201,162,75,.35); padding:9px 20px; border-radius:999px; margin-bottom:22px;
+  }
+  .method-badge svg{width:16px; height:16px; color:var(--gold-400);}
+  .method-badge span{font-size:12.5px; font-weight:700; letter-spacing:.04em; color:var(--gold-400); text-transform:uppercase;}
+  .method h2{color:#fff; max-width:720px; margin:0 auto 18px; font-size:clamp(24px,3.4vw,32px);}
+  .method > .wrap > p{max-width:640px; margin:0 auto 44px; color:#aab5cd; font-size:16px;}
+  .spin-row{display:grid; grid-template-columns:repeat(2,1fr); gap:14px; max-width:820px; margin:0 auto;}
+  @media(min-width:760px){ .spin-row{grid-template-columns:repeat(4,1fr);} }
+  .spin-item{background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.09); border-radius:12px; padding:22px 14px;}
+  .spin-item .letter{font-family:var(--serif); font-size:30px; font-weight:800; color:var(--gold-400);}
+  .spin-item b{display:block; font-size:13.5px; color:#fff; margin-top:8px;}
+  .spin-item span{font-size:11.5px; color:#aab5cd; display:block; margin-top:4px;}
+
+  /* ============ BELONGING ============ */
+  .belonging{
+    background:linear-gradient(135deg,var(--navy-900),var(--navy-700)); color:#fff; position:relative;
+    overflow:hidden;
+  }
+  .belonging::before{
+    content:""; position:absolute; width:600px; height:600px; border-radius:50%;
+    background:radial-gradient(circle, rgba(201,162,75,.18), transparent 70%);
+    top:-200px; right:-160px;
+  }
+  .belonging-inner{max-width:760px; margin:0 auto; text-align:center; position:relative; z-index:1;}
+  .belonging .eyebrow{color:var(--gold-400); justify-content:center; display:flex;}
+  .belonging h2{color:#fff; font-size:clamp(26px,3.8vw,38px); margin-bottom:22px;}
+  .belonging p{color:#c6cfe0; font-size:17px; margin-bottom:16px; line-height:1.7;}
+  .belonging strong{color:var(--gold-400); font-weight:700;}
+  .belong-badges{display:flex; flex-wrap:wrap; gap:12px; justify-content:center; margin-top:32px;}
+  .belong-badges span{
+    border:1px solid rgba(255,255,255,.2); padding:10px 18px; border-radius:999px; font-size:13px; font-weight:600;
+  }
+
+  /* ============ SOCIAL PROOF ============ */
+  .proof{background:var(--white);}
+  .proof-card{
+    max-width:760px; margin:0 auto; background:var(--paper); border:1.5px dashed #c9d0e0;
+    border-radius:var(--radius); padding:40px 34px; text-align:center;
+  }
+  .proof-card .quote-icon{width:32px; height:32px; color:var(--gold-500); margin:0 auto 18px;}
+  .proof-card .placeholder-text{
+    font-family:var(--serif); font-size:19px; color:var(--ink-500); font-style:italic; line-height:1.6;
+  }
+  .proof-avatars{display:flex; justify-content:center; gap:-8px; margin-top:26px;}
+  .proof-avatar{
+    width:44px; height:44px; border-radius:50%; background:#dfe4ee; border:2px solid #fff;
+    margin-left:-10px; display:flex; align-items:center; justify-content:center; color:#9aa5bd;
+  }
+  .proof-avatar:first-child{margin-left:0;}
+  .proof-tag{
+    display:inline-block; margin-top:22px; font-size:11.5px; font-weight:700; letter-spacing:.06em;
+    text-transform:uppercase; color:#8a95ad; background:#eceff5; padding:6px 14px; border-radius:999px;
+  }
+
+  /* ============ FAQ ============ */
+  .faq{background:var(--paper);}
+  .faq-list{max-width:760px; margin:0 auto; display:flex; flex-direction:column; gap:12px;}
+  .faq-item{background:#fff; border:1px solid var(--line); border-radius:12px; overflow:hidden;}
+  .faq-q{
+    width:100%; text-align:left; background:none; border:none; padding:20px 22px; cursor:pointer;
+    display:flex; align-items:center; justify-content:space-between; gap:16px; font-family:var(--sans);
+    font-size:15.5px; font-weight:700; color:var(--navy-950);
+  }
+  .faq-q svg{width:18px; height:18px; color:var(--gold-500); flex-shrink:0; transition:transform .25s ease;}
+  .faq-item.open .faq-q svg{transform:rotate(45deg);}
+  .faq-a{max-height:0; overflow:hidden; transition:max-height .3s ease;}
+  .faq-a div{padding:0 22px 20px; color:var(--ink-700); font-size:14.5px; line-height:1.65;}
+
+  /* ============ FINAL CTA ============ */
+  .final-cta{
+    background:linear-gradient(180deg,var(--navy-950),#020610); color:#fff; text-align:center;
+  }
+  .final-cta h2{color:#fff; font-size:clamp(28px,4.4vw,42px); max-width:760px; margin:0 auto 18px;}
+  .final-cta h2 em{font-style:normal; color:var(--gold-400);}
+  .final-cta p{color:#aab5cd; font-size:17px; max-width:560px; margin:0 auto 36px;}
+  .final-cta .btn-whatsapp{padding:19px 38px; font-size:17px;}
+
+  /* ============ ETHICS STRIP ============ */
+  .ethics{background:var(--white); border-top:1px solid var(--line); border-bottom:1px solid var(--line);}
+  .ethics-inner{
+    max-width:820px; margin:0 auto; display:flex; gap:20px; align-items:flex-start; padding:36px 0;
+  }
+  .ethics-inner svg{width:30px; height:30px; color:var(--navy-700); flex-shrink:0;}
+  .ethics-inner h4{font-size:15.5px; color:var(--navy-950); margin-bottom:6px;}
+  .ethics-inner p{font-size:14px; color:var(--ink-700); line-height:1.65;}
+
+  /* ============ FOOTER ============ */
+  footer{background:var(--navy-950); color:#8f9db8; padding:44px 0 28px;}
+  .footer-inner{display:flex; flex-direction:column; gap:20px; align-items:center; text-align:center;}
+  .footer-inner .brand{justify-content:center;}
+  .footer-inner p{font-size:13px; max-width:420px;}
+  .footer-line{font-size:12px; color:#5c6a8a; margin-top:6px;}
+
+  /* ============ WHATSAPP FLOAT ============ */
+  .wa-float{
+    position:fixed; bottom:22px; right:22px; z-index:100; width:60px; height:60px; border-radius:50%;
+    background:var(--whatsapp); display:flex; align-items:center; justify-content:center;
+    box-shadow:0 10px 26px rgba(37,211,102,.5); animation:pulse 2.4s ease-in-out infinite;
+  }
+  .wa-float svg{width:30px; height:30px; color:#fff;}
+  @keyframes pulse{
+    0%,100%{box-shadow:0 10px 26px rgba(37,211,102,.5);}
+    50%{box-shadow:0 10px 26px rgba(37,211,102,.5), 0 0 0 10px rgba(37,211,102,.14);}
+  }
+</style>
 </head>
 <body>
-    <p>Testando subir para o GitHub</p>
+
+<!-- ============ HEADER ============ -->
+<header>
+  <div class="wrap">
+    <div class="brand">
+      <div class="brand-badge">CC</div>
+      <div class="brand-text">Clínica que Converte<span>CRM Comercial + IA</span></div>
+    </div>
+    <a class="btn btn-whatsapp header-cta" target="_blank" rel="noopener" href="https://wa.me/5531983600675?text=Ol%C3%A1%2C%20quero%20saber%20mais%20sobre%20o%20CRM%20com%20IA%20da%20Cl%C3%ADnica%20que%20Converte">Falar no WhatsApp</a>
+  </div>
+</header>
+
+<!-- ============ HERO ============ -->
+<section class="hero">
+  <div class="wrap">
+    <div class="hero-grid">
+      <div>
+        <p class="eyebrow reveal in">CRM + Agente de IA para clínicas</p>
+        <h1 class="reveal in">Seu paciente está sendo perdido <em>antes da primeira consulta.</em></h1>
+        <p class="lead reveal in reveal-delay-1">Sua clínica não tem um problema de geração de leads. Tem um problema de conversão. O CRM da Clínica que Converte organiza o funil do lead até o comparecimento — com um agente de IA embutido que ajuda sua recepção a vender melhor em cada conversa.</p>
+        <div class="hero-actions reveal in reveal-delay-2">
+          <a class="btn btn-whatsapp" target="_blank" rel="noopener" href="https://wa.me/5531983600675?text=Ol%C3%A1%2C%20quero%20saber%20mais%20sobre%20o%20CRM%20com%20IA%20da%20Cl%C3%ADnica%20que%20Converte">
+            <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20"><path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.75.46 3.45 1.32 4.95L2 22l5.29-1.39a9.9 9.9 0 0 0 4.75 1.21h.01c5.46 0 9.9-4.45 9.9-9.91 0-2.65-1.03-5.14-2.9-7.01A9.82 9.82 0 0 0 12.04 2zm5.8 14.13c-.24.68-1.4 1.32-1.93 1.4-.5.08-1.12.11-1.81-.11a16.5 16.5 0 0 1-1.58-.58c-2.78-1.2-4.6-4-4.74-4.19-.14-.19-1.13-1.5-1.13-2.86 0-1.36.71-2.02.97-2.3.25-.27.55-.34.73-.34l.53.01c.17.01.4-.06.62.48.24.58.81 2 .88 2.15.07.14.12.31.02.5-.1.19-.15.31-.3.48-.14.17-.3.37-.43.5-.14.14-.29.29-.13.57.17.28.75 1.24 1.62 2.01 1.11.99 2.05 1.3 2.33 1.44.28.14.44.12.6-.07.17-.19.71-.83.9-1.11.19-.28.38-.23.63-.14.26.1 1.65.78 1.93.92.28.14.47.21.53.33.07.12.07.68-.17 1.35z"/></svg>
+            Falar com um especialista
+          </a>
+        </div>
+        <p class="hero-microcopy reveal in reveal-delay-3">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="9"/></svg>
+          Feito especificamente para clínicas odontológicas, estéticas e consultórios privados.
+        </p>
+      </div>
+
+      <div style="position:relative;">
+        <div class="float-card float-1">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M7 14l4-4 3 3 5-6"/></svg>
+          Lead → Comparecimento: +conversão
+        </div>
+        <div class="float-card float-2">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l3 7h7l-5.5 4.5L18 21l-6-4-6 4 1.5-7.5L2 9h7z"/></svg>
+          Metodologia SPIN Selling
+        </div>
+
+        <!-- Mockup do CRM real: tela "Assistente de Vendas" -->
+        <div class="browser reveal in reveal-delay-1">
+          <div class="browser-bar">
+            <span></span><span></span><span></span>
+            <div class="url">app.clinicaqueconverte.com/assistente</div>
+          </div>
+          <div class="app">
+            <aside class="app-side">
+              <div class="app-logo">
+                <div class="sq">CC</div>
+                <div class="tx"><b>Clínica que Converte</b><span>CRM Comercial</span></div>
+              </div>
+              <nav class="app-nav">
+                <a class="active"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2L3 14h7l-1 8 11-14h-7l1-6z"/></svg>Assistente de Vendas</a>
+                <a><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>Pacientes</a>
+                <a><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="18"/><rect x="14" y="3" width="7" height="10"/></svg>Kanban</a>
+                <a><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8a6 6 0 10-12 0c0 7-3 9-3 9h18s-3-2-3-9"/></svg>Indicações</a>
+                <a><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M7 14l4-4 3 3 5-6"/></svg>Dashboard</a>
+                <a><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>Agenda<span class="badge">13</span></a>
+                <a><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 00-.2-1.6l2-1.5-2-3.4-2.3.9a7 7 0 00-2.8-1.6L13.3 2h-2.6l-.4 2.8a7 7 0 00-2.8 1.6l-2.3-.9-2 3.4 2 1.5A7 7 0 004 12"/></svg>Configurações</a>
+              </nav>
+              <div class="app-clinic">
+                <b>Clínica Sorriso Pleno</b>
+                <small>Odontologia — Ortodontia e Estética</small>
+                <span class="tag">Modo demonstração</span>
+              </div>
+            </aside>
+            <div class="app-main">
+              <div class="app-topbar">
+                <h4>Assistente de Vendas</h4>
+                <input class="app-search" placeholder="Buscar por nome, telefone ou e-mail..." disabled>
+                <div class="app-avatar">VH</div>
+              </div>
+              <div class="app-title">
+                <h3>Assistente Clínica que Converte</h3>
+                <p>Seu copiloto para transformar conversas em consultas agendadas.</p>
+              </div>
+              <div class="app-alert">
+                <span>⚠ Nenhum paciente vinculado — as respostas serão genéricas.</span>
+                <button>Vincular paciente</button>
+              </div>
+              <div class="app-actions">
+                <div class="card"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 11.5a8.38 8.38 0 01-9 8.4 8.5 8.5 0 01-4-1L3 20l1.3-4a8.38 8.38 0 01-1-4A8.5 8.5 0 0112 3a8.38 8.38 0 018.5 8.5z"/></svg>Como responder?</div>
+                <div class="card"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9L1.8 18a2 2 0 001.7 3h17a2 2 0 001.7-3L13.7 3.9a2 2 0 00-3.4 0z"/></svg>Quebrar objeção</div>
+                <div class="card sel"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M8 2v4M16 2v4M3 10h18M8 15h4"/></svg>Criar follow-up</div>
+                <div class="card"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4z"/></svg>Melhorar minha mensagem</div>
+                <div class="card"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M7 14l3-3 3 3 5-6"/></svg>Analisar conversa</div>
+              </div>
+              <div class="app-empty">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 11.5a8.38 8.38 0 01-9 8.4 8.5 8.5 0 01-4-1L3 20l1.3-4a8.38 8.38 0 01-1-4A8.5 8.5 0 0112 3a8.38 8.38 0 018.5 8.5z"/></svg>
+                <b>Como posso ajudar agora?</b>
+                <p>Escolha uma ação rápida acima ou cole a mensagem do paciente para começar.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ O PROBLEMA ============ -->
+<section class="problem pad">
+  <div class="wrap">
+    <div class="sec-head reveal">
+      <p class="eyebrow" style="justify-content:center;display:flex;">Diagnóstico</p>
+      <h2>O vazamento não está no topo do funil.</h2>
+      <p>Antes de qualquer ajuste em tráfego pago, olhe para o que acontece depois do clique. É ali que a maior parte das clínicas perde dinheiro.</p>
+    </div>
+    <div class="problem-list">
+      <div class="problem-item reveal"><span class="num">01</span><div><h4>Recepção treinada para atender, não para vender</h4><p>A equipe sabe responder perguntas — não sabe conduzir uma conversa até o agendamento.</p></div></div>
+      <div class="problem-item reveal reveal-delay-1"><span class="num">02</span><div><h4>Objeções sem resposta estruturada</h4><p>"Está caro", "vou pensar", comparação com concorrente: cada uma dessas frases hoje encerra a conversa, não a continua.</p></div></div>
+      <div class="problem-item reveal reveal-delay-2"><span class="num">03</span><div><h4>Zero qualificação antes de oferecer o tratamento</h4><p>Sem entender a real necessidade do paciente, a recepção oferece preço antes de gerar valor.</p></div></div>
+      <div class="problem-item reveal reveal-delay-3"><span class="num">04</span><div><h4>Leads esquecidos, sem follow-up</h4><p>Ninguém retoma o contato no tempo certo — e o paciente já marcou em outro lugar.</p></div></div>
+      <div class="problem-item reveal"><span class="num">05</span><div><h4>WhatsApp genérico, sem urgência</h4><p>Respostas copiadas e coladas não geram conexão nem senso de prioridade.</p></div></div>
+      <div class="problem-item reveal reveal-delay-1"><span class="num">06</span><div><h4>Decisão no achismo</h4><p>Sem indicador de conversão lead→agendamento ou agendamento→comparecimento, a clínica não sabe onde está o furo.</p></div></div>
+    </div>
+    <div class="problem-verdict reveal">
+      <p>Sua clínica não tem um problema de <b>geração</b> de leads.<br>Tem um problema de <b>conversão</b>.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ AGITAÇÃO / CUSTO ============ -->
+<section class="agitation pad">
+  <div class="wrap">
+    <div class="sec-head reveal">
+      <p class="eyebrow" style="justify-content:center;display:flex;">O custo de não resolver</p>
+      <h2>Cada lead perdido já foi pago.</h2>
+      <p>O investimento em tráfego pago não desaparece — ele só deixa de dar retorno. E o paciente que você perdeu vai ser atendido por alguém.</p>
+    </div>
+    <div class="agit-row">
+      <div class="agit-card reveal">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
+        <h4>Verba de mídia diluída</h4>
+        <p>Todo real investido em anúncio que não vira agendamento é um real que financiou o marketing do concorrente que respondeu mais rápido.</p>
+      </div>
+      <div class="agit-card reveal reveal-delay-1">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
+        <h4>Paciente vai para o concorrente</h4>
+        <p>Ele não desistiu do tratamento — desistiu de esperar. E foi atendido por quem soube conduzir a conversa.</p>
+      </div>
+      <div class="agit-card reveal reveal-delay-2">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+        <h4>O problema se repete todo mês</h4>
+        <p>Sem processo e sem indicador, a clínica reinicia o mesmo ciclo de vazamento a cada nova campanha.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ A SOLUÇÃO ============ -->
+<section class="solution pad">
+  <div class="wrap">
+    <div class="solution-grid">
+      <div class="solution-copy reveal">
+        <p class="eyebrow">A solução</p>
+        <h2>Um sistema único: CRM + Agente de IA.</h2>
+        <p>Não são duas ferramentas separadas. O CRM organiza o funil — do primeiro contato até o comparecimento — e o agente de IA potencializa cada conversa dentro dele, em tempo real.</p>
+        <p>O resultado: sua recepção nunca mais fica sem saber o que responder, e você nunca mais decide sem saber onde está o gargalo.</p>
+        <span class="solution-pill">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2L3 14h7l-1 8 11-14h-7l1-6z"/></svg>
+          CRM feito do zero para clínicas
+        </span>
+      </div>
+      <div class="funnel reveal reveal-delay-1">
+        <div class="funnel-step on">
+          <div class="funnel-dot">1</div>
+          <div class="funnel-tx"><b>Lead</b><span>Chegou pelo anúncio, indicação ou site</span></div>
+        </div>
+        <div class="funnel-step on">
+          <div class="funnel-dot">2</div>
+          <div class="funnel-tx"><b>Qualificação</b><span>Agente de IA orienta a recepção com base em SPIN</span></div>
+        </div>
+        <div class="funnel-step on">
+          <div class="funnel-dot">3</div>
+          <div class="funnel-tx"><b>Agendamento</b><span>Follow-up automático evita o esquecimento</span></div>
+        </div>
+        <div class="funnel-step on">
+          <div class="funnel-dot">4</div>
+          <div class="funnel-tx"><b>Comparecimento</b><span>Painel mede a taxa real, não só a promessa</span></div>
+        </div>
+        <div class="funnel-step">
+          <div class="funnel-dot">5</div>
+          <div class="funnel-tx"><b>Tratamento</b><span>Histórico centralizado por paciente</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ COMO FUNCIONA / FUNCIONALIDADES ============ -->
+<section class="features pad">
+  <div class="wrap">
+    <div class="sec-head reveal">
+      <p class="eyebrow" style="justify-content:center;display:flex;">Como funciona</p>
+      <h2>Quatro funções do agente. Um CRM por trás de tudo.</h2>
+      <p>Cada função resolve um ponto exato do vazamento identificado no diagnóstico.</p>
+    </div>
+
+    <div class="feat-block reveal">
+      <div class="feat-copy">
+        <div class="tag-num">1</div>
+        <h3>Analisa a conversa e aponta onde o lead está sendo perdido</h3>
+        <p>Cole o print da conversa com o paciente. O agente lê o histórico e mostra exatamente em qual mensagem a recepção perdeu o controle — antes que o lead esfrie de vez.</p>
+      </div>
+      <div class="feat-visual">
+        <div class="chat-bubble">Paciente: "Vou ver com calma e te chamo depois"</div>
+        <div class="chat-bubble ai"><b>Agente:</b> Ponto de perda identificado — a recepção não investigou o motivo da hesitação antes de encerrar. Sugestão de resposta abaixo.</div>
+      </div>
+    </div>
+
+    <div class="feat-block rev reveal">
+      <div class="feat-copy">
+        <div class="tag-num">2</div>
+        <h3>Sugere respostas prontas para dúvidas frequentes</h3>
+        <p>Sua recepção nunca mais fica sem saber o que responder. O agente entrega a resposta certa, no tom certo, para as perguntas que se repetem todo dia.</p>
+      </div>
+      <div class="feat-visual">
+        <div class="crm-mini-row"><span>Quanto custa o tratamento?</span><span class="ok">Resposta pronta</span></div>
+        <div class="crm-mini-row"><span>Vocês parcelam?</span><span class="ok">Resposta pronta</span></div>
+        <div class="crm-mini-row"><span>Tem vaga essa semana?</span><span class="warn">Sugerir horário</span></div>
+      </div>
+    </div>
+
+    <div class="feat-block reveal">
+      <div class="feat-copy">
+        <div class="tag-num">3</div>
+        <h3>Ajuda a contornar objeções em tempo real</h3>
+        <p>Preço, "vou pensar", comparação com concorrente — clique na objeção e o agente sugere a linha de argumentação, seguindo a lógica de qualificação, não de pressão.</p>
+      </div>
+      <div class="feat-visual">
+        <div class="chip-wrap">
+          <span class="chip gold">Está caro</span>
+          <span class="chip">Vou pensar</span>
+          <span class="chip">Vou pesquisar</span>
+          <span class="chip">Quero falar com meu marido/esposa</span>
+          <span class="chip">Não tenho dinheiro agora</span>
+          <span class="chip">Não tenho tempo</span>
+          <span class="chip">Tenho medo</span>
+          <span class="chip">Vou ver outro lugar</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="feat-block rev reveal">
+      <div class="feat-copy">
+        <div class="tag-num">4</div>
+        <h3>Melhora a mensagem antes de enviar</h3>
+        <p>A recepcionista escreve, o agente revisa tom, clareza e urgência antes do envio. Comunicação mais firme, sem soar forçada.</p>
+      </div>
+      <div class="feat-visual">
+        <div class="chat-bubble">Rascunho: "oi tudo bem, entao sobre o valor..."</div>
+        <div class="chat-bubble ai"><b>Agente:</b> Reescrito com tom mais claro e direto, mantendo cordialidade e senso de prioridade.</div>
+      </div>
+    </div>
+
+    <div class="feat-block reveal">
+      <div class="feat-copy">
+        <div class="tag-num">+</div>
+        <h3>O CRM por trás de cada conversa</h3>
+        <p>Funil visual do lead ao comparecimento, follow-up automático de leads parados, histórico centralizado por paciente e um painel com os indicadores que importam.</p>
+      </div>
+      <div class="feat-visual">
+        <div class="kpi-grid">
+          <div class="kpi"><b>38%</b><span>Lead → Agendamento</span></div>
+          <div class="kpi"><b>71%</b><span>Agendamento → Comparecimento</span></div>
+          <div class="kpi"><b>4min</b><span>Tempo médio de resposta</span></div>
+          <div class="kpi"><b>0</b><span>Leads esquecidos no funil</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ METODOLOGIA / AUTORIDADE ============ -->
+<section class="method pad">
+  <div class="wrap">
+    <div class="method-badge reveal"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l3 7h7l-5.5 4.5L18 21l-6-4-6 4 1.5-7.5L2 9h7z"/></svg><span>Metodologia</span></div>
+    <h2 class="reveal">Baseado em SPIN Selling, adaptado para clínicas de saúde.</h2>
+    <p class="reveal reveal-delay-1">O agente não improvisa a conversa. Ele segue uma lógica de qualificação testada — adaptada à realidade de quem atende paciente, não lead de qualquer segmento.</p>
+    <div class="spin-row">
+      <div class="spin-item reveal"><div class="letter">S</div><b>Situação</b><span>Entender o contexto do paciente</span></div>
+      <div class="spin-item reveal reveal-delay-1"><div class="letter">P</div><b>Problema</b><span>Identificar a real necessidade</span></div>
+      <div class="spin-item reveal reveal-delay-2"><div class="letter">I</div><b>Implicação</b><span>Mostrar o custo de adiar</span></div>
+      <div class="spin-item reveal reveal-delay-3"><div class="letter">N</div><b>Necessidade</b><span>Conduzir até o agendamento</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ DIFERENCIAL / PERTENCIMENTO ============ -->
+<section class="belonging pad">
+  <div class="wrap belonging-inner">
+    <p class="eyebrow reveal">Diferencial de marca</p>
+    <h2 class="reveal">Não é só vender mais. É pertencer a um padrão.</h2>
+    <p class="reveal reveal-delay-1">Existe uma diferença entre uma clínica que "atende bem" e uma clínica que opera dentro de um <strong>padrão de excelência</strong>. O paciente sente essa diferença — na clareza da resposta, na segurança da condução, no tempo de retorno.</p>
+    <p class="reveal reveal-delay-2">Sua recepção também sente. Trabalhar com processo, com método, com uma ferramenta que dá suporte em tempo real muda a forma como a equipe se vê dentro da clínica. Deixa de ser "quem responde WhatsApp" e passa a fazer parte de algo estruturado.</p>
+    <div class="belong-badges reveal reveal-delay-3">
+      <span>Processo, não improviso</span>
+      <span>Padrão, não sorte</span>
+      <span>Equipe que pertence, não que só atende</span>
+    </div>
+  </div>
+</section>
+
+<!-- ============ PROVA SOCIAL ============ -->
+<section class="proof pad">
+  <div class="wrap">
+    <div class="sec-head reveal">
+      <p class="eyebrow" style="justify-content:center;display:flex;">Prova social</p>
+      <h2>O que muda na prática, na voz de quem já usa.</h2>
+    </div>
+    <div class="proof-card reveal">
+      <svg class="quote-icon" viewBox="0 0 24 24" fill="currentColor"><path d="M7 7c-3 2-4 4.5-4 7.5A4.5 4.5 0 007.5 19 4 4 0 0011 15c0-2-1.5-3.5-3.5-3.5-.4 0-.7 0-1 .1C6.7 10 8 8.5 10 7L7 7zm10 0c-3 2-4 4.5-4 7.5a4.5 4.5 0 004.5 4.5A4 4 0 0021 15c0-2-1.5-3.5-3.5-3.5-.4 0-.7 0-1 .1C16.7 10 18 8.5 20 7l-3 0z"/></svg>
+      <p class="placeholder-text">[CASE DE CLIENTE AQUI — depoimento em vídeo ou texto, com nome da clínica, especialidade e resultado comercial mensurável]</p>
+      <div class="proof-avatars">
+        <div class="proof-avatar">🦷</div>
+        <div class="proof-avatar">💉</div>
+        <div class="proof-avatar">🏥</div>
+      </div>
+      <span class="proof-tag">Espaço reservado para case real</span>
+    </div>
+  </div>
+</section>
+
+<!-- ============ FAQ ============ -->
+<section class="faq pad">
+  <div class="wrap">
+    <div class="sec-head reveal">
+      <p class="eyebrow" style="justify-content:center;display:flex;">Perguntas frequentes</p>
+      <h2>Antes de decidir, responda isso.</h2>
+    </div>
+    <div class="faq-list">
+      <div class="faq-item reveal">
+        <button class="faq-q">Minha equipe já foi treinada. Isso ainda faz sentido?<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg></button>
+        <div class="faq-a"><div>Treinamento pontual perde efeito com o tempo e não cobre toda situação de conversa. O agente atua no momento exato da dúvida ou objeção, dentro do CRM — é reforço contínuo, não substituição do treinamento que já existe.</div></div>
+      </div>
+      <div class="faq-item reveal">
+        <button class="faq-q">A IA substitui minha recepcionista?<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg></button>
+        <div class="faq-a"><div>Não. O agente é um copiloto — ele sugere, orienta e revisa, mas quem conduz a conversa com o paciente é a sua equipe. A decisão final e o contato humano continuam com a recepção.</div></div>
+      </div>
+      <div class="faq-item reveal">
+        <button class="faq-q">Funciona para o meu tipo de clínica?<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg></button>
+        <div class="faq-a"><div>O CRM foi desenhado para clínicas odontológicas, estéticas e consultórios privados de saúde. A lógica de qualificação SPIN é adaptada ao funil desses segmentos, não a um funil genérico de vendas.</div></div>
+      </div>
+      <div class="faq-item reveal">
+        <button class="faq-q">Preciso trocar todo o sistema que já uso?<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg></button>
+        <div class="faq-a"><div>O CRM Clínica que Converte foi construído para ser a camada comercial do seu funil — do primeiro contato ao comparecimento. Conversamos sobre o seu cenário atual para entender o caminho de implementação mais simples.</div></div>
+      </div>
+      <div class="faq-item reveal">
+        <button class="faq-q">O agente pode prometer resultado clínico ao paciente?<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg></button>
+        <div class="faq-a"><div>Não, nunca. O agente atua exclusivamente na condução comercial da conversa. Ele não diagnostica, não promete cura ou resultado clínico, e não substitui o julgamento profissional de saúde.</div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ LIMITES ÉTICOS ============ -->
+<section class="ethics">
+  <div class="wrap ethics-inner reveal">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 2l8 4v6c0 5-3.5 8.5-8 10-4.5-1.5-8-5-8-10V6l8-4z"/></svg>
+    <div>
+      <h4>Limites éticos do agente</h4>
+      <p>Este assistente nunca diagnostica, promete resultado clínico ou cura, cria urgência falsa ou pressiona pacientes vulneráveis. Ele apenas sugere como conduzir a conversa com mais confiança — a decisão e o cuidado com o paciente continuam sendo da sua equipe.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ CTA FINAL ============ -->
+<section class="final-cta pad">
+  <div class="wrap">
+    <h2 class="reveal">Pare de pagar por leads que <em>viram cliente do concorrente.</em></h2>
+    <p class="reveal reveal-delay-1">Fale agora com um especialista e entenda como o CRM com agente de IA se encaixa no funil da sua clínica.</p>
+    <a class="btn btn-whatsapp reveal reveal-delay-2" target="_blank" rel="noopener" href="https://wa.me/5531983600675?text=Ol%C3%A1%2C%20quero%20saber%20mais%20sobre%20o%20CRM%20com%20IA%20da%20Cl%C3%ADnica%20que%20Converte">
+      <svg viewBox="0 0 24 24" fill="currentColor" width="22" height="22"><path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.75.46 3.45 1.32 4.95L2 22l5.29-1.39a9.9 9.9 0 0 0 4.75 1.21h.01c5.46 0 9.9-4.45 9.9-9.91 0-2.65-1.03-5.14-2.9-7.01A9.82 9.82 0 0 0 12.04 2zm5.8 14.13c-.24.68-1.4 1.32-1.93 1.4-.5.08-1.12.11-1.81-.11a16.5 16.5 0 0 1-1.58-.58c-2.78-1.2-4.6-4-4.74-4.19-.14-.19-1.13-1.5-1.13-2.86 0-1.36.71-2.02.97-2.3.25-.27.55-.34.73-.34l.53.01c.17.01.4-.06.62.48.24.58.81 2 .88 2.15.07.14.12.31.02.5-.1.19-.15.31-.3.48-.14.17-.3.37-.43.5-.14.14-.29.29-.13.57.17.28.75 1.24 1.62 2.01 1.11.99 2.05 1.3 2.33 1.44.28.14.44.12.6-.07.17-.19.71-.83.9-1.11.19-.28.38-.23.63-.14.26.1 1.65.78 1.93.92.28.14.47.21.53.33.07.12.07.68-.17 1.35z"/></svg>
+      Falar no WhatsApp agora
+    </a>
+  </div>
+</section>
+
+<!-- ============ FOOTER ============ -->
+<footer>
+  <div class="wrap footer-inner">
+    <div class="brand">
+      <div class="brand-badge">CC</div>
+      <div class="brand-text" style="color:#fff;">Clínica que Converte<span>CRM Comercial + IA</span></div>
+    </div>
+    <p>O CRM com agente de IA feito para clínicas odontológicas e estéticas transformarem conversa em consulta agendada.</p>
+    <p class="footer-line">© 2026 Clínica que Converte. Todos os direitos reservados.</p>
+  </div>
+</footer>
+
+<!-- ============ BOTÃO FLUTUANTE WHATSAPP ============ -->
+<a class="wa-float" target="_blank" rel="noopener" aria-label="Falar no WhatsApp" href="https://wa.me/5531983600675?text=Ol%C3%A1%2C%20quero%20saber%20mais%20sobre%20o%20CRM%20com%20IA%20da%20Cl%C3%ADnica%20que%20Converte">
+  <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.75.46 3.45 1.32 4.95L2 22l5.29-1.39a9.9 9.9 0 0 0 4.75 1.21h.01c5.46 0 9.9-4.45 9.9-9.91 0-2.65-1.03-5.14-2.9-7.01A9.82 9.82 0 0 0 12.04 2zm5.8 14.13c-.24.68-1.4 1.32-1.93 1.4-.5.08-1.12.11-1.81-.11a16.5 16.5 0 0 1-1.58-.58c-2.78-1.2-4.6-4-4.74-4.19-.14-.19-1.13-1.5-1.13-2.86 0-1.36.71-2.02.97-2.3.25-.27.55-.34.73-.34l.53.01c.17.01.4-.06.62.48.24.58.81 2 .88 2.15.07.14.12.31.02.5-.1.19-.15.31-.3.48-.14.17-.3.37-.43.5-.14.14-.29.29-.13.57.17.28.75 1.24 1.62 2.01 1.11.99 2.05 1.3 2.33 1.44.28.14.44.12.6-.07.17-.19.71-.83.9-1.11.19-.28.38-.23.63-.14.26.1 1.65.78 1.93.92.28.14.47.21.53.33.07.12.07.68-.17 1.35z"/></svg>
+</a>
+
+<script>
+  // Scroll reveal animations
+  (function(){
+    var items = document.querySelectorAll('.reveal');
+    if(!('IntersectionObserver' in window)){
+      items.forEach(function(el){ el.classList.add('in'); });
+      return;
+    }
+    var io = new IntersectionObserver(function(entries){
+      entries.forEach(function(entry){
+        if(entry.isIntersecting){
+          entry.target.classList.add('in');
+          io.unobserve(entry.target);
+        }
+      });
+    }, { threshold: 0.12, rootMargin: '0px 0px -40px 0px' });
+    items.forEach(function(el){ io.observe(el); });
+  })();
+
+  // FAQ accordion
+  (function(){
+    var faqItems = document.querySelectorAll('.faq-item');
+    faqItems.forEach(function(item){
+      var q = item.querySelector('.faq-q');
+      var a = item.querySelector('.faq-a');
+      q.addEventListener('click', function(){
+        var isOpen = item.classList.contains('open');
+        faqItems.forEach(function(other){
+          other.classList.remove('open');
+          other.querySelector('.faq-a').style.maxHeight = null;
+        });
+        if(!isOpen){
+          item.classList.add('open');
+          a.style.maxHeight = a.scrollHeight + 'px';
+        }
+      });
+    });
+  })();
+</script>
 </body>
 </html>
