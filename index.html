@@ -25,6 +25,17 @@
   --danger:#f87171; --danger-soft:#301616; --info:#22d3ee; --info-soft:#0d2830;
   --shadow-sm:0 1px 2px rgba(0,0,0,.35); --shadow-md:0 8px 24px rgba(0,0,0,.45);
 }
+/* Segue o tema do sistema quando o usuário não escolheu manualmente claro/escuro no app */
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#111318; --bg-elevated:#1a1c23; --bg-soft:#20232c; --border:#2b2e38;
+    --text:#eef0f5; --text-muted:#9aa1b0; --text-faint:#6c7280;
+    --primary:#8080fb; --primary-hover:#9999ff; --primary-soft:#242642;
+    --success:#34d399; --success-soft:#122a20; --warning:#fbbf24; --warning-soft:#2b2210;
+    --danger:#f87171; --danger-soft:#301616; --info:#22d3ee; --info-soft:#0d2830;
+    --shadow-sm:0 1px 2px rgba(0,0,0,.35); --shadow-md:0 8px 24px rgba(0,0,0,.45);
+  }
+}
 *,*::before,*::after{box-sizing:border-box;}
 html,body{height:100%;}
 body{margin:0;font-family:var(--font);background:var(--bg);color:var(--text);font-size:14px;line-height:1.45;-webkit-font-smoothing:antialiased;}
@@ -1829,7 +1840,6 @@ function exportLeadsCSV(){
   const rows = state.leads.map(l=>[l.name, l.contact, l.source, l.status, l.value, fmtBR(l.capturedAt), fmtBR(l.nextActionDate), l.notes]);
   const csv = '﻿'+[headers, ...rows].map(r=>r.map(csvEscape).join(',')).join('\r\n');
   downloadBlob(csv, `leads-${todayISO()}.csv`, 'text/csv;charset=utf-8');
-  toast('CSV de leads exportado');
 }
 
 /* ---------------------------------------------------------------------
@@ -1985,16 +1995,38 @@ function clearDemoData(){
 /* ---------------------------------------------------------------------
    20. EXPORTAÇÃO / IMPORTAÇÃO / IMPRESSÃO — #13, #14
 --------------------------------------------------------------------- */
-function downloadBlob(content, filename, mime){
-  const blob = new Blob([content], {type:mime});
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href=url; a.download=filename; document.body.appendChild(a); a.click();
-  document.body.removeChild(a); URL.revokeObjectURL(url);
+/* Quando publicado como Artifact, o navegador não permite que a página baixe
+   arquivos diretamente — usamos a capability "downloads" da plataforma nesse
+   caso. Ao abrir o arquivo .html localmente (window.claude não existe), cai
+   automaticamente no download tradicional via link. */
+const downloadsCapPromise = (typeof window!=='undefined' && window.claude && window.claude.use)
+  ? window.claude.use('downloads').catch(()=>null) : Promise.resolve(null);
+
+async function downloadBlob(content, filename, mime){
+  const downloads = await downloadsCapPromise;
+  if(downloads){
+    try{
+      await downloads.save({filename, data: content});
+      toast('Arquivo salvo: '+filename);
+      return;
+    }catch(err){
+      if(err && err.code==='declined') return; // usuário cancelou o salvamento
+      // qualquer outro erro: tenta o método tradicional abaixo como reserva
+    }
+  }
+  try{
+    const blob = new Blob([content], {type:mime});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href=url; a.download=filename; document.body.appendChild(a); a.click();
+    document.body.removeChild(a); URL.revokeObjectURL(url);
+    toast('Arquivo baixado: '+filename);
+  }catch(err){
+    toast('Não foi possível salvar o arquivo neste ambiente.', 'error');
+  }
 }
 function exportJSON(){
   downloadBlob(JSON.stringify(state,null,2), `backup-projeto-${todayISO()}.json`, 'application/json');
-  toast('Backup JSON exportado');
 }
 function handleImportFile(file){
   if(!file) return;
@@ -2021,7 +2053,6 @@ function exportCSV(){
   ]);
   const csv = '﻿'+[headers, ...rows].map(r=>r.map(csvEscape).join(',')).join('\r\n');
   downloadBlob(csv, `tarefas-${todayISO()}.csv`, 'text/csv;charset=utf-8');
-  toast('CSV exportado');
 }
 function printView(viewId){
   switchView(viewId);
