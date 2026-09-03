@@ -220,6 +220,16 @@ tbody tr:hover{background:var(--bg-soft);}
 .goal-actions{display:flex;gap:6px;flex-wrap:wrap;}
 @media(max-width:900px){.goals-board{grid-template-columns:1fr;}}
 
+/* ---------- Central de Leads (planilha) ---------- */
+.leads-table{min-width:1180px;}
+td.lead-cell{padding:3px 5px;}
+.cell-input{width:100%;min-width:112px;border:1px solid transparent;background:transparent;padding:6px 7px;border-radius:6px;}
+.cell-input:hover{border-color:var(--border);}
+.cell-input:focus{border-color:var(--primary);background:var(--bg-elevated);outline:none;}
+.cell-input.cell-overdue{color:var(--danger);font-weight:700;}
+tr.row-lost td{color:var(--text-faint);}
+tr.row-lost .cell-input{text-decoration:line-through;}
+
 /* ---------- History ---------- */
 .hist-item{display:flex;gap:12px;padding:10px 0;border-bottom:1px solid var(--border);}
 .hist-item:last-child{border-bottom:none;}
@@ -325,6 +335,9 @@ tbody tr:hover{background:var(--bg-soft);}
     <!-- ============ METAS DO ANO ============ -->
     <section class="view" id="view-goals"></section>
 
+    <!-- ============ CENTRAL DE LEADS ============ -->
+    <section class="view" id="view-leads"></section>
+
     <!-- ============ HISTÓRICO ============ -->
     <section class="view" id="view-history"></section>
 
@@ -429,6 +442,9 @@ const GOAL_TERM_LABEL = {Curto:'Curto prazo', Médio:'Médio prazo', Longo:'Long
 const GOAL_TERM_COLOR = {Curto:'#06b6d4', Médio:'#f59e0b', Longo:'#8b5cf6'};
 const GOAL_STATUS_LIST = ['Não iniciada','Em andamento','Concluída'];
 const GOAL_STATUS_COLOR = {'Não iniciada':'#94a3b8','Em andamento':'#3b82f6','Concluída':'#22c55e'};
+const LEAD_STATUS_LIST = ['Novo','Contatado','Qualificado','Proposta enviada','Negociação','Ganho','Perdido'];
+const LEAD_STATUS_COLOR = {'Novo':'#94a3b8','Contatado':'#3b82f6','Qualificado':'#06b6d4','Proposta enviada':'#f59e0b','Negociação':'#f97316','Ganho':'#22c55e','Perdido':'#ef4444'};
+const LEAD_SOURCE_SUGGESTIONS = ['Instagram','WhatsApp','Indicação','Site / Landing Page','Tráfego pago','Networking','Outro'];
 const DEFAULT_CATEGORY_NAMES = ['Estratégia','Marketing','Conteúdo','Comercial','Design','Operacional','Financeiro','Tecnologia','Administrativo','Parcerias','Redes sociais','Tráfego pago','Site / Landing Page','Eventos','Outros'];
 const CATEGORY_PALETTE = ['#5b5bf6','#f97316','#22c55e','#06b6d4','#ec4899','#8b5cf6','#f59e0b','#3b82f6','#84cc16','#ef4444','#14b8a6','#a855f7','#eab308','#0ea5e9','#64748b'];
 const DEFAULT_PHASE_NAMES = ['Planejamento','Preparação','Execução','Lançamento','Pós-projeto'];
@@ -441,6 +457,7 @@ const NAV_ITEMS = [
   {id:'calendar', label:'Calendário', icon:'calendar'},
   {id:'ideas', label:'Banco de Ideias', icon:'bulb'},
   {id:'goals', label:'Metas do Ano', icon:'flag'},
+  {id:'leads', label:'Central de Leads', icon:'users'},
   {id:'history', label:'Histórico', icon:'clock'},
   {id:'settings', label:'Configurações', icon:'cog'}
 ];
@@ -455,6 +472,7 @@ const ICONS = {
   bulb:'<path d="M9 18h6M10 22h4M12 2a7 7 0 0 0-4 12.7c.6.5 1 1.3 1 2.3h6c0-1 .4-1.8 1-2.3A7 7 0 0 0 12 2z"/>',
   clock:'<circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 16 14"/>',
   flag:'<line x1="4" y1="22" x2="4" y2="2"/><path d="M4 4h13l-2.5 4.5L20 13H4"/>',
+  users:'<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',
   cog:'<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.9.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.9-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.9V9c.1.7.6 1.3 1.5 1.5h.1a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>',
   star:'<polygon points="12 2 15 9 22 9.5 17 14.5 18.5 22 12 18 5.5 22 7 14.5 2 9.5 9 9"/>',
   edit:'<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/>',
@@ -515,7 +533,8 @@ function defaultState(){
       owner:'',
       notes:''
     },
-    phases, categories, tasks:[], ideas:[], goals:[], history:[],
+    phases, categories, tasks:[], ideas:[], goals:[], leads:[], history:[],
+    leadsGoal:{targetRevenue:10000, avgTicket:2000, conversionRate:20},
     settings:{theme:'light'}
   };
 }
@@ -538,11 +557,13 @@ function normalizeState(parsed){
   const merged = Object.assign({}, base, parsed);
   merged.project = Object.assign({}, base.project, parsed.project||{});
   merged.settings = Object.assign({}, base.settings, parsed.settings||{});
+  merged.leadsGoal = Object.assign({}, base.leadsGoal, parsed.leadsGoal||{});
   merged.phases = Array.isArray(parsed.phases)&&parsed.phases.length ? parsed.phases : base.phases;
   merged.categories = Array.isArray(parsed.categories)&&parsed.categories.length ? parsed.categories : base.categories;
   merged.tasks = Array.isArray(parsed.tasks) ? parsed.tasks : [];
   merged.ideas = Array.isArray(parsed.ideas) ? parsed.ideas : [];
   merged.goals = Array.isArray(parsed.goals) ? parsed.goals : [];
+  merged.leads = Array.isArray(parsed.leads) ? parsed.leads : [];
   merged.history = Array.isArray(parsed.history) ? parsed.history : [];
   return merged;
 }
@@ -631,6 +652,22 @@ function seedDemoData(st){
       term:'Curto', startDate:addDays(T,-45), dueDate:addDays(T,-38), status:'Concluída', completedAt:addDays(T,-38), createdAt:new Date().toISOString(), isDemo:true}
   ];
 
+  function mkLead(o){
+    return Object.assign({id:uid('l'), contact:'', source:'', value:st.leadsGoal.avgTicket, nextActionDate:'', notes:'',
+      createdAt:new Date().toISOString(), isDemo:true}, o);
+  }
+  st.leads = [
+    mkLead({name:'Marina Souza', contact:'(11) 98888-1122', source:'Instagram', status:'Ganho', value:2000, capturedAt:addDays(T,-18), notes:'Fechou no primeiro contato.'}),
+    mkLead({name:'Felipe Rocha', contact:'(21) 97777-3344', source:'Indicação', status:'Ganho', value:2200, capturedAt:addDays(T,-14)}),
+    mkLead({name:'Camila Ferreira', contact:'(31) 96666-5566', source:'Tráfego pago', status:'Negociação', value:2000, capturedAt:addDays(T,-9), nextActionDate:addDays(T,1), notes:'Aguardando aprovação do orçamento.'}),
+    mkLead({name:'Rodrigo Almeida', contact:'(11) 95555-7788', source:'WhatsApp', status:'Proposta enviada', value:2000, capturedAt:addDays(T,-7), nextActionDate:addDays(T,2)}),
+    mkLead({name:'Juliana Martins', contact:'(41) 94444-9900', source:'Site / Landing Page', status:'Qualificado', value:2000, capturedAt:addDays(T,-5), nextActionDate:T}),
+    mkLead({name:'Bruno Cardoso', contact:'(51) 93333-1234', source:'Instagram', status:'Contatado', value:2000, capturedAt:addDays(T,-4), nextActionDate:addDays(T,3)}),
+    mkLead({name:'Larissa Pereira', contact:'(11) 92222-5678', source:'Networking', status:'Novo', value:2000, capturedAt:addDays(T,-2)}),
+    mkLead({name:'Thiago Nunes', contact:'(19) 91111-4321', source:'Indicação', status:'Novo', value:2000, capturedAt:addDays(T,-1)}),
+    mkLead({name:'Patrícia Lima', contact:'(85) 98765-4321', source:'Tráfego pago', status:'Perdido', value:2000, capturedAt:addDays(T,-11), notes:'Optou por concorrente.'})
+  ];
+
   st.history = tasks.map(t=>({id:uid('h'), date:t.createdAt, action:'Tarefa criada', taskName:t.name, details:'Dado de demonstração'}));
 }
 
@@ -708,10 +745,11 @@ const VIEW_RENDERERS = {
   calendar: renderCalendarView,
   ideas: renderIdeasView,
   goals: renderGoalsView,
+  leads: renderLeadsView,
   history: renderHistoryView,
   settings: renderSettingsView
 };
-const VIEW_TITLES = {dashboard:'Dashboard', tasks:'Tarefas', kanban:'Kanban', gantt:'Cronograma', calendar:'Calendário', ideas:'Banco de Ideias', goals:'Metas do Ano', history:'Histórico', settings:'Configurações'};
+const VIEW_TITLES = {dashboard:'Dashboard', tasks:'Tarefas', kanban:'Kanban', gantt:'Cronograma', calendar:'Calendário', ideas:'Banco de Ideias', goals:'Metas do Ano', leads:'Central de Leads', history:'Histórico', settings:'Configurações'};
 
 function buildSidebarNav(){
   const nav = document.getElementById('navList');
@@ -1648,10 +1686,158 @@ function deleteGoal(id){
 }
 
 /* ---------------------------------------------------------------------
+   17c. VIEW: CENTRAL DE LEADS — captação x meta de faturamento do mês
+--------------------------------------------------------------------- */
+let leadStatusFilter = '';
+function fmtBRL(n){ return (Number(n)||0).toLocaleString('pt-BR', {style:'currency', currency:'BRL', maximumFractionDigits:0}); }
+
+/* Quantas vendas e quantos leads são necessários para bater a meta do mês,
+   a partir do ticket médio e de uma taxa de conversão (lead → venda) estimada. */
+function computeLeadsGoalStats(){
+  const cfg = state.leadsGoal;
+  const vendasNecessarias = cfg.avgTicket>0 ? Math.ceil(cfg.targetRevenue/cfg.avgTicket) : 0;
+  const leadsNecessarios = cfg.conversionRate>0 ? Math.ceil(vendasNecessarias/(cfg.conversionRate/100)) : 0;
+  const ganhos = state.leads.filter(l=>l.status==='Ganho');
+  const valorGanho = ganhos.reduce((s,l)=>s+(Number(l.value)||0),0);
+  const totalLeads = state.leads.length;
+  const pctMeta = cfg.targetRevenue>0 ? Math.min(100, Math.round(valorGanho/cfg.targetRevenue*100)) : 0;
+  const taxaReal = totalLeads>0 ? Math.round(ganhos.length/totalLeads*100) : null;
+  const leadsFaltantes = Math.max(0, leadsNecessarios-totalLeads);
+  return {vendasNecessarias, leadsNecessarios, valorGanho, vendasGanhas:ganhos.length, totalLeads, pctMeta, taxaReal, leadsFaltantes};
+}
+function getFilteredLeads(){
+  return leadStatusFilter ? state.leads.filter(l=>l.status===leadStatusFilter) : state.leads;
+}
+function updateLeadsGoalField(field, value){
+  let v = Number(value)||0;
+  v = field==='conversionRate' ? clamp(v,1,100) : Math.max(0,v);
+  state.leadsGoal[field] = v;
+  save(); renderCurrentView();
+}
+function renderLeadsView(){
+  const el = document.getElementById('view-leads');
+  const cfg = state.leadsGoal;
+  const s = computeLeadsGoalStats();
+  const leads = getFilteredLeads();
+
+  el.innerHTML = `
+    <div class="panel">
+      <div class="panel-head"><h3>🎯 Meta do mês</h3><span class="hint">Os valores abaixo recalculam tudo automaticamente</span></div>
+      <div class="form-row" style="grid-template-columns:repeat(3,1fr)">
+        <div class="form-group"><label>Meta de faturamento (R$)</label><input type="number" min="0" step="100" value="${cfg.targetRevenue}" onchange="updateLeadsGoalField('targetRevenue',this.value)"></div>
+        <div class="form-group"><label>Ticket médio do produto (R$)</label><input type="number" min="0" step="50" value="${cfg.avgTicket}" onchange="updateLeadsGoalField('avgTicket',this.value)"></div>
+        <div class="form-group"><label>Taxa de conversão estimada (%)</label><input type="number" min="1" max="100" step="1" value="${cfg.conversionRate}" onchange="updateLeadsGoalField('conversionRate',this.value)"></div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:6px;font-size:12.5px;color:var(--text-muted);margin-top:4px;padding:12px 14px;background:var(--primary-soft);border-radius:10px">
+        <div>💰 Para faturar <b style="color:var(--text)">${fmtBRL(cfg.targetRevenue)}</b> com um ticket médio de <b style="color:var(--text)">${fmtBRL(cfg.avgTicket)}</b>, você precisa fechar <b style="color:var(--primary)">${s.vendasNecessarias} vendas</b> este mês.</div>
+        <div>🧲 Considerando uma conversão de leads em vendas de <b style="color:var(--text)">${cfg.conversionRate}%</b>, isso significa captar cerca de <b style="color:var(--primary);font-size:15px">${s.leadsNecessarios} leads</b> ao longo do mês.</div>
+      </div>
+    </div>
+
+    <div class="grid-cards">
+      <div class="stat-card">
+        <div class="lbl">Valor conquistado</div>
+        <div class="val" style="color:var(--success);font-size:21px">${fmtBRL(s.valorGanho)}</div>
+        <div class="progress" style="margin-top:8px"><span style="width:${s.pctMeta}%;background:var(--success)"></span></div>
+        <div class="sub">${s.pctMeta}% da meta de ${fmtBRL(cfg.targetRevenue)}</div>
+      </div>
+      <div class="stat-card"><div class="lbl">Vendas fechadas</div><div class="val">${s.vendasGanhas}<span style="font-size:14px;color:var(--text-faint)"> / ${s.vendasNecessarias}</span></div><div class="sub">Leads marcados como "Ganho"</div></div>
+      <div class="stat-card"><div class="lbl">Leads captados</div><div class="val">${s.totalLeads}<span style="font-size:14px;color:var(--text-faint)"> / ${s.leadsNecessarios}</span></div><div class="sub">${s.leadsFaltantes>0? `Faltam ${s.leadsFaltantes} leads`:'Meta de captação atingida 🎉'}</div></div>
+      <div class="stat-card"><div class="lbl">Conversão real</div><div class="val">${s.taxaReal===null?'—':s.taxaReal+'%'}</div><div class="sub">${s.taxaReal===null?'Ainda sem leads suficientes':'Ganhos ÷ total de leads'}</div></div>
+    </div>
+
+    <div class="filter-bar">
+      <button class="btn btn-sm ${leadStatusFilter===''?'btn-primary':''}" onclick="leadStatusFilter='';renderCurrentView()">Todos (${state.leads.length})</button>
+      ${LEAD_STATUS_LIST.map(st=>{
+        const n = state.leads.filter(l=>l.status===st).length;
+        return `<button class="btn btn-sm ${leadStatusFilter===st?'btn-primary':''}" style="${leadStatusFilter===st?'':'color:'+LEAD_STATUS_COLOR[st]}" onclick="leadStatusFilter='${st}';renderCurrentView()">${st} (${n})</button>`;
+      }).join('')}
+      <div class="spacer"></div>
+      <button class="btn btn-sm" onclick="exportLeadsCSV()">${svgIcon('download')} Exportar CSV</button>
+    </div>
+
+    <datalist id="leadSourceList">${LEAD_SOURCE_SUGGESTIONS.map(sg=>`<option value="${escapeHtml(sg)}">`).join('')}</datalist>
+
+    <div class="table-wrap"><table class="leads-table">
+      <thead><tr>
+        <th>Nome</th><th>Contato</th><th>Origem</th><th>Status</th><th>Valor (R$)</th><th>Captado em</th><th>Próximo contato</th><th>Observações</th><th>Ações</th>
+      </tr></thead>
+      <tbody>${leads.length? leads.map(leadRow).join('') : `<tr><td colspan="9"><div class="empty-state">Nenhum lead ainda. Clique em "+ Adicionar lead" e comece sua planilha de captação.</div></td></tr>`}</tbody>
+    </table></div>
+    <button class="btn btn-primary btn-sm" style="margin-top:10px" onclick="addLeadRow()">${svgIcon('plus')} Adicionar lead</button>
+  `;
+}
+function leadRow(l){
+  const overdueNext = l.nextActionDate && l.nextActionDate<todayISO() && l.status!=='Ganho' && l.status!=='Perdido';
+  return `<tr data-lead-id="${l.id}" class="${l.status==='Ganho'?'row-done':''} ${l.status==='Perdido'?'row-lost':''}">
+    <td class="lead-cell"><input type="text" class="cell-input" value="${escapeHtml(l.name)}" placeholder="Nome do lead" onchange="updateLeadField('${l.id}','name',this.value)"></td>
+    <td class="lead-cell"><input type="text" class="cell-input" value="${escapeHtml(l.contact)}" placeholder="Telefone / e-mail" onchange="updateLeadField('${l.id}','contact',this.value)"></td>
+    <td class="lead-cell"><input type="text" class="cell-input" list="leadSourceList" value="${escapeHtml(l.source)}" placeholder="Canal" onchange="updateLeadField('${l.id}','source',this.value)"></td>
+    <td class="lead-cell"><select class="mini-select" style="color:${LEAD_STATUS_COLOR[l.status]};font-weight:700" onchange="updateLeadField('${l.id}','status',this.value)">${selectOptions(LEAD_STATUS_LIST.map(st=>({id:st,name:st})), l.status)}</select></td>
+    <td class="lead-cell"><input type="number" class="cell-input" min="0" step="50" style="max-width:100px" value="${l.value}" onchange="updateLeadField('${l.id}','value',this.value)"></td>
+    <td class="lead-cell"><input type="date" class="cell-input" value="${l.capturedAt||''}" onchange="updateLeadField('${l.id}','capturedAt',this.value)"></td>
+    <td class="lead-cell"><input type="date" class="cell-input ${overdueNext?'cell-overdue':''}" value="${l.nextActionDate||''}" onchange="updateLeadField('${l.id}','nextActionDate',this.value)"></td>
+    <td class="lead-cell"><input type="text" class="cell-input" value="${escapeHtml(l.notes)}" placeholder="Observações" onchange="updateLeadField('${l.id}','notes',this.value)"></td>
+    <td class="actions-cell">
+      ${l.status!=='Ganho'? `<button class="btn btn-icon btn-ghost" title="Marcar como ganho" onclick="markLeadWon('${l.id}')">${svgIcon('check')}</button>`:''}
+      ${l.status!=='Perdido'? `<button class="btn btn-icon btn-ghost" title="Marcar como perdido" onclick="markLeadLost('${l.id}')">${svgIcon('x')}</button>`:''}
+      ${(l.status==='Ganho'||l.status==='Perdido')? `<button class="btn btn-icon btn-ghost" title="Reabrir" onclick="reopenLead('${l.id}')">${svgIcon('undo')}</button>`:''}
+      <button class="btn btn-icon btn-ghost" title="Excluir" onclick="deleteLead('${l.id}')">${svgIcon('trash')}</button>
+    </td>
+  </tr>`;
+}
+function updateLeadField(id, field, value){
+  const l = state.leads.find(x=>x.id===id); if(!l) return;
+  l[field] = field==='value' ? Math.max(0, Number(value)||0) : value;
+  renderAll();
+}
+function addLeadRow(){
+  const l = {id:uid('l'), name:'', contact:'', source:'', status:'Novo', value:state.leadsGoal.avgTicket,
+    capturedAt:todayISO(), nextActionDate:'', notes:'', createdAt:new Date().toISOString(), isDemo:false};
+  state.leads.unshift(l);
+  renderAll();
+  setTimeout(()=>{ const inp = document.querySelector(`tr[data-lead-id="${l.id}"] input`); if(inp) inp.focus(); }, 30);
+}
+function markLeadWon(id){
+  const l = state.leads.find(x=>x.id===id); if(!l) return;
+  l.status='Ganho';
+  addHistory('Lead ganho', l.name||'(sem nome)');
+  renderAll(); toast('Lead marcado como ganho 🎉');
+}
+function markLeadLost(id){
+  const l = state.leads.find(x=>x.id===id); if(!l) return;
+  l.status='Perdido';
+  addHistory('Lead perdido', l.name||'(sem nome)');
+  renderAll(); toast('Lead marcado como perdido','warn');
+}
+function reopenLead(id){
+  const l = state.leads.find(x=>x.id===id); if(!l) return;
+  l.status='Contatado';
+  addHistory('Lead editado', l.name||'(sem nome)', 'Reaberto');
+  renderAll(); toast('Lead reaberto');
+}
+function deleteLead(id){
+  const l = state.leads.find(x=>x.id===id); if(!l) return;
+  confirmAction(`Excluir o lead "${l.name||'sem nome'}"?`, ()=>{
+    state.leads = state.leads.filter(x=>x.id!==id);
+    addHistory('Lead excluído', l.name||'(sem nome)');
+    renderAll(); toast('Lead excluído','warn');
+  }, 'Excluir lead');
+}
+function exportLeadsCSV(){
+  const headers = ['Nome','Contato','Origem','Status','Valor (R$)','Captado em','Próximo contato','Observações'];
+  const rows = state.leads.map(l=>[l.name, l.contact, l.source, l.status, l.value, fmtBR(l.capturedAt), fmtBR(l.nextActionDate), l.notes]);
+  const csv = '﻿'+[headers, ...rows].map(r=>r.map(csvEscape).join(',')).join('\r\n');
+  downloadBlob(csv, `leads-${todayISO()}.csv`, 'text/csv;charset=utf-8');
+  toast('CSV de leads exportado');
+}
+
+/* ---------------------------------------------------------------------
    18. VIEW: HISTÓRICO — #12
 --------------------------------------------------------------------- */
 const HISTORY_ICON = {'Tarefa criada':'plus','Tarefa editada':'edit','Mudança de status':'chevDown','Tarefa concluída':'check','Tarefa excluída':'trash',
-  'Meta criada':'flag','Meta editada':'edit','Meta concluída':'check','Meta excluída':'trash'};
+  'Meta criada':'flag','Meta editada':'edit','Meta concluída':'check','Meta excluída':'trash',
+  'Lead ganho':'check','Lead perdido':'x','Lead editado':'edit','Lead excluído':'trash'};
 function renderHistoryView(){
   const el = document.getElementById('view-history');
   el.innerHTML = `<div class="panel-head"><h3>🕘 Histórico de alterações</h3><span class="hint">${state.history.length} registros</span></div>
@@ -1786,10 +1972,11 @@ function deleteCategory(id){
 }
 
 function clearDemoData(){
-  confirmAction('Remover todas as tarefas, ideias e metas de demonstração? Essa ação não pode ser desfeita.', ()=>{
+  confirmAction('Remover todas as tarefas, ideias, metas e leads de demonstração? Essa ação não pode ser desfeita.', ()=>{
     state.tasks = state.tasks.filter(t=>!t.isDemo);
     state.ideas = state.ideas.filter(i=>!i.isDemo);
     state.goals = state.goals.filter(g=>!g.isDemo);
+    state.leads = state.leads.filter(l=>!l.isDemo);
     addHistory('Tarefa excluída', '', 'Dados de demonstração removidos em lote');
     renderAll(); toast('Dados de demonstração removidos','warn');
   }, 'Remover dados de demonstração');
