@@ -1707,14 +1707,13 @@ const SEED_ORIGENS = ['Instagram','já é paciente','Google','Indicação','What
 
 const SEED_MOTIVOS_PERDA = ['Preço','Parou de responder','Fechou com concorrente','Sem orçamento no momento','Não gostou do tratamento sugerido','Está com outras prioridades','Retorna mais para frente'];
 
-// Responsáveis (nomes tal como usados na planilha). O mapeamento de cada nome
-// para o papel da equipe (secretária / ASB / suporte financeiro) é uma
-// hipótese editorial — ver campo "papelHipotese" e o relatório final.
+// Responsáveis (nomes tal como usados na planilha). Papel de cada um
+// confirmado com a clínica em 2026-09-04, exceto Natalia (ainda hipótese).
 const SEED_FUNCIONARIOS = [
   {nome:'Mariana', cargo:'Sócia / Ortodontista', papelHipotese:'Confirmado pelo briefing.'},
   {nome:'Celso', cargo:'Sócio / Ortodontista', papelHipotese:'Confirmado pelo briefing (não aparece como Responsável nos 52 registros).'},
-  {nome:'Natalia', cargo:'A confirmar', papelHipotese:'Hipótese: secretária/recepção — é quem mais aparece como Responsável (19 de 52 pacientes) depois de Mariana.'},
-  {nome:'Julia', cargo:'A confirmar', papelHipotese:'Hipótese: ASB ou suporte administrativo/financeiro — aparece em apenas 1 de 52 registros.'},
+  {nome:'Natalia', cargo:'A confirmar', papelHipotese:'Hipótese: secretária/recepção — é quem mais aparece como Responsável (19 de 52 pacientes) depois de Mariana. Ainda não confirmado.'},
+  {nome:'Julia', cargo:'Dentista / Sócia', papelHipotese:'Confirmado pela clínica: dentista e sócia (não é secretária, ASB nem suporte financeiro — aparece pouco como Responsável porque atua clinicamente, não na recepção).'},
 ];
 
 const NOME_CLINICA = 'Mori Ortodontia';
@@ -2496,7 +2495,7 @@ function renderConfig(){
 
     <div class="card">
       <h3>Funcionários / Responsáveis</h3>
-      <div class="muted small" style="margin-bottom:8px;">Mapeamento de "Natalia" e "Julia" para papéis da equipe (secretária/recepção, ASB, suporte financeiro) é uma hipótese — confirmar com Mariana e Celso.</div>
+      <div class="muted small" style="margin-bottom:8px;">Julia (dentista/sócia) confirmado pela clínica. Papel de Natalia ainda é hipótese — confirmar com Mariana e Celso.</div>
       ${DB.funcionarios.map(f=>`
         <div class="chk-item">
           <div><b>${escapeHtml(f.nome)}</b> — ${escapeHtml(f.cargo)}<div class="muted small">${escapeHtml(f.papelHipotese||'')}</div></div>
