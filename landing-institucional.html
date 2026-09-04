@@ -1,0 +1,1154 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Clínica que Converte</title>
+<meta name="description" content="Diagnosticamos o gargalo real da sua clínica e recomendamos a solução certa: sistemas, gestão ou vendas. Sem pacote fechado.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700;9..144,800&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+/* ============================================================
+   Clinica que Converte - Landing Page Institucional
+   Design system: tokens "ink" (petróleo/marinho) + "gold" (dourado)
+   Tipografia: Fraunces (títulos) / Manrope (corpo)
+   Base escura, bento grid para as três frentes, glass pontual.
+   ============================================================ */
+
+*, *::before, *::after { box-sizing: border-box; }
+
+:root{
+  --ink-950:#07171b;
+  --ink-900:#0F3B44;
+  --ink-850:#123f49;
+  --ink-800:#154953;
+  --ink-700:#1d5c68;
+  --ink-600:#28727f;
+  --gold-300:#e4c968;
+  --gold-500:#C9A227;
+  --gold-600:#a9861c;
+  --gold-100:#fbf3d9;
+  --paper:#f7f4ec;
+  --cream:#faf8f2;
+  --line-soft:rgba(247,244,236,.14);
+  --line-strong:rgba(247,244,236,.24);
+  --text-hi:#f6f3ea;
+  --text-lo:#c7d4d4;
+  --text-muted:#8fa3a3;
+  --glass-bg:rgba(255,255,255,.06);
+  --glass-border:rgba(255,255,255,.14);
+  --radius-lg:22px;
+  --radius-md:16px;
+  --radius-sm:10px;
+  --shadow-soft:0 20px 50px rgba(4,15,18,.35);
+  --shadow-lift:0 26px 60px rgba(4,15,18,.45);
+  --ease:cubic-bezier(.16,.84,.44,1);
+  color-scheme:dark;
+}
+
+html{ scroll-behavior:smooth; }
+
+@media (prefers-reduced-motion: reduce){
+  html{ scroll-behavior:auto; }
+  *, *::before, *::after{ animation-duration:.01ms !important; animation-iteration-count:1 !important; transition-duration:.01ms !important; scroll-behavior:auto !important; }
+}
+
+body{
+  margin:0;
+  background:var(--ink-950);
+  color:var(--text-lo);
+  font-family:'Manrope',system-ui,sans-serif;
+  font-size:16px;
+  line-height:1.6;
+  -webkit-font-smoothing:antialiased;
+  overflow-x:hidden;
+}
+
+h1,h2,h3,h4{
+  font-family:'Fraunces',Georgia,serif;
+  color:var(--text-hi);
+  margin:0 0 .5em;
+  font-weight:600;
+  letter-spacing:-.01em;
+}
+
+p{ margin:0 0 1em; color:var(--text-lo); }
+a{ color:inherit; }
+img{ max-width:100%; display:block; }
+button{ font-family:inherit; }
+
+.container{
+  width:100%;
+  max-width:1180px;
+  margin:0 auto;
+  padding:0 24px;
+}
+
+.eyebrow{
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  font-family:'Manrope',sans-serif;
+  font-size:.72rem;
+  font-weight:700;
+  letter-spacing:.14em;
+  text-transform:uppercase;
+  color:var(--gold-300);
+  margin-bottom:14px;
+}
+.eyebrow::before{
+  content:'';
+  width:22px; height:1px;
+  background:var(--gold-500);
+  display:inline-block;
+}
+
+section{ position:relative; padding:96px 0; }
+section.tight{ padding:72px 0; }
+
+.section-head{ max-width:640px; margin:0 0 48px; }
+.section-head.centered{ margin-left:auto; margin-right:auto; text-align:center; }
+.section-head h2{ font-size:clamp(1.9rem,3.4vw,2.7rem); }
+.section-head p{ font-size:1.05rem; color:var(--text-lo); }
+
+/* ---------- reveal on scroll ---------- */
+.reveal{
+  opacity:0;
+  transform:translateY(24px);
+  transition:opacity .7s var(--ease), transform .7s var(--ease);
+}
+.reveal.is-visible{ opacity:1; transform:none; }
+.reveal-stagger.is-visible > * { }
+
+/* ---------- buttons ---------- */
+.btn{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:10px;
+  padding:14px 26px;
+  border-radius:999px;
+  font-weight:700;
+  font-size:.95rem;
+  text-decoration:none;
+  border:1px solid transparent;
+  cursor:pointer;
+  transition:transform .25s var(--ease), box-shadow .25s var(--ease), background .25s var(--ease), border-color .25s var(--ease);
+  white-space:nowrap;
+}
+.btn-gold{
+  background:linear-gradient(180deg,var(--gold-300),var(--gold-500));
+  color:#241c05;
+  box-shadow:0 10px 26px rgba(201,162,39,.28);
+}
+.btn-gold:hover{ transform:translateY(-2px); box-shadow:0 16px 34px rgba(201,162,39,.4); }
+.btn-ghost{
+  background:transparent;
+  color:var(--text-hi);
+  border-color:var(--line-strong);
+}
+.btn-ghost:hover{ border-color:var(--gold-500); color:var(--gold-300); }
+.btn-sm{ padding:10px 18px; font-size:.85rem; }
+.btn svg{ width:18px; height:18px; flex-shrink:0; }
+
+/* ============================================================
+   NAV
+   ============================================================ */
+.nav{
+  position:fixed;
+  top:0; left:0; right:0;
+  z-index:200;
+  padding:14px 0;
+  background:rgba(7,23,27,.62);
+  backdrop-filter:blur(14px) saturate(140%);
+  -webkit-backdrop-filter:blur(14px) saturate(140%);
+  border-bottom:1px solid var(--line-soft);
+  transition:padding .3s var(--ease), background .3s var(--ease);
+}
+.nav.is-scrolled{ padding:9px 0; background:rgba(7,23,27,.86); }
+.nav .container{ display:flex; align-items:center; justify-content:space-between; gap:20px; }
+
+.brand{ display:flex; align-items:center; gap:11px; text-decoration:none; }
+.brand-badge{
+  width:36px; height:36px;
+  border-radius:9px;
+  background:linear-gradient(160deg,var(--gold-300),var(--gold-600));
+  display:flex; align-items:center; justify-content:center;
+  font-family:'Fraunces',serif;
+  font-weight:700;
+  color:#241c05;
+  font-size:.95rem;
+  flex-shrink:0;
+}
+.brand-word{ display:flex; flex-direction:column; line-height:1.1; }
+.brand-word strong{ font-family:'Fraunces',serif; font-size:1.02rem; color:var(--text-hi); font-weight:600; }
+.brand-word span{ font-size:.62rem; letter-spacing:.12em; text-transform:uppercase; color:var(--text-muted); }
+
+.nav-links{ display:flex; align-items:center; gap:28px; list-style:none; margin:0; padding:0; }
+.nav-links a{
+  font-size:.88rem; font-weight:600; text-decoration:none; color:var(--text-lo);
+  position:relative; padding:4px 0; transition:color .2s;
+}
+.nav-links a::after{
+  content:''; position:absolute; left:0; right:100%; bottom:-2px; height:1px;
+  background:var(--gold-500); transition:right .25s var(--ease);
+}
+.nav-links a:hover{ color:var(--text-hi); }
+.nav-links a:hover::after{ right:0; }
+
+.nav-cta{ display:flex; align-items:center; gap:14px; }
+.nav-toggle{
+  display:none; background:none; border:1px solid var(--line-strong); border-radius:9px;
+  width:42px; height:42px; align-items:center; justify-content:center; color:var(--text-hi); cursor:pointer;
+}
+.nav-toggle svg{ width:20px; height:20px; }
+
+.mobile-menu{
+  position:fixed; inset:0; z-index:199;
+  background:var(--ink-950);
+  display:flex; flex-direction:column; justify-content:center; align-items:center; gap:26px;
+  transform:translateY(-100%); transition:transform .4s var(--ease);
+}
+.mobile-menu.is-open{ transform:translateY(0); }
+.mobile-menu a{ font-family:'Fraunces',serif; font-size:1.5rem; color:var(--text-hi); text-decoration:none; }
+.mobile-menu .btn{ margin-top:10px; }
+
+/* ============================================================
+   HERO
+   ============================================================ */
+.hero{
+  padding:168px 0 120px;
+  position:relative;
+  overflow:hidden;
+}
+.hero::before{
+  content:'';
+  position:absolute;
+  top:-260px; right:-220px;
+  width:640px; height:640px;
+  background:radial-gradient(circle,rgba(201,162,39,.22),transparent 68%);
+  filter:blur(10px);
+  pointer-events:none;
+}
+.hero::after{
+  content:'';
+  position:absolute;
+  bottom:-320px; left:-260px;
+  width:680px; height:680px;
+  background:radial-gradient(circle,rgba(29,92,104,.5),transparent 70%);
+  pointer-events:none;
+}
+.hero-grid{
+  display:grid;
+  grid-template-columns:1.1fr .9fr;
+  gap:56px;
+  align-items:center;
+  position:relative;
+  z-index:2;
+}
+.hero h1{
+  font-size:clamp(2.3rem,4.6vw,3.6rem);
+  line-height:1.08;
+  margin-bottom:22px;
+}
+.hero h1 em{ font-style:normal; color:var(--gold-300); }
+.hero-lead{ font-size:1.14rem; color:var(--text-lo); max-width:520px; margin-bottom:34px; }
+.hero-ctas{ display:flex; gap:16px; flex-wrap:wrap; align-items:center; }
+.hero-note{ display:flex; align-items:center; gap:10px; margin-top:26px; font-size:.85rem; color:var(--text-muted); }
+.hero-note svg{ width:16px; height:16px; color:var(--gold-500); flex-shrink:0; }
+
+.hero-visual{
+  position:relative;
+  display:grid;
+  gap:16px;
+}
+.hero-chip{
+  border-radius:var(--radius-md);
+  padding:22px;
+  background:var(--glass-bg);
+  border:1px solid var(--glass-border);
+  backdrop-filter:blur(18px);
+  -webkit-backdrop-filter:blur(18px);
+  box-shadow:var(--shadow-soft);
+  transform:translateY(0);
+  transition:transform .5s var(--ease);
+}
+.hero-chip:hover{ transform:translateY(-6px); }
+.hero-chip .chip-top{ display:flex; align-items:center; gap:12px; margin-bottom:10px; }
+.hero-chip .chip-icon{
+  width:38px; height:38px; border-radius:10px;
+  display:flex; align-items:center; justify-content:center;
+  background:rgba(201,162,39,.16); color:var(--gold-300);
+  flex-shrink:0;
+}
+.hero-chip .chip-icon svg{ width:19px; height:19px; }
+.hero-chip strong{ font-family:'Fraunces',serif; color:var(--text-hi); font-size:1rem; font-weight:600; }
+.hero-chip p{ font-size:.86rem; color:var(--text-lo); margin:0; }
+.hero-chip.offset-1{ margin-left:32px; }
+.hero-chip.offset-2{ margin-left:64px; }
+
+/* ============================================================
+   PROBLEMA
+   ============================================================ */
+.problema{ background:var(--ink-900); }
+.problema-grid{
+  display:grid;
+  grid-template-columns:.85fr 1.15fr;
+  gap:56px;
+  align-items:start;
+}
+.problema-quote{
+  font-family:'Fraunces',serif;
+  font-size:clamp(1.4rem,2.4vw,1.9rem);
+  color:var(--text-hi);
+  line-height:1.35;
+  font-weight:500;
+  border-left:2px solid var(--gold-500);
+  padding-left:24px;
+}
+.problema-body p{ font-size:1.02rem; }
+.problema-list{ list-style:none; margin:28px 0 0; padding:0; display:grid; gap:16px; }
+.problema-list li{
+  display:flex; gap:14px; align-items:flex-start;
+  font-size:.96rem; color:var(--text-lo);
+}
+.problema-list svg{ width:20px; height:20px; color:var(--gold-500); flex-shrink:0; margin-top:2px; }
+
+/* ============================================================
+   ABORDAGEM
+   ============================================================ */
+.abordagem-panel{
+  border-radius:var(--radius-lg);
+  border:1px solid var(--glass-border);
+  background:linear-gradient(155deg,rgba(201,162,39,.09),rgba(255,255,255,.02));
+  padding:44px;
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:44px;
+  align-items:center;
+}
+.abordagem-panel h2{ font-size:clamp(1.7rem,3vw,2.3rem); }
+.abordagem-steps{ list-style:none; margin:0; padding:0; display:grid; gap:18px; }
+.abordagem-steps li{
+  display:flex; gap:16px; align-items:flex-start;
+  padding:16px;
+  border-radius:var(--radius-sm);
+  background:rgba(7,23,27,.35);
+  border:1px solid var(--line-soft);
+}
+.abordagem-steps .num{
+  font-family:'Fraunces',serif; font-weight:700; color:var(--gold-300);
+  font-size:1.1rem; flex-shrink:0; width:28px;
+}
+.abordagem-steps strong{ display:block; color:var(--text-hi); font-size:.95rem; margin-bottom:3px; }
+.abordagem-steps span{ font-size:.86rem; color:var(--text-lo); }
+
+/* ============================================================
+   FRENTES - BENTO GRID
+   ============================================================ */
+.frentes{ background:var(--ink-950); }
+.bento{
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:22px;
+  align-items:stretch;
+}
+.bento-card{
+  position:relative;
+  border-radius:var(--radius-lg);
+  padding:32px 28px;
+  background:linear-gradient(165deg,var(--ink-850),var(--ink-900) 60%);
+  border:1px solid var(--line-soft);
+  display:flex;
+  flex-direction:column;
+  transition:transform .4s var(--ease), border-color .4s var(--ease), box-shadow .4s var(--ease);
+  overflow:hidden;
+}
+.bento-card::before{
+  content:'';
+  position:absolute; inset:0;
+  background:radial-gradient(220px 140px at 85% -10%, rgba(201,162,39,.16), transparent 70%);
+  opacity:0; transition:opacity .4s var(--ease);
+  pointer-events:none;
+}
+.bento-card:hover{ transform:translateY(-8px); border-color:rgba(201,162,39,.4); box-shadow:var(--shadow-lift); }
+.bento-card:hover::before{ opacity:1; }
+
+.bento-icon{
+  width:52px; height:52px; border-radius:13px;
+  display:flex; align-items:center; justify-content:center;
+  background:rgba(201,162,39,.14); color:var(--gold-300);
+  margin-bottom:22px;
+}
+.bento-icon svg{ width:26px; height:26px; }
+.bento-card h3{ font-size:1.32rem; margin-bottom:10px; }
+.bento-card p{ font-size:.94rem; color:var(--text-lo); }
+.bento-tag{
+  display:inline-flex; align-self:flex-start;
+  font-size:.68rem; font-weight:700; letter-spacing:.08em; text-transform:uppercase;
+  color:var(--gold-300); background:rgba(201,162,39,.12);
+  padding:5px 11px; border-radius:999px; margin-bottom:16px;
+}
+.bento-example{
+  margin-top:auto;
+  padding-top:18px;
+  border-top:1px solid var(--line-soft);
+  font-size:.85rem;
+}
+.bento-example strong{ display:block; color:var(--text-hi); font-size:.78rem; text-transform:uppercase; letter-spacing:.06em; margin-bottom:6px; font-family:'Manrope',sans-serif; font-weight:700; }
+
+.frentes-note{
+  margin-top:26px;
+  display:flex; align-items:center; gap:12px;
+  padding:16px 20px;
+  border-radius:var(--radius-md);
+  background:var(--glass-bg);
+  border:1px solid var(--glass-border);
+  font-size:.88rem;
+  color:var(--text-lo);
+}
+.frentes-note svg{ width:20px; height:20px; color:var(--gold-500); flex-shrink:0; }
+
+/* ============================================================
+   PROCESSO
+   ============================================================ */
+.processo{ background:var(--ink-900); }
+.processo-track{
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  gap:20px;
+  position:relative;
+}
+.processo-track::before{
+  content:'';
+  position:absolute; top:24px; left:6%; right:6%; height:1px;
+  background:linear-gradient(90deg,transparent,var(--line-strong) 15%,var(--line-strong) 85%,transparent);
+  z-index:0;
+}
+.processo-step{ position:relative; z-index:1; }
+.processo-step .dot{
+  width:48px; height:48px; border-radius:50%;
+  background:var(--ink-950); border:1px solid var(--gold-500);
+  color:var(--gold-300);
+  display:flex; align-items:center; justify-content:center;
+  font-family:'Fraunces',serif; font-weight:700; margin-bottom:18px;
+}
+.processo-step h4{ font-size:1.02rem; margin-bottom:6px; }
+.processo-step p{ font-size:.86rem; color:var(--text-lo); }
+
+/* ============================================================
+   SOBRE
+   ============================================================ */
+.sobre-grid{
+  display:grid;
+  grid-template-columns:.7fr 1.3fr;
+  gap:56px;
+  align-items:center;
+}
+.photo-frame{
+  position:relative;
+  aspect-ratio:4/5;
+  border-radius:var(--radius-lg);
+  background:linear-gradient(160deg,var(--ink-800),var(--ink-950));
+  border:1px solid var(--line-soft);
+  display:flex; align-items:center; justify-content:center;
+  overflow:hidden;
+}
+.photo-frame::before{
+  content:'';
+  position:absolute; inset:0;
+  background:radial-gradient(circle at 50% 30%,rgba(201,162,39,.22),transparent 60%);
+}
+.photo-monogram{
+  position:relative; z-index:1;
+  font-family:'Fraunces',serif; font-weight:700;
+  font-size:5rem; color:var(--gold-300);
+  opacity:.9;
+}
+.photo-frame figcaption{
+  position:absolute; bottom:0; left:0; right:0;
+  padding:16px 18px;
+  background:linear-gradient(0deg,rgba(7,23,27,.85),transparent);
+  font-size:.72rem; color:var(--text-muted); z-index:1;
+}
+.sobre-quote{
+  font-family:'Fraunces',serif;
+  font-size:1.3rem; font-weight:500;
+  color:var(--text-hi);
+  line-height:1.4;
+  margin-bottom:22px;
+}
+.sobre-quote::before{ content:'\201C'; color:var(--gold-500); }
+.sobre-quote::after{ content:'\201D'; color:var(--gold-500); }
+.sobre-bio p{ font-size:.98rem; }
+.sobre-name{ margin-top:24px; }
+.sobre-name strong{ display:block; color:var(--text-hi); font-family:'Fraunces',serif; font-size:1.05rem; }
+.sobre-name span{ font-size:.82rem; color:var(--text-muted); }
+
+/* ============================================================
+   PROVA
+   ============================================================ */
+.prova{ background:var(--ink-900); }
+.prova-grid{
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:22px;
+}
+.prova-card{
+  border-radius:var(--radius-lg);
+  padding:28px;
+  background:var(--glass-bg);
+  border:1px solid var(--glass-border);
+  backdrop-filter:blur(16px);
+  -webkit-backdrop-filter:blur(16px);
+  display:flex; flex-direction:column; gap:14px;
+}
+.prova-card .prova-icon{
+  width:44px; height:44px; border-radius:11px;
+  background:rgba(201,162,39,.14); color:var(--gold-300);
+  display:flex; align-items:center; justify-content:center;
+}
+.prova-card .prova-icon svg{ width:22px; height:22px; }
+.prova-card h3{ font-size:1.08rem; }
+.prova-card p{ font-size:.88rem; }
+.prova-card .prova-link{
+  margin-top:auto; font-size:.85rem; font-weight:700; color:var(--gold-300);
+  text-decoration:none; display:inline-flex; align-items:center; gap:6px;
+}
+.prova-card .prova-link svg{ width:15px; height:15px; transition:transform .2s; }
+.prova-card .prova-link:hover svg{ transform:translateX(3px); }
+.ethics-box{
+  margin-top:26px;
+  padding:20px 22px;
+  border-radius:var(--radius-md);
+  border:1px dashed var(--line-strong);
+  font-size:.86rem;
+  color:var(--text-muted);
+}
+.ethics-box strong{ color:var(--text-lo); }
+
+/* ============================================================
+   PERTENCIMENTO
+   ============================================================ */
+.pertencimento{
+  background:linear-gradient(180deg,var(--ink-950),var(--ink-900));
+}
+.pertencimento-inner{
+  text-align:center;
+  max-width:760px;
+  margin:0 auto;
+}
+.pertencimento h2{ font-size:clamp(1.9rem,3.6vw,2.6rem); }
+.pertencimento p{ font-size:1.06rem; }
+.pertencimento-badges{
+  display:flex; justify-content:center; gap:14px; flex-wrap:wrap; margin-top:30px;
+}
+.pertencimento-badges span{
+  font-size:.82rem; font-weight:600; color:var(--text-lo);
+  border:1px solid var(--line-soft); border-radius:999px; padding:9px 18px;
+}
+
+/* ============================================================
+   FAQ
+   ============================================================ */
+.faq-list{ max-width:800px; margin:0 auto; display:grid; gap:12px; }
+.faq-item{
+  border:1px solid var(--line-soft); border-radius:var(--radius-md);
+  background:rgba(255,255,255,.02);
+  overflow:hidden;
+}
+.faq-q{
+  width:100%; text-align:left; background:none; border:none; cursor:pointer;
+  color:var(--text-hi); font-weight:600; font-size:.98rem;
+  padding:20px 22px; display:flex; align-items:center; justify-content:space-between; gap:16px;
+}
+.faq-q svg{ width:18px; height:18px; color:var(--gold-500); flex-shrink:0; transition:transform .3s var(--ease); }
+.faq-item.is-open .faq-q svg{ transform:rotate(45deg); }
+.faq-a{
+  max-height:0; overflow:hidden; transition:max-height .35s var(--ease);
+}
+.faq-a-inner{ padding:0 22px 20px; font-size:.9rem; color:var(--text-lo); }
+
+/* ============================================================
+   CTA FINAL
+   ============================================================ */
+.cta-final{
+  background:linear-gradient(150deg,var(--ink-850),var(--ink-950));
+  text-align:center;
+  border-top:1px solid var(--line-soft);
+}
+.cta-final h2{ font-size:clamp(2rem,4vw,2.9rem); max-width:680px; margin-left:auto; margin-right:auto; }
+.cta-final p{ max-width:520px; margin:0 auto 32px; font-size:1.05rem; }
+
+/* ============================================================
+   FOOTER
+   ============================================================ */
+footer{ background:var(--ink-950); border-top:1px solid var(--line-soft); padding:48px 0 32px; }
+.footer-grid{ display:flex; flex-wrap:wrap; justify-content:space-between; gap:24px; align-items:flex-start; }
+.footer-brand p{ font-size:.85rem; color:var(--text-muted); max-width:280px; margin-top:12px; }
+.footer-links{ display:flex; gap:48px; flex-wrap:wrap; }
+.footer-col h5{ font-size:.72rem; letter-spacing:.1em; text-transform:uppercase; color:var(--text-muted); margin:0 0 12px; }
+.footer-col a{ display:block; font-size:.87rem; color:var(--text-lo); text-decoration:none; margin-bottom:8px; }
+.footer-col a:hover{ color:var(--gold-300); }
+.footer-bottom{
+  margin-top:40px; padding-top:20px; border-top:1px solid var(--line-soft);
+  display:flex; justify-content:space-between; flex-wrap:wrap; gap:10px;
+  font-size:.78rem; color:var(--text-muted);
+}
+
+/* ---------- WhatsApp floating button ---------- */
+.wa-float{
+  position:fixed; right:22px; bottom:22px; z-index:180;
+  width:58px; height:58px; border-radius:50%;
+  background:linear-gradient(160deg,var(--gold-300),var(--gold-600));
+  display:flex; align-items:center; justify-content:center;
+  box-shadow:0 14px 30px rgba(201,162,39,.4);
+  text-decoration:none; color:#241c05;
+  transition:transform .3s var(--ease);
+}
+.wa-float:hover{ transform:scale(1.08); }
+.wa-float svg{ width:26px; height:26px; }
+
+/* ============================================================
+   RESPONSIVE
+   ============================================================ */
+@media (max-width:980px){
+  .hero-grid{ grid-template-columns:1fr; }
+  .hero-visual{ order:-1; max-width:420px; }
+  .problema-grid{ grid-template-columns:1fr; }
+  .abordagem-panel{ grid-template-columns:1fr; padding:32px; }
+  .bento{ grid-template-columns:1fr; }
+  .processo-track{ grid-template-columns:1fr 1fr; row-gap:36px; }
+  .processo-track::before{ display:none; }
+  .sobre-grid{ grid-template-columns:1fr; }
+  .photo-frame{ max-width:320px; margin:0 auto; }
+  .prova-grid{ grid-template-columns:1fr; }
+}
+@media (max-width:760px){
+  .nav-links{ display:none; }
+  .nav-toggle{ display:flex; }
+  section{ padding:64px 0; }
+  .hero{ padding:132px 0 72px; }
+  .hero-ctas .btn{ width:100%; }
+  .hero-ctas{ flex-direction:column; align-items:stretch; }
+  .processo-track{ grid-template-columns:1fr; }
+  .footer-grid{ flex-direction:column; }
+}
+</style>
+</head>
+<body>
+
+<!-- ============================================================
+     NAV
+     ============================================================ -->
+<header class="nav" id="siteNav">
+  <div class="container">
+    <a href="#topo" class="brand">
+      <span class="brand-badge">CC</span>
+      <span class="brand-word"><strong>Clínica que Converte</strong><span>Diagnóstico e solução sob medida</span></span>
+    </a>
+    <nav>
+      <ul class="nav-links">
+        <li><a href="#problema">O problema</a></li>
+        <li><a href="#frentes">Frentes</a></li>
+        <li><a href="#processo">Como funciona</a></li>
+        <li><a href="#sobre">Sobre</a></li>
+        <li><a href="#faq">FAQ</a></li>
+      </ul>
+    </nav>
+    <div class="nav-cta">
+      <a class="btn btn-gold btn-sm" href="https://wa.me/5531983600675?text=Ol%C3%A1%2C%20quero%20saber%20mais%20sobre%20o%20diagn%C3%B3stico%20da%20Cl%C3%ADnica%20que%20Converte" target="_blank" rel="noopener">
+        Falar no WhatsApp
+      </a>
+      <button class="nav-toggle" id="navToggle" aria-label="Abrir menu" aria-expanded="false">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+      </button>
+    </div>
+  </div>
+</header>
+
+<div class="mobile-menu" id="mobileMenu">
+  <a href="#problema">O problema</a>
+  <a href="#frentes">Frentes</a>
+  <a href="#processo">Como funciona</a>
+  <a href="#sobre">Sobre</a>
+  <a href="#faq">FAQ</a>
+  <a class="btn btn-gold" href="https://wa.me/5531983600675?text=Ol%C3%A1%2C%20quero%20saber%20mais%20sobre%20o%20diagn%C3%B3stico%20da%20Cl%C3%ADnica%20que%20Converte" target="_blank" rel="noopener">Falar no WhatsApp</a>
+</div>
+
+<main id="topo">
+
+<!-- ============================================================
+     HERO
+     ============================================================ -->
+<section class="hero">
+  <div class="container hero-grid">
+    <div class="reveal is-visible">
+      <span class="eyebrow">Consultoria de diagnóstico para clínicas</span>
+      <h1>Sua clínica não precisa de um pacote pronto. Precisa do <em>diagnóstico certo</em>.</h1>
+      <p class="hero-lead">Identificamos o gargalo real que está travando o crescimento da sua clínica, seja em sistemas, em gestão ou em vendas, e recomendamos exatamente a solução que aquele caso pede. Nada de receita padrão para todo mundo.</p>
+      <div class="hero-ctas">
+        <a class="btn btn-gold" href="https://wa.me/5531983600675?text=Ol%C3%A1%2C%20quero%20saber%20mais%20sobre%20o%20diagn%C3%B3stico%20da%20Cl%C3%ADnica%20que%20Converte" target="_blank" rel="noopener">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.87.5 3.62 1.44 5.15L2 22l5.1-1.53a9.87 9.87 0 0 0 4.94 1.33h.01c5.46 0 9.91-4.45 9.91-9.91C21.96 6.45 17.5 2 12.04 2Zm5.8 14.03c-.24.68-1.4 1.32-1.93 1.4-.5.08-1.14.11-1.83-.12-.42-.13-.96-.31-1.66-.6-2.92-1.26-4.82-4.19-4.97-4.39-.14-.2-1.19-1.58-1.19-3.02 0-1.43.75-2.14 1.02-2.43.27-.29.58-.36.78-.36.19 0 .39 0 .56.01.18.01.42-.07.65.5.24.58.82 2.01.9 2.15.07.15.12.32.02.52-.1.2-.15.32-.3.5-.15.17-.31.39-.44.52-.15.15-.3.31-.13.6.17.29.75 1.24 1.62 2.01 1.11.99 2.05 1.3 2.34 1.45.29.15.46.13.63-.08.17-.2.72-.84.91-1.13.19-.29.38-.24.63-.14.26.1 1.64.77 1.92.91.28.15.47.22.54.34.07.13.07.72-.17 1.4Z"/></svg>
+          Falar no WhatsApp agora
+        </a>
+        <a class="btn btn-ghost" href="#frentes">Ver as três frentes</a>
+      </div>
+      <div class="hero-note">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 22s8-4.5 8-11V5l-8-3-8 3v6c0 6.5 8 11 8 11Z"/></svg>
+        Sem venda fixa de pacote. A recomendação depende do diagnóstico da sua clínica.
+      </div>
+    </div>
+    <div class="hero-visual">
+      <div class="hero-chip reveal is-visible">
+        <div class="chip-top">
+          <span class="chip-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M3 9h18M8 14h4"/></svg>
+          </span>
+          <strong>Soluções de sistemas</strong>
+        </div>
+        <p>CRM, controle de leads e site institucional, para organizar o que hoje está solto.</p>
+      </div>
+      <div class="hero-chip offset-1 reveal is-visible" style="transition-delay:.08s">
+        <div class="chip-top">
+          <span class="chip-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="3.4"/><path d="M5 21c0-3.9 3.1-7 7-7s7 3.1 7 7"/></svg>
+          </span>
+          <strong>Mentoria para donos</strong>
+        </div>
+        <p>Gestão, novos canais de captação e menos dependência de um único canal.</p>
+      </div>
+      <div class="hero-chip offset-2 reveal is-visible" style="transition-delay:.16s">
+        <div class="chip-top">
+          <span class="chip-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 11.5a8.4 8.4 0 0 1-8.5 8.4 8.6 8.6 0 0 1-4.1-1L3 20l1.2-3.6a8.3 8.3 0 0 1-1.2-4.4A8.4 8.4 0 0 1 11.5 3.5 8.5 8.5 0 0 1 21 11.5Z"/></svg>
+          </span>
+          <strong>Mentoria para secretárias</strong>
+        </div>
+        <p>Conversão de leads, tratamento de objeções e follow-up estruturado.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================
+     O PROBLEMA
+     ============================================================ -->
+<section class="problema" id="problema">
+  <div class="container problema-grid">
+    <div class="reveal">
+      <span class="eyebrow">A virada de percepção</span>
+      <p class="problema-quote">O gargalo raramente está só na secretária ou nas técnicas de venda. Na maioria das vezes, quem sofre de verdade é o dono da clínica.</p>
+    </div>
+    <div class="problema-body reveal">
+      <h2>Um profissional de saúde vira empresário da noite pro dia, sem preparo pra isso</h2>
+      <p>Um dentista, por exemplo, se formou para cuidar de pacientes. De repente se vê obrigado a virar também empresário, comerciante, administrador financeiro e às vezes até gestor de equipe, funções para as quais nunca foi treinado.</p>
+      <p>Foi observando esse padrão de perto, treinando secretárias de clínicas de saúde e acompanhando o que separava quem crescia de quem travava, que nasceu a Clínica que Converte: uma consultoria para diagnosticar de verdade qual é o gargalo daquela clínica específica, em vez de aplicar a mesma receita para todo mundo.</p>
+      <ul class="problema-list">
+        <li>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M20 6 9 17l-5-5"/></svg>
+          Leads chegam, mas a conversão não acontece do jeito que deveria
+        </li>
+        <li>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M20 6 9 17l-5-5"/></svg>
+          O financeiro é controlado no olho, em planilhas soltas ou na memória
+        </li>
+        <li>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M20 6 9 17l-5-5"/></svg>
+          O dono está sobrecarregado com tarefas fora da sua expertise clínica
+        </li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================
+     ABORDAGEM
+     ============================================================ -->
+<section id="abordagem">
+  <div class="container">
+    <div class="abordagem-panel reveal">
+      <div>
+        <span class="eyebrow">Nossa abordagem</span>
+        <h2>Diagnóstico antes da solução. Sempre.</h2>
+        <p>Não vendemos um pacote fixo pra todo mundo. Antes de recomendar qualquer coisa, entendemos a realidade daquela clínica específica, cruzamos os dados e só então apontamos exatamente onde está o gargalo prioritário, e o que fazer com ele.</p>
+        <a class="btn btn-ghost" href="#processo" style="margin-top:8px;">Ver como funciona o processo</a>
+      </div>
+      <ul class="abordagem-steps">
+        <li><span class="num">01</span><div><strong>Ouvimos antes de recomendar</strong><span>Um briefing completo sobre aquisição, funil, atendimento e organização administrativa.</span></div></li>
+        <li><span class="num">02</span><div><strong>Cruzamos os sinais</strong><span>As respostas apontam onde está o gargalo real, às vezes mais de um ao mesmo tempo.</span></div></li>
+        <li><span class="num">03</span><div><strong>Recomendamos por dado, não por achismo</strong><span>A frente prioritária é definida pelo que trava mais o crescimento agora.</span></div></li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================
+     AS TRÊS FRENTES - BENTO GRID
+     ============================================================ -->
+<section class="frentes" id="frentes">
+  <div class="container">
+    <div class="section-head centered reveal">
+      <span class="eyebrow">O que fazemos</span>
+      <h2>Três frentes possíveis. Uma recomendação sob medida.</h2>
+      <p>Uma clínica pode precisar de uma, duas ou até das três frentes ao mesmo tempo. A recomendação segue o diagnóstico, nunca o contrário.</p>
+    </div>
+
+    <div class="bento">
+      <div class="bento-card reveal">
+        <span class="bento-tag">Sistemas</span>
+        <span class="bento-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M3 9h18M8 14h4"/></svg>
+        </span>
+        <h3>Soluções de sistemas</h3>
+        <p>Para quando a clínica não tem controle de leads, o financeiro é feito no olho ou o dono não enxerga os próprios números. Construímos CRM, ERP ou site institucional sob medida para organizar essa base.</p>
+        <div class="bento-example">
+          <strong>Exemplo real</strong>
+          CRM comercial com funil automático, kanban, agenda e Assistente de Vendas de apoio à recepção.
+        </div>
+      </div>
+
+      <div class="bento-card reveal" style="transition-delay:.08s">
+        <span class="bento-tag">Gestão</span>
+        <span class="bento-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="8" r="3.4"/><path d="M5 21c0-3.9 3.1-7 7-7s7 3.1 7 7"/></svg>
+        </span>
+        <h3>Mentoria para donos</h3>
+        <p>Para quando o gargalo está na gestão do negócio em si: dependência de um único canal de aquisição, falta de formação em vendas e administração, sobrecarga fora da expertise clínica.</p>
+        <div class="bento-example">
+          <strong>Exemplo real</strong>
+          Estruturar um segundo canal de captação para reduzir a dependência exclusiva do tráfego pago.
+        </div>
+      </div>
+
+      <div class="bento-card reveal" style="transition-delay:.16s">
+        <span class="bento-tag">Vendas</span>
+        <span class="bento-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M21 11.5a8.4 8.4 0 0 1-8.5 8.4 8.6 8.6 0 0 1-4.1-1L3 20l1.2-3.6a8.3 8.3 0 0 1-1.2-4.4A8.4 8.4 0 0 1 11.5 3.5 8.5 8.5 0 0 1 21 11.5Z"/></svg>
+        </span>
+        <h3>Mentoria para secretárias</h3>
+        <p>Para quando os leads chegam, mas a conversão é baixa: sem script de atendimento, objeções mal trabalhadas e nenhum follow-up estruturado com quem não fechou.</p>
+        <div class="bento-example">
+          <strong>Exemplo real</strong>
+          Treinamento direto na rotina da recepção, com script de atendimento e tratamento de objeções comuns.
+        </div>
+      </div>
+    </div>
+
+    <div class="frentes-note reveal">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16h.01"/></svg>
+      Sua clínica ainda não tem site e você tem interesse em ter um? Isso também entra dentro da frente de sistemas, e é sempre considerado no diagnóstico.
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================
+     COMO FUNCIONA O PROCESSO
+     ============================================================ -->
+<section class="processo" id="processo">
+  <div class="container">
+    <div class="section-head centered reveal">
+      <span class="eyebrow">Como funciona</span>
+      <h2>Do briefing à apresentação personalizada</h2>
+      <p>Um processo direto, pensado pra chegar rápido na causa real do problema.</p>
+    </div>
+    <div class="processo-track">
+      <div class="processo-step reveal">
+        <span class="dot">1</span>
+        <h4>Briefing</h4>
+        <p>Conversa completa sobre aquisição, funil, atendimento e sistemas da sua clínica.</p>
+      </div>
+      <div class="processo-step reveal" style="transition-delay:.08s">
+        <span class="dot">2</span>
+        <h4>Diagnóstico</h4>
+        <p>Cruzamos as respostas com os sinais de gargalo em sistemas, gestão e vendas.</p>
+      </div>
+      <div class="processo-step reveal" style="transition-delay:.16s">
+        <span class="dot">3</span>
+        <h4>Recomendação</h4>
+        <p>Definimos qual frente, ou frentes, resolve o que trava o crescimento agora.</p>
+      </div>
+      <div class="processo-step reveal" style="transition-delay:.24s">
+        <span class="dot">4</span>
+        <h4>Apresentação</h4>
+        <p>Apresentamos a solução direto pra você, com dados da sua própria clínica.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================
+     SOBRE
+     ============================================================ -->
+<section id="sobre">
+  <div class="container sobre-grid">
+    <figure class="photo-frame reveal">
+      <!-- Placeholder de retrato profissional. Substituir por foto real (retrato, não selfie) antes de publicar. -->
+      <span class="photo-monogram">V</span>
+      <figcaption>Foto profissional a inserir</figcaption>
+    </figure>
+    <div class="reveal" style="transition-delay:.08s">
+      <span class="eyebrow">Quem diagnostica</span>
+      <p class="sobre-quote">Não vendo um treinamento padrão. Diagnostico o gargalo real de cada clínica e recomendo só o que aquele caso precisa.</p>
+      <div class="sobre-bio">
+        <p>Passei um bom tempo em uma agência de marketing especializada em tráfego pago para clínicas de saúde, treinando secretárias nos fundamentos de vendas: funil, tratamento de objeções, follow-up. Com o tempo, percebi um padrão entre as clínicas que não seguiam crescendo mesmo depois do treinamento comercial: o problema quase nunca era só a secretária.</p>
+        <p>Foi esse padrão que deu origem à Clínica que Converte: em vez de vender a mesma receita pronta pra todo mundo, diagnosticar com precisão se o gargalo está em sistemas, na gestão do dono ou na ponta comercial, e recomendar exatamente a solução certa para aquele caso.</p>
+      </div>
+      <div class="sobre-name">
+        <strong>Vitor Hugo</strong>
+        <span>Fundador, Clínica que Converte</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================
+     PROVA / CREDIBILIDADE
+     ============================================================ -->
+<section class="prova" id="prova">
+  <div class="container">
+    <div class="section-head centered reveal">
+      <span class="eyebrow">Prova de entrega</span>
+      <h2>Método que já virou entrega real</h2>
+      <p>Alguns dos materiais que sustentam o diagnóstico e mostram como cada frente vira solução prática.</p>
+    </div>
+
+    <div class="prova-grid">
+      <div class="prova-card reveal">
+        <span class="prova-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M3 9h18M8 14h4"/></svg>
+        </span>
+        <h3>CRM com Assistente de Vendas</h3>
+        <p>Sistema próprio para organizar pacientes, funil e agenda, com um assistente de apoio à recepção baseado em regras de vendas consultivas, sempre com limites éticos claros: não promete resultado clínico e não cria urgência falsa.</p>
+      </div>
+
+      <div class="prova-card reveal" style="transition-delay:.08s">
+        <span class="prova-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M4 19.5V6a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v14"/><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/></svg>
+        </span>
+        <h3>Ebook de diagnóstico</h3>
+        <p>"Por que sua clínica perde pacientes antes mesmo da primeira consulta." Material de entrada que já ajuda o dono a enxergar sintomas antes de qualquer conversa.</p>
+      </div>
+
+      <div class="prova-card reveal" style="transition-delay:.16s">
+        <span class="prova-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M21 11.5a8.4 8.4 0 0 1-8.5 8.4 8.6 8.6 0 0 1-4.1-1L3 20l1.2-3.6a8.3 8.3 0 0 1-1.2-4.4A8.4 8.4 0 0 1 11.5 3.5 8.5 8.5 0 0 1 21 11.5Z"/></svg>
+        </span>
+        <h3>Módulos de treinamento comercial</h3>
+        <p>Conteúdo de mentoria para secretárias, com diagnóstico do paciente ideal e mapeamento da jornada de perda de lead, aplicado direto na rotina da recepção.</p>
+      </div>
+    </div>
+
+    <div class="ethics-box reveal">
+      <strong>Limites éticos do Assistente de Vendas:</strong> o agente ajuda a recepção a conduzir melhor a conversa comercial. Ele nunca diagnostica, nunca promete resultado clínico e nunca pressiona paciente vulnerável. Hoje ele funciona com regras próprias de vendas consultivas, sem login individual nem uso multi-clínica ainda disponíveis.
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================
+     PERTENCIMENTO
+     ============================================================ -->
+<section class="pertencimento" id="pertencimento">
+  <div class="container pertencimento-inner">
+    <span class="eyebrow">Diferencial</span>
+    <h2 class="reveal">Sua equipe faz parte de um padrão de clínica que o paciente sente</h2>
+    <p class="reveal">Quando a recepção sabe conduzir a conversa, quando os números existem e são usados, quando o dono não está mais apagando incêndio sozinho, isso aparece na forma como o paciente é recebido. Não é sobre um script decorado. É sobre a clínica inteira operar com um padrão claro.</p>
+    <div class="pertencimento-badges reveal">
+      <span>Diagnóstico antes da venda</span>
+      <span>Solução sob medida</span>
+      <span>Sem pacote fechado</span>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================
+     FAQ
+     ============================================================ -->
+<section id="faq">
+  <div class="container">
+    <div class="section-head centered reveal">
+      <span class="eyebrow">Perguntas frequentes</span>
+      <h2>Antes de falar com a gente</h2>
+    </div>
+    <div class="faq-list">
+      <div class="faq-item reveal">
+        <button class="faq-q" aria-expanded="false">
+          Vocês vendem CRM, mentoria ou consultoria comercial?
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 5v14M5 12h14"/></svg>
+        </button>
+        <div class="faq-a"><div class="faq-a-inner">Depende do diagnóstico da sua clínica. Podemos recomendar uma frente só, duas ou as três juntas, sempre com base nos dados do briefing, nunca por padrão.</div></div>
+      </div>
+      <div class="faq-item reveal">
+        <button class="faq-q" aria-expanded="false">
+          Quanto custa?
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 5v14M5 12h14"/></svg>
+        </button>
+        <div class="faq-a"><div class="faq-a-inner">Não trabalhamos com tabela fixa. O investimento depende da frente recomendada e do tamanho do gargalo identificado. O primeiro passo é uma conversa via WhatsApp para entender sua clínica.</div></div>
+      </div>
+      <div class="faq-item reveal">
+        <button class="faq-q" aria-expanded="false">
+          Minha clínica já tem site e CRM. Ainda faz sentido conversar?
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 5v14M5 12h14"/></svg>
+        </button>
+        <div class="faq-a"><div class="faq-a-inner">Sim. O gargalo pode estar em outro lugar, na gestão do dono ou na conversão da recepção. O diagnóstico considera a clínica inteira, não só sistemas.</div></div>
+      </div>
+      <div class="faq-item reveal">
+        <button class="faq-q" aria-expanded="false">
+          Como funciona o diagnóstico? Tem compromisso?
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 5v14M5 12h14"/></svg>
+        </button>
+        <div class="faq-a"><div class="faq-a-inner">Começa com uma conversa de briefing pelo WhatsApp, sem compromisso. A partir dela é que definimos se, e como, seguimos.</div></div>
+      </div>
+      <div class="faq-item reveal">
+        <button class="faq-q" aria-expanded="false">
+          O Assistente de Vendas do CRM substitui a secretária?
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 5v14M5 12h14"/></svg>
+        </button>
+        <div class="faq-a"><div class="faq-a-inner">Não. Ele é uma ferramenta de apoio à conversa comercial, com limites éticos claros. Quem conduz o atendimento continua sendo a sua equipe.</div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================
+     CTA FINAL
+     ============================================================ -->
+<section class="cta-final">
+  <div class="container">
+    <h2 class="reveal">Vamos identificar o gargalo real da sua clínica?</h2>
+    <p class="reveal">Uma conversa direta, sem enrolação, pra entender onde está travando o crescimento e o que fazer com isso.</p>
+    <a class="btn btn-gold reveal" href="https://wa.me/5531983600675?text=Ol%C3%A1%2C%20quero%20saber%20mais%20sobre%20o%20diagn%C3%B3stico%20da%20Cl%C3%ADnica%20que%20Converte" target="_blank" rel="noopener">
+      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.87.5 3.62 1.44 5.15L2 22l5.1-1.53a9.87 9.87 0 0 0 4.94 1.33h.01c5.46 0 9.91-4.45 9.91-9.91C21.96 6.45 17.5 2 12.04 2Zm5.8 14.03c-.24.68-1.4 1.32-1.93 1.4-.5.08-1.14.11-1.83-.12-.42-.13-.96-.31-1.66-.6-2.92-1.26-4.82-4.19-4.97-4.39-.14-.2-1.19-1.58-1.19-3.02 0-1.43.75-2.14 1.02-2.43.27-.29.58-.36.78-.36.19 0 .39 0 .56.01.18.01.42-.07.65.5.24.58.82 2.01.9 2.15.07.15.12.32.02.52-.1.2-.15.32-.3.5-.15.17-.31.39-.44.52-.15.15-.3.31-.13.6.17.29.75 1.24 1.62 2.01 1.11.99 2.05 1.3 2.34 1.45.29.15.46.13.63-.08.17-.2.72-.84.91-1.13.19-.29.38-.24.63-.14.26.1 1.64.77 1.92.91.28.15.47.22.54.34.07.13.07.72-.17 1.4Z"/></svg>
+      Falar no WhatsApp
+    </a>
+  </div>
+</section>
+
+</main>
+
+<!-- ============================================================
+     FOOTER
+     ============================================================ -->
+<footer>
+  <div class="container">
+    <div class="footer-grid">
+      <div class="footer-brand">
+        <a href="#topo" class="brand">
+          <span class="brand-badge">CC</span>
+          <span class="brand-word"><strong>Clínica que Converte</strong><span>Diagnóstico e solução sob medida</span></span>
+        </a>
+        <p>Consultoria de diagnóstico para clínicas de saúde. Identificamos o gargalo real e recomendamos a solução certa, entre sistemas, gestão e vendas.</p>
+      </div>
+      <div class="footer-links">
+        <div class="footer-col">
+          <h5>Navegação</h5>
+          <a href="#problema">O problema</a>
+          <a href="#frentes">Frentes</a>
+          <a href="#processo">Como funciona</a>
+          <a href="#sobre">Sobre</a>
+          <a href="#faq">FAQ</a>
+        </div>
+        <div class="footer-col">
+          <h5>Contato</h5>
+          <a href="https://wa.me/5531983600675?text=Ol%C3%A1%2C%20quero%20saber%20mais%20sobre%20o%20diagn%C3%B3stico%20da%20Cl%C3%ADnica%20que%20Converte" target="_blank" rel="noopener">WhatsApp</a>
+        </div>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <span>Clínica que Converte</span>
+      <span>Diagnóstico antes da venda, sempre.</span>
+    </div>
+  </div>
+</footer>
+
+<a class="wa-float" href="https://wa.me/5531983600675?text=Ol%C3%A1%2C%20quero%20saber%20mais%20sobre%20o%20diagn%C3%B3stico%20da%20Cl%C3%ADnica%20que%20Converte" target="_blank" rel="noopener" aria-label="Falar no WhatsApp">
+  <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.87.5 3.62 1.44 5.15L2 22l5.1-1.53a9.87 9.87 0 0 0 4.94 1.33h.01c5.46 0 9.91-4.45 9.91-9.91C21.96 6.45 17.5 2 12.04 2Zm5.8 14.03c-.24.68-1.4 1.32-1.93 1.4-.5.08-1.14.11-1.83-.12-.42-.13-.96-.31-1.66-.6-2.92-1.26-4.82-4.19-4.97-4.39-.14-.2-1.19-1.58-1.19-3.02 0-1.43.75-2.14 1.02-2.43.27-.29.58-.36.78-.36.19 0 .39 0 .56.01.18.01.42-.07.65.5.24.58.82 2.01.9 2.15.07.15.12.32.02.52-.1.2-.15.32-.3.5-.15.17-.31.39-.44.52-.15.15-.3.31-.13.6.17.29.75 1.24 1.62 2.01 1.11.99 2.05 1.3 2.34 1.45.29.15.46.13.63-.08.17-.2.72-.84.91-1.13.19-.29.38-.24.63-.14.26.1 1.64.77 1.92.91.28.15.47.22.54.34.07.13.07.72-.17 1.4Z"/></svg>
+</a>
+
+<script>
+(function(){
+  "use strict";
+
+  // ---------- nav scroll state ----------
+  var nav = document.getElementById('siteNav');
+  var onScroll = function(){
+    if (window.scrollY > 12) nav.classList.add('is-scrolled');
+    else nav.classList.remove('is-scrolled');
+  };
+  document.addEventListener('scroll', onScroll, { passive:true });
+  onScroll();
+
+  // ---------- mobile menu ----------
+  var toggle = document.getElementById('navToggle');
+  var menu = document.getElementById('mobileMenu');
+  function closeMenu(){
+    menu.classList.remove('is-open');
+    toggle.setAttribute('aria-expanded','false');
+  }
+  toggle.addEventListener('click', function(){
+    var open = menu.classList.toggle('is-open');
+    toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+  });
+  menu.querySelectorAll('a').forEach(function(a){
+    a.addEventListener('click', closeMenu);
+  });
+
+  // ---------- reveal on scroll ----------
+  var revealEls = document.querySelectorAll('.reveal:not(.is-visible)');
+  if ('IntersectionObserver' in window){
+    var io = new IntersectionObserver(function(entries){
+      entries.forEach(function(entry){
+        if (entry.isIntersecting){
+          entry.target.classList.add('is-visible');
+          io.unobserve(entry.target);
+        }
+      });
+    }, { threshold:.15, rootMargin:'0px 0px -40px 0px' });
+    revealEls.forEach(function(el){ io.observe(el); });
+  } else {
+    revealEls.forEach(function(el){ el.classList.add('is-visible'); });
+  }
+
+  // ---------- FAQ accordion ----------
+  document.querySelectorAll('.faq-item').forEach(function(item){
+    var btn = item.querySelector('.faq-q');
+    var panel = item.querySelector('.faq-a');
+    btn.addEventListener('click', function(){
+      var isOpen = item.classList.contains('is-open');
+      document.querySelectorAll('.faq-item.is-open').forEach(function(openItem){
+        if (openItem !== item){
+          openItem.classList.remove('is-open');
+          openItem.querySelector('.faq-q').setAttribute('aria-expanded','false');
+          openItem.querySelector('.faq-a').style.maxHeight = null;
+        }
+      });
+      if (isOpen){
+        item.classList.remove('is-open');
+        btn.setAttribute('aria-expanded','false');
+        panel.style.maxHeight = null;
+      } else {
+        item.classList.add('is-open');
+        btn.setAttribute('aria-expanded','true');
+        panel.style.maxHeight = panel.scrollHeight + 'px';
+      }
+    });
+  });
+
+  // ---------- subtle hover tilt on bento cards ----------
+  document.querySelectorAll('.bento-card').forEach(function(card){
+    card.addEventListener('mousemove', function(e){
+      var rect = card.getBoundingClientRect();
+      var x = (e.clientX - rect.left) / rect.width - .5;
+      var y = (e.clientY - rect.top) / rect.height - .5;
+      card.style.transform = 'translateY(-8px) rotateX(' + (y * -3) + 'deg) rotateY(' + (x * 3) + 'deg)';
+    });
+    card.addEventListener('mouseleave', function(){
+      card.style.transform = '';
+    });
+  });
+})();
+</script>
+
+</body>
+</html>
