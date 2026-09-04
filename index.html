@@ -1,11 +1,2703 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="pt-BR">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CRM Comercial — Clínica que Converte</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+/* ============================================================
+   CRM Comercial — Clínica que Converte
+   Design system: tokens "ink" (petróleo/marinho) + "gold" (dourado)
+   Tipografia: Fraunces (títulos) / Manrope (corpo)
+   ============================================================ */
+:root{
+  --ink-950:#081b20;
+  --ink-900:#0F3B44;
+  --ink-800:#154953;
+  --ink-700:#1d5c68;
+  --ink-100:#e4eef0;
+  --gold-500:#C9A227;
+  --gold-600:#a9861c;
+  --gold-100:#fbf3d9;
+  --paper:#ffffff;
+  --bg:#f6f4ee;
+  --line:#e4e0d3;
+  --text:#16232a;
+  --text-muted:#5c6c70;
+  --danger:#b23a3a;
+  --danger-bg:#fbe9e9;
+  --success:#2f7d5a;
+  --success-bg:#e7f3ec;
+  --warn:#c9861f;
+  --warn-bg:#fbf1de;
+  --info:#3a6fb2;
+  --info-bg:#eaf1fb;
+  --radius:14px;
+  --radius-sm:9px;
+  --shadow:0 8px 24px rgba(15,59,68,.08);
+  --shadow-lg:0 16px 40px rgba(15,59,68,.16);
+  --sidebar-w:250px;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --paper:#122127;
+    --bg:#0c1a1f;
+    --line:#22343a;
+    --text:#eef3f2;
+    --text-muted:#9fb0b3;
+    --ink-100:#16323a;
+    --shadow:0 8px 24px rgba(0,0,0,.35);
+    --shadow-lg:0 16px 40px rgba(0,0,0,.5);
+    --danger-bg:#3a2222;
+    --success-bg:#173427;
+    --warn-bg:#3a2f16;
+    --info-bg:#1b2c3d;
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#122127;
+  --bg:#0c1a1f;
+  --line:#22343a;
+  --text:#eef3f2;
+  --text-muted:#9fb0b3;
+  --ink-100:#16323a;
+  --shadow:0 8px 24px rgba(0,0,0,.35);
+  --shadow-lg:0 16px 40px rgba(0,0,0,.5);
+  --danger-bg:#3a2222;
+  --success-bg:#173427;
+  --warn-bg:#3a2f16;
+  --info-bg:#1b2c3d;
+}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;}
+body{
+  background:var(--bg);
+  color:var(--text);
+  font-family:"Manrope",-apple-system,Segoe UI,Arial,sans-serif;
+  font-size:14.5px;
+  line-height:1.5;
+}
+h1,h2,h3,h4{font-family:"Fraunces","Georgia",serif;font-weight:600;margin:0 0 4px;color:var(--text);}
+a{color:inherit;}
+button{font-family:inherit;}
+::-webkit-scrollbar{width:10px;height:10px;}
+::-webkit-scrollbar-thumb{background:var(--line);border-radius:8px;}
+
+/* ---------- layout ---------- */
+#app-shell{display:flex;min-height:100vh;}
+.sidebar{
+  width:var(--sidebar-w);flex:0 0 var(--sidebar-w);
+  background:linear-gradient(180deg,var(--ink-950),var(--ink-900));
+  color:#eaf3f3;display:flex;flex-direction:column;
+  position:sticky;top:0;height:100vh;overflow-y:auto;
+}
+.brand{display:flex;align-items:center;gap:10px;padding:20px 18px 14px;}
+.brand-badge{
+  width:38px;height:38px;border-radius:9px;background:var(--gold-500);
+  color:var(--ink-950);font-family:"Fraunces",serif;font-weight:700;font-size:16px;
+  display:flex;align-items:center;justify-content:center;flex:0 0 auto;
+}
+.brand-text{line-height:1.2;}
+.brand-text b{display:block;font-family:"Fraunces",serif;font-size:15px;color:#fff;}
+.brand-text span{display:block;font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;color:#9fc3c9;}
+
+.clinic-pill{
+  margin:2px 16px 14px;padding:9px 12px;border-radius:10px;
+  background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08);
+}
+.clinic-pill .k{font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:#8fb3b8;}
+.clinic-pill .v{font-size:13.5px;font-weight:700;color:#fff;font-family:"Fraunces",serif;}
+
+nav.nav{padding:6px 10px;flex:1;}
+.nav-item{
+  display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;
+  color:#cfe3e5;cursor:pointer;font-size:13.6px;font-weight:600;margin-bottom:2px;
+  border:1px solid transparent;user-select:none;
+}
+.nav-item:hover{background:rgba(255,255,255,.06);}
+.nav-item.active{background:rgba(201,162,39,.16);color:#fff;border-color:rgba(201,162,39,.35);}
+.nav-item .ic{width:18px;text-align:center;opacity:.9;}
+
+.sidebar-foot{padding:14px 18px 18px;font-size:11.5px;color:#7fa2a7;border-top:1px solid rgba(255,255,255,.08);}
+
+.main{flex:1;min-width:0;display:flex;flex-direction:column;}
+.topbar{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:14px 26px;border-bottom:1px solid var(--line);background:var(--paper);
+  position:sticky;top:0;z-index:5;
+}
+.topbar h1{font-size:20px;}
+.topbar .sub{color:var(--text-muted);font-size:12.5px;margin-top:2px;}
+.topbar-actions{display:flex;align-items:center;gap:10px;}
+.content{padding:22px 26px 60px;max-width:1320px;width:100%;margin:0 auto;}
+
+/* ---------- generic components ---------- */
+.card{background:var(--paper);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:18px 20px;}
+.card + .card{margin-top:16px;}
+.grid{display:grid;gap:16px;}
+.grid.cols-4{grid-template-columns:repeat(4,1fr);}
+.grid.cols-3{grid-template-columns:repeat(3,1fr);}
+.grid.cols-2{grid-template-columns:repeat(2,1fr);}
+@media(max-width:1080px){.grid.cols-4{grid-template-columns:repeat(2,1fr);}.grid.cols-3{grid-template-columns:repeat(2,1fr);}}
+@media(max-width:640px){.grid.cols-4,.grid.cols-3,.grid.cols-2{grid-template-columns:1fr;}}
+
+.btn{
+  display:inline-flex;align-items:center;gap:7px;padding:9px 15px;border-radius:10px;
+  border:1px solid var(--line);background:var(--paper);color:var(--text);font-weight:700;
+  font-size:13px;cursor:pointer;white-space:nowrap;
+}
+.btn:hover{border-color:var(--ink-700);}
+.btn.primary{background:var(--ink-900);border-color:var(--ink-900);color:#fff;}
+.btn.primary:hover{background:var(--ink-800);}
+.btn.gold{background:var(--gold-500);border-color:var(--gold-500);color:#28210a;}
+.btn.gold:hover{background:var(--gold-600);}
+.btn.danger{color:var(--danger);border-color:var(--danger);background:transparent;}
+.btn.danger:hover{background:var(--danger-bg);}
+.btn.sm{padding:6px 10px;font-size:12px;border-radius:8px;}
+.btn.ghost{border-color:transparent;background:transparent;}
+.btn.ghost:hover{background:var(--ink-100);}
+.btn:disabled{opacity:.45;cursor:not-allowed;}
+
+.pill{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:999px;background:var(--ink-100);color:var(--ink-900);font-size:11.5px;font-weight:700;white-space:nowrap;}
+:root[data-theme="dark"] .pill, @media (prefers-color-scheme:dark){.pill{color:#dff0f2;}}
+.badge-status{padding:4px 10px;border-radius:999px;font-size:11.5px;font-weight:800;letter-spacing:.01em;white-space:nowrap;}
+.tag-urg-atrasado{background:var(--danger-bg);color:var(--danger);}
+.tag-urg-proximo{background:var(--warn-bg);color:var(--warn);}
+.tag-urg-em-dia{background:var(--success-bg);color:var(--success);}
+
+input,select,textarea{
+  width:100%;padding:9px 11px;border:1px solid var(--line);border-radius:9px;
+  background:var(--paper);color:var(--text);font-family:inherit;font-size:13.5px;
+}
+input:focus,select:focus,textarea:focus{outline:2px solid var(--gold-500);outline-offset:1px;}
+label.field{display:block;margin-bottom:12px;}
+label.field .lbl{display:block;font-size:12px;font-weight:700;color:var(--text-muted);margin-bottom:5px;text-transform:uppercase;letter-spacing:.03em;}
+.check-row{display:flex;align-items:center;gap:7px;font-size:13px;padding:4px 0;}
+.check-row input{width:auto;}
+.chips-check{display:flex;flex-wrap:wrap;gap:8px;}
+.chip-check{border:1px solid var(--line);border-radius:999px;padding:6px 12px;font-size:12.5px;cursor:pointer;user-select:none;font-weight:600;}
+.chip-check input{display:none;}
+.chip-check.on{background:var(--ink-900);border-color:var(--ink-900);color:#fff;}
+
+table{width:100%;border-collapse:collapse;font-size:13.3px;}
+th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--text-muted);padding:8px 10px;border-bottom:2px solid var(--line);white-space:nowrap;}
+td{padding:10px 10px;border-bottom:1px solid var(--line);vertical-align:middle;}
+tr.clickable{cursor:pointer;}
+tr.clickable:hover{background:var(--ink-100);}
+.table-wrap{overflow-x:auto;}
+
+.empty{color:var(--text-muted);text-align:center;padding:30px 10px;font-size:13.5px;}
+.section-title{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:10px;}
+.section-title h2{font-size:19px;}
+.muted{color:var(--text-muted);}
+.small{font-size:12px;}
+.hr{height:1px;background:var(--line);margin:16px 0;border:none;}
+
+/* stat tile */
+.stat-tile{padding:16px 18px;}
+.stat-tile .lbl{font-size:11.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--text-muted);font-weight:700;}
+.stat-tile .val{font-family:"Fraunces",serif;font-size:26px;font-weight:700;margin-top:6px;color:var(--ink-900);}
+:root[data-theme="dark"] .stat-tile .val{color:var(--gold-500);}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]) .stat-tile .val{color:var(--gold-500);}}
+
+/* kanban */
+.kanban-wrap{display:flex;gap:14px;overflow-x:auto;padding-bottom:12px;}
+.kanban-col{flex:0 0 268px;background:var(--bg);border:1px solid var(--line);border-radius:var(--radius);display:flex;flex-direction:column;max-height:calc(100vh - 210px);}
+.kanban-col-head{padding:12px 14px;border-bottom:1px solid var(--line);border-radius:var(--radius) var(--radius) 0 0;font-weight:800;font-size:12.5px;display:flex;justify-content:space-between;align-items:center;color:#fff;}
+.kanban-col-body{padding:10px;overflow-y:auto;flex:1;display:flex;flex-direction:column;gap:9px;}
+.kcard{background:var(--paper);border:1px solid var(--line);border-radius:11px;padding:11px 12px;cursor:pointer;box-shadow:0 2px 6px rgba(15,59,68,.06);}
+.kcard:hover{border-color:var(--ink-700);}
+.kcard .nm{font-weight:800;font-size:13.3px;margin-bottom:4px;}
+.kcard .meta{font-size:11.5px;color:var(--text-muted);display:flex;flex-wrap:wrap;gap:5px;margin-top:6px;}
+.kcard .obs{margin-top:7px;font-size:11.6px;background:var(--warn-bg);color:#6b4d0f;padding:6px 8px;border-radius:8px;}
+:root[data-theme="dark"] .kcard .obs, @media(prefers-color-scheme:dark){.kcard .obs{color:#f0d99a;}}
+
+/* modal */
+.modal-backdrop{position:fixed;inset:0;background:rgba(8,20,24,.55);display:flex;align-items:flex-start;justify-content:center;padding:30px 16px;overflow-y:auto;z-index:50;}
+.modal{background:var(--paper);border-radius:16px;max-width:760px;width:100%;box-shadow:var(--shadow-lg);}
+.modal-head{padding:18px 22px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;}
+.modal-body{padding:20px 22px;max-height:70vh;overflow-y:auto;}
+.modal-foot{padding:16px 22px;border-top:1px solid var(--line);display:flex;justify-content:flex-end;gap:10px;}
+.modal-close{cursor:pointer;font-size:20px;color:var(--text-muted);border:none;background:none;}
+
+.toast{position:fixed;bottom:22px;right:22px;background:var(--ink-950);color:#fff;padding:12px 18px;border-radius:10px;box-shadow:var(--shadow-lg);z-index:99;font-size:13px;font-weight:600;}
+
+.filters-bar{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px;align-items:center;}
+.filters-bar select,.filters-bar input{width:auto;min-width:150px;}
+
+.bars{display:flex;align-items:flex-end;gap:14px;padding:10px 6px 0;}
+.bar-col{flex:1;display:flex;flex-direction:column;align-items:center;}
+.bar-box{display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:150px;width:100%;}
+.bar-fill{width:100%;max-width:46px;border-radius:6px 6px 0 0;background:var(--ink-100);border:1px solid var(--ink-700);border-bottom:none;}
+.bar-col .lbl{font-size:10.6px;color:var(--text-muted);margin-top:8px;text-align:center;}
+.bar-col .val{font-size:10.6px;font-weight:800;color:var(--text);margin-bottom:4px;}
+
+.ethics-box{background:var(--info-bg);border:1px solid var(--line);border-radius:12px;padding:14px 16px;font-size:12.6px;color:var(--text);}
+.ethics-box b{color:var(--info);}
+
+.list-edit-row{display:flex;gap:8px;align-items:center;padding:6px 0;border-bottom:1px dashed var(--line);}
+.list-edit-row:last-child{border-bottom:none;}
+.list-edit-row .grow{flex:1;}
+
+.chk-item{display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--line);font-size:13px;}
+.chk-item:last-child{border-bottom:none;}
+</style>
 </head>
 <body>
-    <p>Testando subir para o GitHub</p>
+<div id="app-shell"></div>
+<div id="modal-root"></div>
+<div id="toast-root"></div>
+
+<script>
+/* ============================================================
+   1) CONSTANTES DE DOMÍNIO — regra de funil, etapas, seeds
+   ============================================================ */
+
+// Ordem fixa das etapas do funil (nome exatamente como a clínica já usa).
+// Cor é customizável em Configurações; a ORDEM e o NOME não, pois vêm da
+// regra automática de cálculo de status (ver calcStatus()).
+const ETAPAS_PADRAO = [
+  {id:'novo',        nome:'Novo Paciente',         cor:'#5c6c70'},
+  {id:'consulta',    nome:'Consulta Marcada',      cor:'#3a6fb2'},
+  {id:'nao_compareceu', nome:'Não Compareceu',     cor:'#b23a3a'},
+  {id:'compareceu',  nome:'Compareceu',            cor:'#2f7d5a'},
+  {id:'plano',       nome:'Plano de Tratamento',   cor:'#8a6fb2'},
+  {id:'fechado_total', nome:'Fechado (Total)',     cor:'#1d5c68'},
+  {id:'fechado_parcial', nome:'Fechado (Parcial)', cor:'#3f8a95'},
+  {id:'pendente',    nome:'Pendente',              cor:'#c9861f'},
+  {id:'nao_precisa', nome:'Não Precisa no Momento',cor:'#9c8a4f'},
+  {id:'perdido',     nome:'Perdido',                cor:'#8a3a3a'},
+];
+
+const ESTAGIOS_ABERTOS = ['Novo Paciente','Consulta Marcada','Não Compareceu','Compareceu','Plano de Tratamento','Pendente'];
+const ESTAGIOS_TERMINAIS = ['Fechado (Total)','Fechado (Parcial)','Não Precisa no Momento','Perdido'];
+
+// Regra automática de status — reproduz EXATAMENTE a fórmula validada em uso
+// real na planilha da clínica (aba Pacientes, coluna "Status Atual"):
+//
+// =IF(Fechou="Sim","Fechado (Total)",
+//   IF(Fechou="Parcial","Fechado (Parcial)",
+//   IF(Fechou="Não","Perdido",
+//   IF(Fechou="Pendente","Pendente",
+//   IF(Fechou="Não precisa no momento","Não Precisa no Momento",
+//   IF(Plano="Sim","Plano de Tratamento",
+//   IF(Compareceu="Não","Não Compareceu",
+//   IF(Compareceu="Sim","Compareceu",
+//   IF(MarcouConsulta="Não","Perdido",
+//   IF(MarcouConsulta="Sim","Consulta Marcada",
+//   IF(Nome="","","Novo Paciente")))))))))))
+function calcStatus(p){
+  const f = p.fechouTratamento, pl = p.planoTratamento, c = p.compareceu, m = p.marcouConsulta;
+  if (f === 'Sim') return 'Fechado (Total)';
+  if (f === 'Parcial') return 'Fechado (Parcial)';
+  if (f === 'Não') return 'Perdido';
+  if (f === 'Pendente') return 'Pendente';
+  if (f === 'Não precisa no momento') return 'Não Precisa no Momento';
+  if (pl === 'Sim') return 'Plano de Tratamento';
+  if (c === 'Não') return 'Não Compareceu';
+  if (c === 'Sim') return 'Compareceu';
+  if (m === 'Não') return 'Perdido';
+  if (m === 'Sim') return 'Consulta Marcada';
+  if (!p.nome) return '';
+  return 'Novo Paciente';
+}
+
+const OPCOES_FECHOU = ['','Sim','Parcial','Pendente','Não precisa no momento','Não'];
+const OPCOES_SIMNAO = ['','Sim','Não'];
+
+/* SEED — dados reais migrados da planilha CRM_Mori_Ortodontia.xlsx (52 pacientes,
+   maio–setembro/2026, abas Pacientes/Indicação/Dashboard). Ver Contexto/ para a
+   fonte original. Usado apenas na primeira carga (se não houver estado salvo). */
+const SEED_PACIENTES = [
+  {
+    "id": "pac-001",
+    "nome": "Andrea Reis Ferreira de Melo",
+    "telefone": "(31) 99804-0037",
+    "email": "",
+    "origem": "Indicação",
+    "procedimentos": [
+      "Invisalign / Alinhador Invisível"
+    ],
+    "procedimentoOriginal": "Invisaling",
+    "responsavel": "Mariana",
+    "dataContato": "2026-07-02",
+    "marcouConsulta": "Sim",
+    "dataConsulta": "2026-07-06",
+    "compareceu": "Sim",
+    "fezRadiografia": "Não",
+    "planoTratamento": "Sim",
+    "valorOrcamento": 15000,
+    "fechouTratamento": "Não",
+    "valorFechado": null,
+    "dataFechamento": "",
+    "motivoPerda": "Sem orçamento no momento",
+    "observacoes": "Tem outras prioridades, não vai fazer"
+  },
+  {
+    "id": "pac-002",
+    "nome": "Julia da Silva Costa",
+    "telefone": "(31) 98479-0759",
+    "email": "",
+    "origem": "Instagram",
+    "procedimentos": [
+      "Invisalign / Alinhador Invisível"
+    ],
+    "procedimentoOriginal": "Invisaling",
+    "responsavel": "Natalia",
+    "dataContato": "2026-06-29",
+    "marcouConsulta": "Sim",
+    "dataConsulta": "2026-07-07",
+    "compareceu": "Sim",
+    "fezRadiografia": "Sim",
+    "planoTratamento": "Sim",
+    "valorOrcamento": 15000,
+    "fechouTratamento": "Sim",
+    "valorFechado": 14700,
+    "dataFechamento": "2026-07-20",
+    "motivoPerda": "",
+    "observacoes": ""
+  },
+  {
+    "id": "pac-003",
+    "nome": "Hiltonn Muniz Cordeiro",
+    "telefone": "(38) 9969-5811",
+    "email": "",
+    "origem": "Indicação",
+    "procedimentos": [
+      "Invisalign / Alinhador Invisível"
+    ],
+    "procedimentoOriginal": "Invisalign",
+    "responsavel": "Mariana",
+    "dataContato": "2026-05-07",
+    "marcouConsulta": "Sim",
+    "dataConsulta": "2026-05-27",
+    "compareceu": "Sim",
+    "fezRadiografia": "Sim",
+    "planoTratamento": "Sim",
+    "valorOrcamento": 16000,
+    "fechouTratamento": "Não",
+    "valorFechado": null,
+    "dataFechamento": "",
+    "motivoPerda": "Sem orçamento no momento",
+    "observacoes": "gastou muito com Dr Marcelo"
+  },
+  {
+    "id": "pac-004",
+    "nome": "Fernanda Bueno Teixeira Costa",
+    "telefone": "(31) 7332-8212",
+    "email": "nandabtc@gmail.com",
+    "origem": "já é paciente",
+    "procedimentos": [
+      "Invisalign / Alinhador Invisível"
+    ],
+    "procedimentoOriginal": "Invisalign",
+    "responsavel": "Natalia",
+    "dataContato": "2026-06-11",
+    "marcouConsulta": "Sim",
+    "dataConsulta": "2026-06-17",
+    "compareceu": "Sim",
+    "fezRadiografia": "Sim",
+    "planoTratamento": "Sim",
+    "valorOrcamento": 12000,
+    "fechouTratamento": "Sim",
+    "valorFechado": 11400,
+    "dataFechamento": "2026-07-08",
+    "motivoPerda": "",
+    "observacoes": ""
+  },
+  {
+    "id": "pac-005",
+    "nome": "Estevão Nobre Carrato",
+    "telefone": "(31) 8823-0811",
+    "email": "estevaonc@gmail.com",
+    "origem": "Indicação",
+    "procedimentos": [
+      "Invisalign / Alinhador Invisível"
+    ],
+    "procedimentoOriginal": "Invisalign",
+    "responsavel": "Mariana",
+    "dataContato": "2026-07-30",
+    "marcouConsulta": "Sim",
+    "dataConsulta": "2026-07-01",
+    "compareceu": "Sim",
+    "fezRadiografia": "Sim",
+    "planoTratamento": "Sim",
+    "valorOrcamento": 15000,
+    "fechouTratamento": "Não",
+    "valorFechado": null,
+    "dataFechamento": "",
+    "motivoPerda": "Sem orçamento no momento",
+    "observacoes": "Quebrou um dente e vai fazer implante primeiro"
+  },
+  {
+    "id": "pac-006",
+    "nome": "Guilherme Moraes",
+    "telefone": "236 979 1253",
+    "email": "guilerme.moraes@outlook.com",
+    "origem": "Indicação",
+    "procedimentos": [
+      "Invisalign / Alinhador Invisível"
+    ],
+    "procedimentoOriginal": "Invisalign",
+    "responsavel": "Mariana",
+    "dataContato": "2026-07-14",
+    "marcouConsulta": "Sim",
+    "dataConsulta": "2026-07-15",
+    "compareceu": "Sim",
+    "fezRadiografia": "Sim",
+    "planoTratamento": "Sim",
+    "valorOrcamento": 8924,
+    "fechouTratamento": "Sim",
+    "valorFechado": 8567.86,
+    "dataFechamento": "2026-07-23",
+    "motivoPerda": "",
+    "observacoes": ""
+  },
+  {
+    "id": "pac-007",
+    "nome": "Bernardo Vieira Bersan El Bizri",
+    "telefone": "(31) 8499-8630",
+    "email": "",
+    "origem": "Indicação",
+    "procedimentos": [
+      "Aparelho Disjuntor"
+    ],
+    "procedimentoOriginal": "Aparelho Disjuntor",
+    "responsavel": "Mariana",
+    "dataContato": "2026-05-11",
+    "marcouConsulta": "Sim",
+    "dataConsulta": "2026-07-01",
+    "compareceu": "Sim",
+    "fezRadiografia": "Sim",
+    "planoTratamento": "Sim",
+    "valorOrcamento": 4000,
+    "fechouTratamento": "Sim",
+    "valorFechado": 3433.17,
+    "dataFechamento": "2026-07-17",
+    "motivoPerda": "",
+    "observacoes": ""
+  },
+  {
+    "id": "pac-008",
+    "nome": "Esther Andrade dos Santos",
+    "telefone": "(31) 99387-5247",
+    "email": "cristinamca1@hotmail.com",
+    "origem": "Indicação",
+    "procedimentos": [
+      "Aparelho Fixo Metálico"
+    ],
+    "procedimentoOriginal": "Aparelho Fixo Metálico",
+    "responsavel": "Mariana",
+    "dataContato": "2025-07-07",
+    "marcouConsulta": "Sim",
+    "dataConsulta": "2026-07-02",
+    "compareceu": "Sim",
+    "fezRadiografia": "Sim",
+    "planoTratamento": "Sim",
+    "valorOrcamento": 4000,
+    "fechouTratamento": "Pendente",
+    "valorFechado": null,
+    "dataFechamento": "",
+    "motivoPerda": "Retorna mais para frente",
+    "observacoes": "Quer preparar a filha para o aparelho fixo (hyrax e grade) / Chamar em Dezembro"
+  },
+  {
+    "id": "pac-009",
+    "nome": "Miguel Gonzalez Bidoia",
+    "telefone": "(31) 98332-3412",
+    "email": "paulobidoia@gmail.com",
+    "origem": "Indicação",
+    "procedimentos": [
+      "Aparelho Disjuntor"
+    ],
+    "procedimentoOriginal": "Aparelho Disjuntor",
+    "responsavel": "Natalia",
+    "dataContato": "2026-07-02",
+    "marcouConsulta": "Sim",
+    "dataConsulta": "2026-07-02",
+    "compareceu": "Sim",
+    "fezRadiografia": "Sim",
+    "planoTratamento": "Sim",
+    "valorOrcamento": 7000,
+    "fechouTratamento": "Sim",
+    "valorFechado": 6650,
+    "dataFechamento": "2026-07-15",
+    "motivoPerda": "",
+    "observacoes": ""
+  },
+  {
+    "id": "pac-010",
+    "nome": "Felipe Ribeiro Tostes de Menezes",
+    "telefone": "(12) 98123-9143",
+    "email": "",
+    "origem": "Indicação",
+    "procedimentos": [
+      "Aparelho Disjuntor"
+    ],
+    "procedimentoOriginal": "Aparelho Disjuntor",
+    "responsavel": "Mariana",
+    "dataContato": "2026-07-07",
+    "marcouConsulta": "Sim",
+    "dataConsulta": "2026-07-09",
+    "compareceu": "Sim",
+    "fezRadiografia": "Sim",
+    "planoTratamento": "Sim",
+    "valorOrcamento": null,
+    "fechouTratamento": "Não",
+    "valorFechado": null,
+    "dataFechamento": "",
+    "motivoPerda": "",
+    "observacoes": "Vai fazer com outro dentista"
+  },
+  {
+    "id": "pac-011",
+    "nome": "Gabriela Ribeiro Tostes de Menezes",
+    "telefone": "(12) 98123-9143",
+    "email": "",
+    "origem": "Indicação",
+    "procedimentos": [
+      "Arco Lingual"
+    ],
+    "procedimentoOriginal": "Arco Lingual",
+    "responsavel": "Mariana",
+    "dataContato": "2026-07-07",
+    "marcouConsulta": "Sim",
+    "dataConsulta": "2026-07-09",
+    "compareceu": "Sim",
+    "fezRadiografia": "Sim",
+    "planoTratamento": "Sim",
+    "valorOrcamento": 10000,
+    "fechouTratamento": "Não",
+    "valorFechado": null,
+    "dataFechamento": "",
+    "motivoPerda": "",
+    "observacoes": "Vai fazer com outro dentista"
+  },
+  {
+    "id": "pac-012",
+    "nome": "Ana Cláudia Ribeiro Marzinetti Dias",
+    "telefone": "(31) 9149-3499",
+    "email": "",
+    "origem": "Indicação",
+    "procedimentos": [
+      "Invisalign / Alinhador Invisível",
+      "Aparelho Fixo Metálico"
+    ],
+    "procedimentoOriginal": "Invisa/aparelho fixo",
+    "responsavel": "Mariana",
+    "dataContato": "2026-07-10",
+    "marcouConsulta": "Sim",
+    "dataConsulta": "2026-07-13",
+    "compareceu": "Sim",
+    "fezRadiografia": "Não",
+    "planoTratamento": "Não",
+    "valorOrcamento": 15000,
+    "fechouTratamento": "Não",
+    "valorFechado": null,
+    "dataFechamento": "",
+    "motivoPerda": "",
+    "observacoes": "Ainda não fez as radiografias / Disse que vai esperar para fazer o tratamento, não vai fazer por agora"
+  },
+  {
+    "id": "pac-013",
+    "nome": "Laura Gomes Souto Morato",
+    "telefone": "(31) 99615-3970",
+    "email": "laura.gomesmorato@gmail.com",
+    "origem": "Indicação",
+    "procedimentos": [
+      "Atendimento Infantil (Criança)"
+    ],
+    "procedimentoOriginal": "Criança",
+    "responsavel": "Mariana",
+    "dataContato": "2026-07-02",
+    "marcouConsulta": "Sim",
+    "dataConsulta": "2026-07-08",
+    "compareceu": "Sim",
+    "fezRadiografia": "Sim",
+    "planoTratamento": "Sim",
+    "valorOrcamento": 15800,
+    "fechouTratamento": "Sim",
+    "valorFechado": 15800,
+    "dataFechamento": "2026-08-18",
+    "motivoPerda": "Retorna mais para frente",
+    "observacoes": "Volta de viagem dia 4 de Agosto"
+  },
+  {
+    "id": "pac-014",
+    "nome": "João Gabriel Pinto Coelho Barbosa",
+    "telefone": "(31) 9648-3708",
+    "email": "carolpcsantos@gmail.com",
+    "origem": "Indicação",
+    "procedimentos": [
+      "Avaliação + Limpeza"
+    ],
+    "procedimentoOriginal": "Limpeza + avaliação Ortodôntica",
+    "responsavel": "Mariana",
+    "dataContato": "2026-07-07",
+    "marcouConsulta": "Sim",
+    "dataConsulta": "2026-08-07",
+    "compareceu": "Sim",
+    "fezRadiografia": "Sim",
+    "planoTratamento": "Sim",
+    "valorOrcamento": 3800,
+    "fechouTratamento": "Não",
+    "valorFechado": null,
+    "dataFechamento": "",
+    "motivoPerda": "",
+    "observacoes": ""
+  },
+  {
+    "id": "pac-015",
+    "nome": "Miguel Oliveira Souza",
+    "telefone": "(31) 9131-2159",
+    "email": "lucarmooliveira311@gmail.com",
+    "origem": "Indicação",
+    "procedimentos": [
+      "Aparelho Fixo Metálico"
+    ],
+    "procedimentoOriginal": "Aparelho Fixo Metálico",
+    "responsavel": "Natalia",
+    "dataContato": "2026-06-30",
+    "marcouConsulta": "Sim",
+    "dataConsulta": "2026-07-14",
+    "compareceu": "Sim",
+    "fezRadiografia": "Sim",
+    "planoTratamento": "Sim",
+    "valorOrcamento": 2000,
+    "fechouTratamento": "Sim",
+    "valorFechado": 1941,
+    "dataFechamento": "2026-07-14",
+    "motivoPerda": "",
+    "observacoes": ""
+  },
+  {
+    "id": "pac-016",
+    "nome": "Felipe da Cunha Pereira Rocha Lacerda",
+    "telefone": "(31) 9973-7100",
+    "email": "",
+    "origem": "Indicação",
+    "procedimentos": [
+      "Invisalign / Alinhador Invisível"
+    ],
+    "procedimentoOriginal": "Invisalign",
+    "responsavel": "Natalia",
+    "dataContato": "2026-06-25",
+    "marcouConsulta": "Sim",
+    "dataConsulta": "2026-07-15",
+    "compareceu": "Sim",
+    "fezRadiografia": "Sim",
+    "planoTratamento": "Sim",
+    "valorOrcamento": 11500,
+    "fechouTratamento": "Pendente",
+    "valorFechado": null,
+    "dataFechamento": "",
+    "motivoPerda": "",
+    "observacoes": ""
+  },
+  {
+    "id": "pac-017",
+    "nome": "Gabriel da Rocha Bastos",
+    "telefone": "(31) 8895-5842",
+    "email": "",
+    "origem": "Indicação",
+    "procedimentos": [
+      "Aparelho Fixo Metálico"
+    ],
+    "procedimentoOriginal": "Fixo",
+    "responsavel": "Natalia",
+    "dataContato": "2026-07-10",
+    "marcouConsulta": "Sim",
+    "dataConsulta": "2026-07-15",
+    "compareceu": "Sim",
+    "fezRadiografia": "Sim",
+    "planoTratamento": "",
+    "valorOrcamento": null,
+    "fechouTratamento": "",
+    "valorFechado": null,
+    "dataFechamento": "",
+    "motivoPerda": "",
+    "observacoes": ""
+  },
+  {
+    "id": "pac-018",
+    "nome": "Fernando Ferreira Medeiros",
+    "telefone": "(31) 9977-8270",
+    "email": "",
+    "origem": "Indicação",
+    "procedimentos": [
+      "Invisalign / Alinhador Invisível"
+    ],
+    "procedimentoOriginal": "Invisalign",
+    "responsavel": "Natalia",
+    "dataContato": "2026-05-20",
+    "marcouConsulta": "Sim",
+    "dataConsulta": "2026-06-26",
+    "compareceu": "Sim",
+    "fezRadiografia": "Sim",
+    "planoTratamento": "Sim",
+    "valorOrcamento": 13000,
+    "fechouTratamento": "Pendente",
+    "valorFechado": null,
+    "dataFechamento": "",
+    "motivoPerda": "",
+    "observacoes": "ainda não nos deu retorna a respeito"
+  },
+  {
+    "id": "pac-019",
+    "nome": "Lavinia Ferreira de La Fuente",
+    "telefone": "(31) 99427-1121",
+    "email": "nataliaedanilo@hotmail.com",
+    "origem": "Indicação",
+    "procedimentos": [
+      "Atendimento Infantil (Criança)"
+    ],
+    "procedimentoOriginal": "Criança",
+    "responsavel": "Mariana",
+    "dataContato": "2026-08-20",
+    "marcouConsulta": "Sim",
+    "dataConsulta": "2026-07-22",
+    "compareceu": "Sim",
+    "fezRadiografia": "Sim",
+    "planoTratamento": "Sim",
+    "valorOrcamento": null,
+    "fechouTratamento": "Sim",
+    "valorFechado": null,
+    "dataFechamento": "2026-07-28",
+    "motivoPerda": "",
+    "observacoes": "Não foi cobrado"
+  },
+  {
+    "id": "pac-020",
+    "nome": "Vitor Mesquita Carlos Gomes",
+    "telefone": "(31) 8200-2267",
+    "email": "vitormesquita253@gmail.com",
+    "origem": "Indicação",
+    "procedimentos": [
+      "Invisalign / Alinhador Invisível"
+    ],
+    "procedimentoOriginal": "Invisalign",
+    "responsavel": "Mariana",
+    "dataContato": "2026-07-23",
+    "marcouConsulta": "Sim",
+    "dataConsulta": "2026-07-28",
+    "compareceu": "Sim",
+    "fezRadiografia": "Sim",
+    "planoTratamento": "Sim",
+    "valorOrcamento": 6000,
+    "fechouTratamento": "Sim",
+    "valorFechado": 5383,
+    "dataFechamento": "2026-07-28",
+    "motivoPerda": "",
+    "observacoes": ""
+  },
+  {
+    "id": "pac-021",
+    "nome": "Monica Maria Alves Pereira",
+    "telefone": "(31) 9896-3333",
+    "email": "",
+    "origem": "Indicação",
+    "procedimentos": [
+      "Invisalign / Alinhador Invisível"
+    ],
+    "procedimentoOriginal": "Invisalign",
+    "responsavel": "Mariana",
+    "dataContato": "2026-07-30",
+    "marcouConsulta": "Sim",
+    "dataConsulta": "2026-07-31",
+    "compareceu": "Sim",
+    "fezRadiografia": "Sim",
+    "planoTratamento": "Sim",
+    "valorOrcamento": 15800,
+    "fechouTratamento": "Sim",
+    "valorFechado": 15800,
+    "dataFechamento": "2026-08-11",
+    "motivoPerda": "",
+    "observacoes": ""
+  },
+  {
+    "id": "pac-022",
+    "nome": "Serena Catão de Miranda",
+    "telefone": "(31) 99909-2329",
+    "email": "marcilioadvocacia@gmail.com",
+    "origem": "já é paciente",
+    "procedimentos": [
+      "Invisalign / Alinhador Invisível"
+    ],
+    "procedimentoOriginal": "Invisalign",
+    "responsavel": "Natalia",
+    "dataContato": "2026-07-24",
+    "marcouConsulta": "Sim",
+    "dataConsulta": "2026-08-04",
+    "compareceu": "Sim",
+    "fezRadiografia": "Sim",
+    "planoTratamento": "Sim",
+    "valorOrcamento": 16000,
+    "fechouTratamento": "Pendente",
+    "valorFechado": null,
+    "dataFechamento": "",
+    "motivoPerda": "",
+    "observacoes": ""
+  },
+  {
+    "id": "pac-023",
+    "nome": "Camila de Almeida Teixeira Nominato",
+    "telefone": "(31) 99946-7948",
+    "email": "teixeira.caa@gmail.com",
+    "origem": "já é paciente",
+    "procedimentos": [
+      "Invisalign / Alinhador Invisível"
+    ],
+    "procedimentoOriginal": "Invisalign",
+    "responsavel": "Mariana",
+    "dataContato": "2026-08-30",
+    "marcouConsulta": "Sim",
+    "dataConsulta": "2026-08-31",
+    "compareceu": "Sim",
+    "fezRadiografia": "Não",
+    "planoTratamento": "Sim",
+    "valorOrcamento": 13500,
+    "fechouTratamento": "Sim",
+    "valorFechado": 11743.35,
+    "dataFechamento": "2026-08-31",
+    "motivoPerda": "",
+    "observacoes": ""
+  },
+  {
+    "id": "pac-024",
+    "nome": "João Gabriel Cardoso de Oliveira",
+    "telefone": "(31) 9810-9624",
+    "email": "carolinadacruzcardoso@gmail.com",
+    "origem": "já é paciente",
+    "procedimentos": [
+      "Atendimento Infantil (Criança)"
+    ],
+    "procedimentoOriginal": "Criança",
+    "responsavel": "Mariana",
+    "dataContato": "2024-08-07",
+    "marcouConsulta": "",
+    "dataConsulta": "",
+    "compareceu": "",
+    "fezRadiografia": "",
+    "planoTratamento": "",
+    "valorOrcamento": null,
+    "fechouTratamento": "",
+    "valorFechado": null,
+    "dataFechamento": "",
+    "motivoPerda": "",
+    "observacoes": ""
+  },
+  {
+    "id": "pac-025",
+    "nome": "Christiane Alves Esteves Diniz Guerra",
+    "telefone": "(917) 570-1155",
+    "email": "",
+    "origem": "Indicação",
+    "procedimentos": [
+      "Invisalign / Alinhador Invisível"
+    ],
+    "procedimentoOriginal": "Invisalign",
+    "responsavel": "Mariana",
+    "dataContato": "2026-05-11",
+    "marcouConsulta": "Sim",
+    "dataConsulta": "2026-07-24",
+    "compareceu": "Sim",
+    "fezRadiografia": "Sim",
+    "planoTratamento": "Sim",
+    "valorOrcamento": 12000,
+    "fechouTratamento": "Sim",
+    "valorFechado": 10000,
+    "dataFechamento": "2026-08-06",
+    "motivoPerda": "",
+    "observacoes": " Vai pagar 6mil em Agosto e 4mil em Novembro"
+  },
+  {
+    "id": "pac-026",
+    "nome": "Kezia Cristina Teodoro dos Santos",
+    "telefone": "(31) 9429-4140",
+    "email": "keziac_santos@yahoo.com.br",
+    "origem": "Indicação",
+    "procedimentos": [
+      "Invisalign / Alinhador Invisível",
+      "Aparelho Fixo Metálico"
+    ],
+    "procedimentoOriginal": "Invisalign / Fixo",
+    "responsavel": "Natalia",
+    "dataContato": "2026-08-04",
+    "marcouConsulta": "Sim",
+    "dataConsulta": "2026-08-05",
+    "compareceu": "Sim",
+    "fezRadiografia": "Sim",
+    "planoTratamento": "Sim",
+    "valorOrcamento": 14000,
+    "fechouTratamento": "Pendente",
+    "valorFechado": null,
+    "dataFechamento": "",
+    "motivoPerda": "",
+    "observacoes": ""
+  },
+  {
+    "id": "pac-027",
+    "nome": "Izabela Maia Resende",
+    "telefone": "(31) 9937-7621",
+    "email": "marielasoutomaia@gmail.com",
+    "origem": "Indicação",
+    "procedimentos": [
+      "Invisalign / Alinhador Invisível"
+    ],
+    "procedimentoOriginal": "Invisalign",
+    "responsavel": "Natalia",
+    "dataContato": "2026-08-04",
+    "marcouConsulta": "Sim",
+    "dataConsulta": "2026-08-05",
+    "compareceu": "Sim",
+    "fezRadiografia": "Sim",
+    "planoTratamento": "Sim",
+    "valorOrcamento": 16200,
+    "fechouTratamento": "Sim",
+    "valorFechado": 16200,
+    "dataFechamento": "2026-08-11",
+    "motivoPerda": "",
+    "observacoes": ""
+  },
+  {
+    "id": "pac-028",
+    "nome": "Eduardo Lamaita Figueiredo",
+    "telefone": "(31) 8264-9025",
+    "email": "lu_lamaita@hotmail.com",
+    "origem": "Indicação",
+    "procedimentos": [
+      "Atendimento Infantil (Criança)"
+    ],
+    "procedimentoOriginal": "Criança",
+    "responsavel": "Natalia",
+    "dataContato": "2026-08-05",
+    "marcouConsulta": "Sim",
+    "dataConsulta": "2026-08-12",
+    "compareceu": "Sim",
+    "fezRadiografia": "Sim",
+    "planoTratamento": "Sim",
+    "valorOrcamento": null,
+    "fechouTratamento": "Pendente",
+    "valorFechado": null,
+    "dataFechamento": "",
+    "motivoPerda": "",
+    "observacoes": ""
+  },
+  {
+    "id": "pac-029",
+    "nome": "Flavia Mendonça Pinheiro de Melo",
+    "telefone": "(31) 9988-8581",
+    "email": "",
+    "origem": "Indicação",
+    "procedimentos": [
+      "Invisalign / Alinhador Invisível"
+    ],
+    "procedimentoOriginal": "Invisalign",
+    "responsavel": "Mariana",
+    "dataContato": "2026-05-04",
+    "marcouConsulta": "Sim",
+    "dataConsulta": "2026-08-13",
+    "compareceu": "Sim",
+    "fezRadiografia": "Não",
+    "planoTratamento": "Sim",
+    "valorOrcamento": 10500,
+    "fechouTratamento": "Pendente",
+    "valorFechado": null,
+    "dataFechamento": "",
+    "motivoPerda": "",
+    "observacoes": ""
+  },
+  {
+    "id": "pac-030",
+    "nome": "Gabriela Mendonça Pinheiro de Melo",
+    "telefone": "(31) 9988-8581",
+    "email": "",
+    "origem": "Indicação",
+    "procedimentos": [],
+    "procedimentoOriginal": "",
+    "responsavel": "Mariana",
+    "dataContato": "2026-05-04",
+    "marcouConsulta": "Sim",
+    "dataConsulta": "2026-08-17",
+    "compareceu": "Não",
+    "fezRadiografia": "",
+    "planoTratamento": "",
+    "valorOrcamento": null,
+    "fechouTratamento": "",
+    "valorFechado": null,
+    "dataFechamento": "",
+    "motivoPerda": "",
+    "observacoes": ""
+  },
+  {
+    "id": "pac-031",
+    "nome": "Helena Barcelos Avelar",
+    "telefone": "(31) 9302-5504",
+    "email": "",
+    "origem": "Indicação",
+    "procedimentos": [
+      "Aparelho Fixo Metálico"
+    ],
+    "procedimentoOriginal": "Fixo ",
+    "responsavel": "Natalia",
+    "dataContato": "",
+    "marcouConsulta": "Sim",
+    "dataConsulta": "2026-08-21",
+    "compareceu": "Sim",
+    "fezRadiografia": "Não",
+    "planoTratamento": "Sim",
+    "valorOrcamento": null,
+    "fechouTratamento": "Pendente",
+    "valorFechado": null,
+    "dataFechamento": "",
+    "motivoPerda": "",
+    "observacoes": ""
+  },
+  {
+    "id": "pac-032",
+    "nome": "Joaquim Manduca Campos",
+    "telefone": "(31) 9911-5338",
+    "email": "mariedmanduca@gmail.com",
+    "origem": "Indicação",
+    "procedimentos": [
+      "Atendimento Infantil (Criança)"
+    ],
+    "procedimentoOriginal": "Criança",
+    "responsavel": "",
+    "dataContato": "2026-06-24",
+    "marcouConsulta": "Sim",
+    "dataConsulta": "2026-08-18",
+    "compareceu": "Sim",
+    "fezRadiografia": "Não",
+    "planoTratamento": "",
+    "valorOrcamento": null,
+    "fechouTratamento": "",
+    "valorFechado": null,
+    "dataFechamento": "",
+    "motivoPerda": "",
+    "observacoes": ""
+  },
+  {
+    "id": "pac-033",
+    "nome": "Maried Guimarães Manduca Campos",
+    "telefone": "(31) 9911-5338",
+    "email": "mariedmanduca@gmail.com",
+    "origem": "Indicação",
+    "procedimentos": [
+      "Aparelho Fixo Metálico"
+    ],
+    "procedimentoOriginal": "Fixo",
+    "responsavel": "",
+    "dataContato": "2026-06-24",
+    "marcouConsulta": "Sim",
+    "dataConsulta": "2026-08-17",
+    "compareceu": "Sim",
+    "fezRadiografia": "Não",
+    "planoTratamento": "",
+    "valorOrcamento": null,
+    "fechouTratamento": "",
+    "valorFechado": null,
+    "dataFechamento": "",
+    "motivoPerda": "",
+    "observacoes": ""
+  },
+  {
+    "id": "pac-034",
+    "nome": "Otávio Rangel Ferreira",
+    "telefone": "(31) 8873-5003",
+    "email": "kellyurirangel@gmail.com",
+    "origem": "já é paciente",
+    "procedimentos": [],
+    "procedimentoOriginal": "",
+    "responsavel": "",
+    "dataContato": "2026-08-20",
+    "marcouConsulta": "Sim",
+    "dataConsulta": "2026-08-18",
+    "compareceu": "Sim",
+    "fezRadiografia": "Sim",
+    "planoTratamento": "Sim",
+    "valorOrcamento": 4000,
+    "fechouTratamento": "Sim",
+    "valorFechado": 4000,
+    "dataFechamento": "2026-08-18",
+    "motivoPerda": "",
+    "observacoes": ""
+  },
+  {
+    "id": "pac-035",
+    "nome": "Maria Carolina Silva Dornelas",
+    "telefone": "(31) 9775-9100",
+    "email": "",
+    "origem": "já é paciente",
+    "procedimentos": [],
+    "procedimentoOriginal": "",
+    "responsavel": "",
+    "dataContato": "2026-08-10",
+    "marcouConsulta": "Sim",
+    "dataConsulta": "2026-08-18",
+    "compareceu": "Sim",
+    "fezRadiografia": "Sim",
+    "planoTratamento": "Sim",
+    "valorOrcamento": 2000,
+    "fechouTratamento": "Não",
+    "valorFechado": null,
+    "dataFechamento": "",
+    "motivoPerda": "",
+    "observacoes": ""
+  },
+  {
+    "id": "pac-036",
+    "nome": "Jamiria Aparecida Vieira Reis",
+    "telefone": "(31) 8770-5202",
+    "email": "",
+    "origem": "Indicação",
+    "procedimentos": [],
+    "procedimentoOriginal": "",
+    "responsavel": "Natalia",
+    "dataContato": "2026-08-01",
+    "marcouConsulta": "Sim",
+    "dataConsulta": "2026-08-20",
+    "compareceu": "Sim",
+    "fezRadiografia": "Não",
+    "planoTratamento": "",
+    "valorOrcamento": null,
+    "fechouTratamento": "",
+    "valorFechado": null,
+    "dataFechamento": "",
+    "motivoPerda": "",
+    "observacoes": ""
+  },
+  {
+    "id": "pac-037",
+    "nome": "Laura Arruda dos Santos",
+    "telefone": "(31) 9296-3541",
+    "email": "",
+    "origem": "já é paciente",
+    "procedimentos": [],
+    "procedimentoOriginal": "",
+    "responsavel": "",
+    "dataContato": "2026-08-10",
+    "marcouConsulta": "Sim",
+    "dataConsulta": "2026-08-10",
+    "compareceu": "Sim",
+    "fezRadiografia": "Sim",
+    "planoTratamento": "Sim",
+    "valorOrcamento": 14000,
+    "fechouTratamento": "Pendente",
+    "valorFechado": null,
+    "dataFechamento": "",
+    "motivoPerda": "",
+    "observacoes": ""
+  },
+  {
+    "id": "pac-038",
+    "nome": "Davi Norte Menezes",
+    "telefone": "(31) 99763-4054",
+    "email": "fenorte@hotmail.com",
+    "origem": "Indicação",
+    "procedimentos": [],
+    "procedimentoOriginal": "",
+    "responsavel": "",
+    "dataContato": "2026-08-13",
+    "marcouConsulta": "Sim",
+    "dataConsulta": "2026-08-21",
+    "compareceu": "Sim",
+    "fezRadiografia": "Sim",
+    "planoTratamento": "Sim",
+    "valorOrcamento": 3800,
+    "fechouTratamento": "Sim",
+    "valorFechado": 3800,
+    "dataFechamento": "2026-08-25",
+    "motivoPerda": "",
+    "observacoes": ""
+  },
+  {
+    "id": "pac-039",
+    "nome": "Olivia Amorim Dornas",
+    "telefone": "(31) 99192-9145",
+    "email": "lamorim2006@gmail.com",
+    "origem": "já é paciente",
+    "procedimentos": [],
+    "procedimentoOriginal": "",
+    "responsavel": "",
+    "dataContato": "2026-08-20",
+    "marcouConsulta": "Sim",
+    "dataConsulta": "2026-08-21",
+    "compareceu": "Sim",
+    "fezRadiografia": "Sim",
+    "planoTratamento": "Sim",
+    "valorOrcamento": 3000,
+    "fechouTratamento": "Sim",
+    "valorFechado": 3000,
+    "dataFechamento": "",
+    "motivoPerda": "",
+    "observacoes": ""
+  },
+  {
+    "id": "pac-040",
+    "nome": "Stella Amorim Dornas",
+    "telefone": "(31) 99192-9145",
+    "email": "lamorim2006@gmail.com",
+    "origem": "já é paciente",
+    "procedimentos": [],
+    "procedimentoOriginal": "",
+    "responsavel": "",
+    "dataContato": "2026-08-20",
+    "marcouConsulta": "Sim",
+    "dataConsulta": "2026-08-21",
+    "compareceu": "Sim",
+    "fezRadiografia": "Sim",
+    "planoTratamento": "Não",
+    "valorOrcamento": null,
+    "fechouTratamento": "",
+    "valorFechado": null,
+    "dataFechamento": "",
+    "motivoPerda": "",
+    "observacoes": ""
+  },
+  {
+    "id": "pac-041",
+    "nome": "Bernardo Terra Cunha",
+    "telefone": "31 8473-2460",
+    "email": "juterra@yahoo.com",
+    "origem": "já é paciente",
+    "procedimentos": [],
+    "procedimentoOriginal": "",
+    "responsavel": "",
+    "dataContato": "2026-08-20",
+    "marcouConsulta": "Sim",
+    "dataConsulta": "2026-08-22",
+    "compareceu": "Sim",
+    "fezRadiografia": "Não",
+    "planoTratamento": "Sim",
+    "valorOrcamento": 13800,
+    "fechouTratamento": "Pendente",
+    "valorFechado": null,
+    "dataFechamento": "",
+    "motivoPerda": "",
+    "observacoes": ""
+  },
+  {
+    "id": "pac-042",
+    "nome": "Felipe Terra Cunha",
+    "telefone": "31 8473-2460",
+    "email": "juterra@yahoo.com",
+    "origem": "já é paciente",
+    "procedimentos": [],
+    "procedimentoOriginal": "",
+    "responsavel": "",
+    "dataContato": "2026-08-20",
+    "marcouConsulta": "Sim",
+    "dataConsulta": "2026-08-22",
+    "compareceu": "Sim",
+    "fezRadiografia": "Sim",
+    "planoTratamento": "Não",
+    "valorOrcamento": null,
+    "fechouTratamento": "",
+    "valorFechado": null,
+    "dataFechamento": "",
+    "motivoPerda": "",
+    "observacoes": ""
+  },
+  {
+    "id": "pac-043",
+    "nome": "Joao Mesquita Vieira Marques",
+    "telefone": "31 9992-1789",
+    "email": "cynthiavmesquita@hotmail.com",
+    "origem": "já é paciente",
+    "procedimentos": [],
+    "procedimentoOriginal": "",
+    "responsavel": "Natalia",
+    "dataContato": "2026-08-15",
+    "marcouConsulta": "Sim",
+    "dataConsulta": "2026-08-24",
+    "compareceu": "Sim",
+    "fezRadiografia": "Sim",
+    "planoTratamento": "Sim",
+    "valorOrcamento": 2000,
+    "fechouTratamento": "Pendente",
+    "valorFechado": null,
+    "dataFechamento": "",
+    "motivoPerda": "",
+    "observacoes": ""
+  },
+  {
+    "id": "pac-044",
+    "nome": "Manoela Almeida Moore",
+    "telefone": "31 9245-4815",
+    "email": "",
+    "origem": "Indicação",
+    "procedimentos": [
+      "Atendimento Infantil (Criança)"
+    ],
+    "procedimentoOriginal": "Criança",
+    "responsavel": "Mariana",
+    "dataContato": "2026-08-25",
+    "marcouConsulta": "Sim",
+    "dataConsulta": "2026-08-28",
+    "compareceu": "Sim",
+    "fezRadiografia": "Sim",
+    "planoTratamento": "Sim",
+    "valorOrcamento": 3800,
+    "fechouTratamento": "Sim",
+    "valorFechado": 3800,
+    "dataFechamento": "2026-08-28",
+    "motivoPerda": "",
+    "observacoes": ""
+  },
+  {
+    "id": "pac-045",
+    "nome": "Enzo Barros Diniz",
+    "telefone": "31 9292-7671",
+    "email": "",
+    "origem": "já é paciente",
+    "procedimentos": [
+      "Aparelho Fixo Metálico"
+    ],
+    "procedimentoOriginal": "Fixo",
+    "responsavel": "Natalia",
+    "dataContato": "2026-08-22",
+    "marcouConsulta": "Sim",
+    "dataConsulta": "2026-08-27",
+    "compareceu": "Sim",
+    "fezRadiografia": "Não",
+    "planoTratamento": "",
+    "valorOrcamento": null,
+    "fechouTratamento": "",
+    "valorFechado": null,
+    "dataFechamento": "",
+    "motivoPerda": "",
+    "observacoes": ""
+  },
+  {
+    "id": "pac-046",
+    "nome": "Aline Fernanda de Lima Costa",
+    "telefone": "38 9800-7274",
+    "email": "Alinefernandalc@outlook.com",
+    "origem": "Indicação",
+    "procedimentos": [
+      "Avaliação + Limpeza"
+    ],
+    "procedimentoOriginal": "Limpeza",
+    "responsavel": "Natalia",
+    "dataContato": "2026-08-24",
+    "marcouConsulta": "Sim",
+    "dataConsulta": "2026-08-27",
+    "compareceu": "Sim",
+    "fezRadiografia": "",
+    "planoTratamento": "",
+    "valorOrcamento": null,
+    "fechouTratamento": "",
+    "valorFechado": null,
+    "dataFechamento": "",
+    "motivoPerda": "",
+    "observacoes": ""
+  },
+  {
+    "id": "pac-047",
+    "nome": "Paulo Maulais",
+    "telefone": "31 8869-1984",
+    "email": "",
+    "origem": "Indicação",
+    "procedimentos": [
+      "Aparelho Fixo Metálico"
+    ],
+    "procedimentoOriginal": "Fixo",
+    "responsavel": "Natalia",
+    "dataContato": "2026-08-24",
+    "marcouConsulta": "",
+    "dataConsulta": "",
+    "compareceu": "",
+    "fezRadiografia": "",
+    "planoTratamento": "",
+    "valorOrcamento": null,
+    "fechouTratamento": "",
+    "valorFechado": null,
+    "dataFechamento": "",
+    "motivoPerda": "",
+    "observacoes": ""
+  },
+  {
+    "id": "pac-048",
+    "nome": "Luisa Mundim (filhas)",
+    "telefone": " 31 8897-2500",
+    "email": "",
+    "origem": "WhatsApp",
+    "procedimentos": [
+      "Aparelho Fixo Metálico"
+    ],
+    "procedimentoOriginal": "fixo",
+    "responsavel": "Natalia",
+    "dataContato": "2026-08-24",
+    "marcouConsulta": "",
+    "dataConsulta": "",
+    "compareceu": "",
+    "fezRadiografia": "",
+    "planoTratamento": "",
+    "valorOrcamento": null,
+    "fechouTratamento": "",
+    "valorFechado": null,
+    "dataFechamento": "",
+    "motivoPerda": "",
+    "observacoes": ""
+  },
+  {
+    "id": "pac-049",
+    "nome": "Andrea Cristina Guerra da Silva",
+    "telefone": "31 8747-6462",
+    "email": "andreacguerra@gmail.com",
+    "origem": "Indicação",
+    "procedimentos": [
+      "Aparelho Fixo Metálico"
+    ],
+    "procedimentoOriginal": "fixo",
+    "responsavel": "Natalia",
+    "dataContato": "2026-08-27",
+    "marcouConsulta": "Sim",
+    "dataConsulta": "2026-09-01",
+    "compareceu": "Sim",
+    "fezRadiografia": "Sim",
+    "planoTratamento": "",
+    "valorOrcamento": null,
+    "fechouTratamento": "",
+    "valorFechado": null,
+    "dataFechamento": "",
+    "motivoPerda": "",
+    "observacoes": ""
+  },
+  {
+    "id": "pac-050",
+    "nome": "Andre Sovoi Torres",
+    "telefone": "",
+    "email": "",
+    "origem": "Indicação",
+    "procedimentos": [
+      "Invisalign / Alinhador Invisível"
+    ],
+    "procedimentoOriginal": "inivisalign",
+    "responsavel": "Mariana",
+    "dataContato": "",
+    "marcouConsulta": "Sim",
+    "dataConsulta": "2026-08-31",
+    "compareceu": "Sim",
+    "fezRadiografia": "Sim",
+    "planoTratamento": "Não",
+    "valorOrcamento": 15800,
+    "fechouTratamento": "",
+    "valorFechado": null,
+    "dataFechamento": "",
+    "motivoPerda": "",
+    "observacoes": ""
+  },
+  {
+    "id": "pac-051",
+    "nome": "Raquel Rabelo (filhas)",
+    "telefone": "",
+    "email": "",
+    "origem": "Indicação",
+    "procedimentos": [],
+    "procedimentoOriginal": "",
+    "responsavel": "Julia",
+    "dataContato": "",
+    "marcouConsulta": "",
+    "dataConsulta": "",
+    "compareceu": "",
+    "fezRadiografia": "",
+    "planoTratamento": "",
+    "valorOrcamento": null,
+    "fechouTratamento": "",
+    "valorFechado": null,
+    "dataFechamento": "",
+    "motivoPerda": "",
+    "observacoes": ""
+  },
+  {
+    "id": "pac-052",
+    "nome": "Caio Norte Menezes",
+    "telefone": "(31) 99763-4054",
+    "email": "fenorte@hotmail.com",
+    "origem": "Indicação",
+    "procedimentos": [
+      "Atendimento Infantil (Criança)"
+    ],
+    "procedimentoOriginal": "criança",
+    "responsavel": "Mariana",
+    "dataContato": "2026-08-13",
+    "marcouConsulta": "Sim",
+    "dataConsulta": "2026-09-02",
+    "compareceu": "Sim",
+    "fezRadiografia": "",
+    "planoTratamento": "",
+    "valorOrcamento": null,
+    "fechouTratamento": "",
+    "valorFechado": null,
+    "dataFechamento": "",
+    "motivoPerda": "",
+    "observacoes": ""
+  }
+];
+
+const SEED_INDICACOES = [
+  {
+    "pacienteIndicado": "Andrea Reis Ferreira de Melo",
+    "indicadoPor": "Dr Marcelo"
+  },
+  {
+    "pacienteIndicado": "Hiltonn Muniz Cordeiro",
+    "indicadoPor": "Dr Marcelo"
+  },
+  {
+    "pacienteIndicado": "Estevão Nobre Carrato",
+    "indicadoPor": "Dr Marcelo"
+  },
+  {
+    "pacienteIndicado": "Guilherme Moraes",
+    "indicadoPor": "Dr Marcelo"
+  },
+  {
+    "pacienteIndicado": "Bernardo Vieira Bersan El Bizri",
+    "indicadoPor": "Camila mãe Marina e Maria Clara"
+  },
+  {
+    "pacienteIndicado": "Esther Andrade dos Santos",
+    "indicadoPor": "Dra Cinthya"
+  },
+  {
+    "pacienteIndicado": "Miguel Gonzalez Bidoia",
+    "indicadoPor": "Dr Thiago Martelli"
+  },
+  {
+    "pacienteIndicado": "Felipe Ribeiro Tostes de Menezes",
+    "indicadoPor": "Gustavo paciente (mora no méxico)"
+  },
+  {
+    "pacienteIndicado": "Gabriela Ribeiro Tostes de Menezes",
+    "indicadoPor": "Gustavo paciente (mora no méxico)"
+  },
+  {
+    "pacienteIndicado": "Ana Cláudia Ribeiro Marzinetti Dias",
+    "indicadoPor": "Dr Mauricio Gelais"
+  },
+  {
+    "pacienteIndicado": "Laura Gomes Souto Morato",
+    "indicadoPor": "Mateus (pai que foi paciente)"
+  },
+  {
+    "pacienteIndicado": "João Gabriel Pinto Coelho Barbosa",
+    "indicadoPor": "Celeste (foi paciente)"
+  },
+  {
+    "pacienteIndicado": "Miguel Oliveira Souza",
+    "indicadoPor": "Luciane (mãe é paciente)"
+  },
+  {
+    "pacienteIndicado": "Felipe da Cunha Pereira Rocha Lacerda",
+    "indicadoPor": "Juliano (pai foi paciente)"
+  },
+  {
+    "pacienteIndicado": "Gabriel da Rocha Bastos",
+    "indicadoPor": "Dra Carmem"
+  },
+  {
+    "pacienteIndicado": "Fernando Ferreira Medeiros",
+    "indicadoPor": "Dr Rodrigo (colega)"
+  },
+  {
+    "pacienteIndicado": "Lavinia Ferreira de La Fuente",
+    "indicadoPor": "Família"
+  },
+  {
+    "pacienteIndicado": "Vitor Mesquita Carlos Gomes",
+    "indicadoPor": "Família toda é paciente"
+  },
+  {
+    "pacienteIndicado": "Monica Maria Alves Pereira",
+    "indicadoPor": "Dr Marcelo"
+  },
+  {
+    "pacienteIndicado": "Christiane Alves Esteves Diniz Guerra",
+    "indicadoPor": "Dra Samia"
+  },
+  {
+    "pacienteIndicado": "Kezia Cristina Teodoro dos Santos",
+    "indicadoPor": "Dra Luciana Rajão"
+  },
+  {
+    "pacienteIndicado": "Izabela Maia Resende",
+    "indicadoPor": "Duda/Fabiano Maia"
+  },
+  {
+    "pacienteIndicado": "Eduardo Lamaita Figueiredo",
+    "indicadoPor": "Flávio Cross fit"
+  },
+  {
+    "pacienteIndicado": "Flavia Mendonça Pinheiro de Melo",
+    "indicadoPor": "Paula (paciente antiga)"
+  },
+  {
+    "pacienteIndicado": "Gabriela Mendonça Pinheiro de Melo",
+    "indicadoPor": "Bruna Guimarães (mãe do Bê paciente)"
+  },
+  {
+    "pacienteIndicado": "Helena Barcelos Avelar",
+    "indicadoPor": ""
+  },
+  {
+    "pacienteIndicado": "Joaquim Manduca Campos",
+    "indicadoPor": ""
+  },
+  {
+    "pacienteIndicado": "Maried Guimarães Manduca Campos",
+    "indicadoPor": ""
+  },
+  {
+    "pacienteIndicado": "Jamiria Aparecida Vieira Reis",
+    "indicadoPor": ""
+  },
+  {
+    "pacienteIndicado": "Davi Norte Menezes",
+    "indicadoPor": ""
+  },
+  {
+    "pacienteIndicado": "Manoela Almeida Moore",
+    "indicadoPor": ""
+  },
+  {
+    "pacienteIndicado": "Aline Fernanda de Lima Costa",
+    "indicadoPor": ""
+  },
+  {
+    "pacienteIndicado": "Paulo Maulais",
+    "indicadoPor": ""
+  },
+  {
+    "pacienteIndicado": "Andrea Cristina Guerra da Silva",
+    "indicadoPor": ""
+  },
+  {
+    "pacienteIndicado": "Andre Sovoi Torres",
+    "indicadoPor": ""
+  },
+  {
+    "pacienteIndicado": "Raquel Rabelo (filhas)",
+    "indicadoPor": ""
+  },
+  {
+    "pacienteIndicado": "Caio Norte Menezes",
+    "indicadoPor": ""
+  }
+];
+
+const SEED_PROCEDIMENTOS = [
+  {nome:'Invisalign / Alinhador Invisível', valorMedio:13401},
+  {nome:'Aparelho Fixo Metálico', valorMedio:8750},
+  {nome:'Aparelho Disjuntor', valorMedio:5500},
+  {nome:'Arco Lingual', valorMedio:10000},
+  {nome:'Atendimento Infantil (Criança)', valorMedio:9800},
+  {nome:'Avaliação + Limpeza', valorMedio:3800},
+  {nome:'Dentística', valorMedio:0},
+  {nome:'Prótese', valorMedio:0},
+];
+
+const SEED_ORIGENS = ['Instagram','já é paciente','Google','Indicação','WhatsApp','Site','Passou na porta'];
+
+const SEED_MOTIVOS_PERDA = ['Preço','Parou de responder','Fechou com concorrente','Sem orçamento no momento','Não gostou do tratamento sugerido','Está com outras prioridades','Retorna mais para frente'];
+
+// Responsáveis (nomes tal como usados na planilha). Papel de cada um
+// confirmado com a clínica em 2026-09-04, exceto Natalia (ainda hipótese).
+const SEED_FUNCIONARIOS = [
+  {nome:'Mariana', cargo:'Sócia / Ortodontista', papelHipotese:'Confirmado pelo briefing.'},
+  {nome:'Celso', cargo:'Sócio / Ortodontista', papelHipotese:'Confirmado pelo briefing (não aparece como Responsável nos 52 registros).'},
+  {nome:'Natalia', cargo:'A confirmar', papelHipotese:'Hipótese: secretária/recepção — é quem mais aparece como Responsável (19 de 52 pacientes) depois de Mariana. Ainda não confirmado.'},
+  {nome:'Julia', cargo:'Dentista / Sócia', papelHipotese:'Confirmado pela clínica: dentista e sócia (não é secretária, ASB nem suporte financeiro — aparece pouco como Responsável porque atua clinicamente, não na recepção).'},
+];
+
+const NOME_CLINICA = 'Mori Ortodontia';
+
+/* ============================================================
+   2) ESTADO / PERSISTÊNCIA (localStorage — protótipo local,
+      sem banco online nesta etapa, conforme roadmap do CRM-base)
+   ============================================================ */
+const STORAGE_KEY = 'cqc_crm_state_v1';
+
+function uid(prefix){ return prefix+'-'+Math.random().toString(36).slice(2,9); }
+
+function buildInitialState(){
+  return {
+    versao: 1,
+    clinica:{
+      nome: NOME_CLINICA,
+      cidade: 'Belo Horizonte, MG',
+      tempoMercado: '30 anos',
+      especialidades: ['Ortodontia','Pediatria','Dentística','Prótese'],
+    },
+    usuarioAtual:{ nome:'Mariana', cargo:'Sócia / Ortodontista' },
+    funcionarios: SEED_FUNCIONARIOS.map(f=>({id:uid('func'), ...f})),
+    procedimentos: SEED_PROCEDIMENTOS.map(p=>({id:uid('proc'), ...p})),
+    origens: [...SEED_ORIGENS],
+    motivosPerda: [...SEED_MOTIVOS_PERDA],
+    responsaveis: ['Mariana','Natalia','Julia'],
+    etapasFunil: ETAPAS_PADRAO.map(e=>({...e})),
+    pacientes: SEED_PACIENTES.map(p=>({...p})),
+    indicacoes: SEED_INDICACOES.map(i=>({id:uid('ind'), ...i})),
+    theme: 'system',
+  };
+}
+
+let DB = null;
+
+function loadState(){
+  try{
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if(raw){ DB = JSON.parse(raw); }
+    else { DB = buildInitialState(); saveState(); }
+  }catch(e){
+    console.error('Falha ao carregar estado, recriando seed.', e);
+    DB = buildInitialState();
+  }
+}
+function saveState(){
+  try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(DB)); }
+  catch(e){ console.error('Falha ao salvar estado (localStorage cheio ou indisponível).', e); toast('Não foi possível salvar automaticamente. Faça um backup (Configurações → Backup).'); }
+}
+
+/* ============================================================
+   3) UTILITÁRIOS
+   ============================================================ */
+function fmtMoeda(v){
+  if(v===null||v===undefined||v==='') return '—';
+  return Number(v).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
+}
+function fmtData(iso){
+  if(!iso) return '—';
+  const [y,m,d] = iso.split('-');
+  if(!y||!m||!d) return iso;
+  return `${d}/${m}/${y}`;
+}
+function hojeISO(){ return new Date().toISOString().slice(0,10); }
+function diasEntre(isoA,isoB){
+  if(!isoA||!isoB) return null;
+  const a=new Date(isoA+'T00:00:00'), b=new Date(isoB+'T00:00:00');
+  return Math.round((b-a)/86400000);
+}
+function escapeHtml(s){
+  return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function monthKey(iso){ return iso ? iso.slice(0,7) : ''; }
+function monthLabel(key){
+  const [y,m]=key.split('-');
+  const meses=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+  return meses[parseInt(m,10)-1]+'/'+y;
+}
+function toast(msg){
+  const root=document.getElementById('toast-root');
+  root.innerHTML = `<div class="toast">${escapeHtml(msg)}</div>`;
+  setTimeout(()=>{ root.innerHTML=''; }, 3200);
+}
+function etapaCor(nome){
+  const e = DB.etapasFunil.find(e=>e.nome===nome);
+  return e ? e.cor : '#5c6c70';
+}
+
+/* ============================================================
+   4) ROTEAMENTO / RENDER PRINCIPAL
+   ============================================================ */
+const ROUTES = [
+  {id:'assistente', label:'Assistente de Vendas', ic:'💬'},
+  {id:'pacientes', label:'Pacientes', ic:'🧑‍⚕️'},
+  {id:'kanban', label:'Kanban', ic:'🗂️'},
+  {id:'indicacoes', label:'Indicações', ic:'🔗'},
+  {id:'dashboard', label:'Dashboard', ic:'📊'},
+  {id:'agenda', label:'Agenda', ic:'🗓️'},
+  {id:'config', label:'Configurações', ic:'⚙️'},
+];
+let ROUTE = 'dashboard';
+let ROUTE_PARAM = null;
+
+function navigate(route, param){ ROUTE = route; ROUTE_PARAM = param||null; render(); window.scrollTo(0,0); }
+
+function applyTheme(){
+  const root=document.documentElement;
+  if(DB.theme==='dark') root.setAttribute('data-theme','dark');
+  else if(DB.theme==='light') root.setAttribute('data-theme','light');
+  else root.removeAttribute('data-theme');
+}
+
+function render(){
+  applyTheme();
+  const shell = document.getElementById('app-shell');
+  shell.innerHTML = `
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-badge">CC</div>
+        <div class="brand-text"><b>Clínica que Converte</b><span>CRM Comercial</span></div>
+      </div>
+      <div class="clinic-pill">
+        <div class="k">Clínica ativa</div>
+        <div class="v">${escapeHtml(DB.clinica.nome)}</div>
+      </div>
+      <nav class="nav">
+        ${ROUTES.map(r=>`
+          <div class="nav-item ${ROUTE===r.id?'active':''}" data-nav="${r.id}">
+            <span class="ic">${r.ic}</span><span>${r.label}</span>
+          </div>`).join('')}
+      </nav>
+      <div class="sidebar-foot">
+        ${escapeHtml(DB.usuarioAtual.nome)} · ${escapeHtml(DB.usuarioAtual.cargo)}<br>
+        Dados salvos localmente neste navegador.
+      </div>
+    </aside>
+    <div class="main">
+      <div class="topbar">
+        <div>
+          <h1>${ROUTES.find(r=>r.id===ROUTE)?.label || ''}</h1>
+          <div class="sub">${escapeHtml(DB.clinica.nome)} · ${escapeHtml(DB.clinica.cidade)}</div>
+        </div>
+        <div class="topbar-actions">
+          <button class="btn ghost sm" data-action="toggle-theme" title="Alternar tema">🌓 Tema</button>
+          <button class="btn primary sm" data-action="novo-paciente">+ Novo Paciente</button>
+        </div>
+      </div>
+      <div class="content" id="content"></div>
+    </div>`;
+  const content = document.getElementById('content');
+  const renderers = {
+    assistente: renderAssistente,
+    pacientes: renderPacientes,
+    kanban: renderKanban,
+    indicacoes: renderIndicacoes,
+    dashboard: renderDashboard,
+    agenda: renderAgenda,
+    config: renderConfig,
+  };
+  content.innerHTML = (renderers[ROUTE]||renderDashboard)();
+  bindGlobalEvents();
+  bindRouteEvents();
+}
+
+function bindGlobalEvents(){
+  document.querySelectorAll('[data-nav]').forEach(el=>{
+    el.addEventListener('click', ()=>navigate(el.dataset.nav));
+  });
+  const themeBtn = document.querySelector('[data-action="toggle-theme"]');
+  if(themeBtn) themeBtn.addEventListener('click', ()=>{
+    DB.theme = DB.theme==='dark' ? 'light' : (DB.theme==='light' ? 'system' : 'dark');
+    saveState(); render();
+  });
+  const novoBtn = document.querySelector('[data-action="novo-paciente"]');
+  if(novoBtn) novoBtn.addEventListener('click', ()=>openPacienteModal(null));
+}
+
+/* ============================================================
+   5) PACIENTES — CRUD + filtros
+   ============================================================ */
+let filtroPacientes = {origem:'',procedimento:'',responsavel:'',status:'',busca:''};
+
+function pacientesFiltrados(){
+  return DB.pacientes.filter(p=>{
+    const status = calcStatus(p);
+    if(filtroPacientes.origem && p.origem!==filtroPacientes.origem) return false;
+    if(filtroPacientes.responsavel && p.responsavel!==filtroPacientes.responsavel) return false;
+    if(filtroPacientes.status && status!==filtroPacientes.status) return false;
+    if(filtroPacientes.procedimento && !(p.procedimentos||[]).includes(filtroPacientes.procedimento)) return false;
+    if(filtroPacientes.busca){
+      const q = filtroPacientes.busca.toLowerCase();
+      if(!p.nome.toLowerCase().includes(q) && !(p.telefone||'').includes(q)) return false;
+    }
+    return true;
+  }).sort((a,b)=> (b.dataContato||'').localeCompare(a.dataContato||''));
+}
+
+function renderPacientes(){
+  const lista = pacientesFiltrados();
+  const statusOptions = [...ETAPAS_PADRAO.map(e=>e.nome)];
+  return `
+  <div class="card">
+    <div class="filters-bar">
+      <input type="text" placeholder="Buscar por nome ou telefone…" value="${escapeHtml(filtroPacientes.busca)}" data-filter="busca">
+      <select data-filter="origem"><option value="">Todas as origens</option>${DB.origens.map(o=>`<option value="${escapeHtml(o)}" ${filtroPacientes.origem===o?'selected':''}>${escapeHtml(o)}</option>`).join('')}</select>
+      <select data-filter="procedimento"><option value="">Todos os procedimentos</option>${DB.procedimentos.map(p=>`<option value="${escapeHtml(p.nome)}" ${filtroPacientes.procedimento===p.nome?'selected':''}>${escapeHtml(p.nome)}</option>`).join('')}</select>
+      <select data-filter="responsavel"><option value="">Todos os responsáveis</option>${DB.responsaveis.map(r=>`<option value="${escapeHtml(r)}" ${filtroPacientes.responsavel===r?'selected':''}>${escapeHtml(r)}</option>`).join('')}</select>
+      <select data-filter="status"><option value="">Todos os status</option>${statusOptions.map(s=>`<option value="${escapeHtml(s)}" ${filtroPacientes.status===s?'selected':''}>${escapeHtml(s)}</option>`).join('')}</select>
+      <span class="muted small">${lista.length} de ${DB.pacientes.length} pacientes</span>
+    </div>
+    <div class="table-wrap">
+    <table>
+      <thead><tr><th>Nome</th><th>Origem</th><th>Procedimento</th><th>Responsável</th><th>1º Contato</th><th>Status</th><th>Orçamento</th><th>Fechado</th></tr></thead>
+      <tbody>
+      ${lista.length? lista.map(p=>{
+        const status = calcStatus(p);
+        return `<tr class="clickable" data-open="${p.id}">
+          <td><b>${escapeHtml(p.nome)}</b><div class="muted small">${escapeHtml(p.telefone||'')}</div></td>
+          <td>${escapeHtml(p.origem||'—')}</td>
+          <td>${(p.procedimentos||[]).map(x=>`<span class="pill">${escapeHtml(x)}</span>`).join(' ')||'<span class="muted">—</span>'}</td>
+          <td>${escapeHtml(p.responsavel||'—')}</td>
+          <td>${fmtData(p.dataContato)}</td>
+          <td><span class="badge-status" style="background:${etapaCor(status)}22;color:${etapaCor(status)}">${escapeHtml(status||'—')}</span></td>
+          <td>${fmtMoeda(p.valorOrcamento)}</td>
+          <td>${fmtMoeda(p.valorFechado)}</td>
+        </tr>`;
+      }).join('') : `<tr><td colspan="8" class="empty">Nenhum paciente encontrado com esses filtros.</td></tr>`}
+      </tbody>
+    </table>
+    </div>
+  </div>`;
+}
+
+function bindPacientesEvents(){
+  document.querySelectorAll('[data-filter]').forEach(el=>{
+    el.addEventListener(el.tagName==='INPUT'?'input':'change', ()=>{
+      filtroPacientes[el.dataset.filter] = el.value;
+      render();
+    });
+  });
+  document.querySelectorAll('[data-open]').forEach(el=>{
+    el.addEventListener('click', ()=>{
+      const p = DB.pacientes.find(x=>x.id===el.dataset.open);
+      openPacienteModal(p);
+    });
+  });
+}
+
+function openPacienteModal(paciente){
+  const isNew = !paciente;
+  const p = paciente || {
+    id:uid('pac'), nome:'',telefone:'',email:'',origem:'',procedimentos:[],procedimentoOriginal:'',
+    responsavel:'',dataContato:hojeISO(),marcouConsulta:'',dataConsulta:'',compareceu:'',fezRadiografia:'',
+    planoTratamento:'',valorOrcamento:null,fechouTratamento:'',valorFechado:null,dataFechamento:'',
+    motivoPerda:'',observacoes:'',indicadoPor:'',
+  };
+  const modalRoot = document.getElementById('modal-root');
+  modalRoot.innerHTML = `
+  <div class="modal-backdrop" data-close-backdrop>
+    <div class="modal">
+      <div class="modal-head">
+        <h3>${isNew?'Novo Paciente':'Editar Paciente'}</h3>
+        <button class="modal-close" data-close>✕</button>
+      </div>
+      <form id="form-paciente">
+        <div class="modal-body">
+          <div class="grid cols-2">
+            <label class="field"><span class="lbl">Nome *</span><input required name="nome" value="${escapeHtml(p.nome)}"></label>
+            <label class="field"><span class="lbl">Telefone</span><input name="telefone" value="${escapeHtml(p.telefone)}"></label>
+            <label class="field"><span class="lbl">Email</span><input type="email" name="email" value="${escapeHtml(p.email)}"></label>
+            <label class="field"><span class="lbl">Origem do Lead</span>
+              <select name="origem">
+                <option value="">—</option>
+                ${DB.origens.map(o=>`<option ${p.origem===o?'selected':''}>${escapeHtml(o)}</option>`).join('')}
+              </select>
+            </label>
+          </div>
+          <label class="field"><span class="lbl">Procedimento(s) de Interesse</span>
+            <div class="chips-check">
+            ${DB.procedimentos.map(proc=>`
+              <label class="chip-check ${(p.procedimentos||[]).includes(proc.nome)?'on':''}">
+                <input type="checkbox" name="procedimentos" value="${escapeHtml(proc.nome)}" ${(p.procedimentos||[]).includes(proc.nome)?'checked':''}>
+                ${escapeHtml(proc.nome)}
+              </label>`).join('')}
+            </div>
+          </label>
+          <div class="grid cols-2">
+            <label class="field"><span class="lbl">Responsável</span>
+              <select name="responsavel"><option value="">—</option>${DB.responsaveis.map(r=>`<option ${p.responsavel===r?'selected':''}>${escapeHtml(r)}</option>`).join('')}</select>
+            </label>
+            <label class="field"><span class="lbl">Data 1º Contato</span><input type="date" name="dataContato" value="${p.dataContato||''}"></label>
+          </div>
+          <hr class="hr">
+          <div class="grid cols-3">
+            <label class="field"><span class="lbl">Marcou Consulta?</span><select name="marcouConsulta">${OPCOES_SIMNAO.map(o=>`<option value="${o}" ${p.marcouConsulta===o?'selected':''}>${o||'—'}</option>`).join('')}</select></label>
+            <label class="field"><span class="lbl">Data da Consulta</span><input type="date" name="dataConsulta" value="${p.dataConsulta||''}"></label>
+            <label class="field"><span class="lbl">Compareceu?</span><select name="compareceu">${OPCOES_SIMNAO.map(o=>`<option value="${o}" ${p.compareceu===o?'selected':''}>${o||'—'}</option>`).join('')}</select></label>
+          </div>
+          <div class="grid cols-3">
+            <label class="field"><span class="lbl">Fez Radiografia? <span class="muted" style="text-transform:none;font-weight:500;">(informativo)</span></span><select name="fezRadiografia">${OPCOES_SIMNAO.map(o=>`<option value="${o}" ${p.fezRadiografia===o?'selected':''}>${o||'—'}</option>`).join('')}</select></label>
+            <label class="field"><span class="lbl">Plano de Tratamento Apresentado?</span><select name="planoTratamento">${OPCOES_SIMNAO.map(o=>`<option value="${o}" ${p.planoTratamento===o?'selected':''}>${o||'—'}</option>`).join('')}</select></label>
+            <label class="field"><span class="lbl">Valor do Orçamento (R$)</span><input type="number" step="0.01" name="valorOrcamento" value="${p.valorOrcamento??''}"></label>
+          </div>
+          <hr class="hr">
+          <div class="grid cols-3">
+            <label class="field"><span class="lbl">Fechou Tratamento?</span>
+              <select name="fechouTratamento">${OPCOES_FECHOU.map(o=>`<option value="${o}" ${p.fechouTratamento===o?'selected':''}>${o||'—'}</option>`).join('')}</select>
+            </label>
+            <label class="field"><span class="lbl">Valor Fechado (R$)</span><input type="number" step="0.01" name="valorFechado" value="${p.valorFechado??''}"></label>
+            <label class="field"><span class="lbl">Data Fechamento</span><input type="date" name="dataFechamento" value="${p.dataFechamento||''}"></label>
+          </div>
+          <label class="field"><span class="lbl">Motivo da Perda <span class="muted" style="text-transform:none;font-weight:500;">(quando Fechou Tratamento = Não)</span></span>
+            <select name="motivoPerda"><option value="">—</option>${DB.motivosPerda.map(m=>`<option ${p.motivoPerda===m?'selected':''}>${escapeHtml(m)}</option>`).join('')}</select>
+          </label>
+          <label class="field"><span class="lbl">Observações <span class="muted" style="text-transform:none;font-weight:500;">(contexto de Pendente / Não Precisa no Momento aparece no card do Kanban)</span></span>
+            <textarea name="observacoes" rows="3">${escapeHtml(p.observacoes)}</textarea>
+          </label>
+          ${p.origem==='Indicação' || true ? `
+          <label class="field"><span class="lbl">Indicado por <span class="muted" style="text-transform:none;font-weight:500;">(se a origem for Indicação)</span></span>
+            <input name="indicadoPor" value="${escapeHtml(p.indicadoPor||(DB.indicacoes.find(i=>i.pacienteIndicado===p.nome)?.indicadoPor)||'')}">
+          </label>` : ''}
+          <div class="pill" style="background:${etapaCor(calcStatus(p))}22;color:${etapaCor(calcStatus(p))}">Status calculado automaticamente: será recalculado ao salvar</div>
+        </div>
+        <div class="modal-foot">
+          ${!isNew?`<button type="button" class="btn danger" data-del="${p.id}">Excluir</button>`:''}
+          <button type="button" class="btn ghost" data-close>Cancelar</button>
+          <button type="submit" class="btn primary">Salvar Paciente</button>
+        </div>
+      </form>
+    </div>
+  </div>`;
+
+  modalRoot.querySelectorAll('[data-close]').forEach(el=>el.addEventListener('click', closeModal));
+  modalRoot.querySelector('[data-close-backdrop]').addEventListener('click', (e)=>{ if(e.target===e.currentTarget) closeModal(); });
+  modalRoot.querySelectorAll('.chip-check').forEach(el=>{
+    el.addEventListener('click', (e)=>{
+      e.preventDefault();
+      const input = el.querySelector('input');
+      input.checked = !input.checked;
+      el.classList.toggle('on', input.checked);
+    });
+  });
+  const delBtn = modalRoot.querySelector('[data-del]');
+  if(delBtn) delBtn.addEventListener('click', ()=>{
+    if(confirm('Excluir este paciente? Essa ação não pode ser desfeita.')){
+      DB.pacientes = DB.pacientes.filter(x=>x.id!==p.id);
+      saveState(); closeModal(); render(); toast('Paciente excluído.');
+    }
+  });
+  modalRoot.querySelector('#form-paciente').addEventListener('submit', (e)=>{
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    const procedimentos = fd.getAll('procedimentos');
+    const novo = {
+      ...p,
+      nome: fd.get('nome').trim(),
+      telefone: fd.get('telefone').trim(),
+      email: fd.get('email').trim(),
+      origem: fd.get('origem'),
+      procedimentos,
+      responsavel: fd.get('responsavel'),
+      dataContato: fd.get('dataContato'),
+      marcouConsulta: fd.get('marcouConsulta'),
+      dataConsulta: fd.get('dataConsulta'),
+      compareceu: fd.get('compareceu'),
+      fezRadiografia: fd.get('fezRadiografia'),
+      planoTratamento: fd.get('planoTratamento'),
+      valorOrcamento: fd.get('valorOrcamento')? parseFloat(fd.get('valorOrcamento')) : null,
+      fechouTratamento: fd.get('fechouTratamento'),
+      valorFechado: fd.get('valorFechado')? parseFloat(fd.get('valorFechado')) : null,
+      dataFechamento: fd.get('dataFechamento'),
+      motivoPerda: fd.get('motivoPerda'),
+      observacoes: fd.get('observacoes'),
+      indicadoPor: fd.get('indicadoPor')?.trim() || '',
+    };
+    if(!novo.nome){ toast('Informe o nome do paciente.'); return; }
+    const idx = DB.pacientes.findIndex(x=>x.id===novo.id);
+    if(idx>=0) DB.pacientes[idx]=novo; else DB.pacientes.push(novo);
+
+    // sincroniza aba de Indicações
+    if(novo.origem==='Indicação'){
+      const iIdx = DB.indicacoes.findIndex(i=>i.pacienteIndicado===novo.nome);
+      if(iIdx>=0) DB.indicacoes[iIdx].indicadoPor = novo.indicadoPor;
+      else DB.indicacoes.push({id:uid('ind'), pacienteIndicado:novo.nome, indicadoPor:novo.indicadoPor});
+    }
+    saveState(); closeModal(); render();
+    toast(isNew? 'Paciente cadastrado.' : 'Paciente atualizado.');
+  });
+}
+function closeModal(){ document.getElementById('modal-root').innerHTML=''; }
+
+/* ============================================================
+   6) KANBAN
+   ============================================================ */
+function renderKanban(){
+  const grupos = {};
+  ETAPAS_PADRAO.forEach(e=>grupos[e.nome]=[]);
+  DB.pacientes.forEach(p=>{
+    const s = calcStatus(p);
+    if(grupos[s]) grupos[s].push(p);
+  });
+  return `<div class="kanban-wrap">
+    ${ETAPAS_PADRAO.map(et=>{
+      const items = grupos[et.nome]||[];
+      return `<div class="kanban-col">
+        <div class="kanban-col-head" style="background:${et.cor}">
+          <span>${escapeHtml(et.nome)}</span><span>${items.length}</span>
+        </div>
+        <div class="kanban-col-body">
+          ${items.length? items.map(p=>`
+            <div class="kcard" data-open="${p.id}">
+              <div class="nm">${escapeHtml(p.nome)}</div>
+              <div class="meta">
+                <span>${escapeHtml(p.responsavel||'sem resp.')}</span>
+                <span>·</span>
+                <span>${(p.procedimentos||[]).join(', ')||'proced. n/d'}</span>
+              </div>
+              <div class="meta">
+                <span>💰 ${fmtMoeda(p.fechouTratamento?p.valorFechado ?? p.valorOrcamento : p.valorOrcamento)}</span>
+              </div>
+              ${(et.nome==='Pendente'||et.nome==='Não Precisa no Momento') && p.observacoes? `<div class="obs">${escapeHtml(p.observacoes)}</div>`:''}
+              ${et.nome==='Perdido' && p.motivoPerda? `<div class="obs">Motivo: ${escapeHtml(p.motivoPerda)}</div>`:''}
+            </div>`).join('') : `<div class="empty small">vazio</div>`}
+        </div>
+      </div>`;
+    }).join('')}
+  </div>`;
+}
+function bindKanbanEvents(){
+  document.querySelectorAll('[data-open]').forEach(el=>{
+    el.addEventListener('click', ()=>{
+      const p = DB.pacientes.find(x=>x.id===el.dataset.open);
+      openPacienteModal(p);
+    });
+  });
+}
+
+/* ============================================================
+   7) INDICAÇÕES
+   ============================================================ */
+function renderIndicacoes(){
+  const inds = DB.indicacoes;
+  const ranking = {};
+  inds.forEach(i=>{ if(i.indicadoPor){ ranking[i.indicadoPor]=(ranking[i.indicadoPor]||0)+1; } });
+  const rankArr = Object.entries(ranking).sort((a,b)=>b[1]-a[1]);
+  return `
+  <div class="grid cols-3">
+    <div class="card" style="grid-column:span 1;">
+      <h3>Top indicadores</h3>
+      <table>
+        <tbody>
+          ${rankArr.length? rankArr.slice(0,10).map(([nome,n])=>`<tr><td>${escapeHtml(nome)}</td><td style="text-align:right"><span class="pill">${n} indicação${n>1?'ões':''}</span></td></tr>`).join(''):'<tr><td class="empty">Sem dados.</td></tr>'}
+        </tbody>
+      </table>
+    </div>
+    <div class="card" style="grid-column:span 2;">
+      <div class="section-title"><h2 style="font-size:16px;margin:0;">Registros de indicação (${inds.length})</h2>
+        <button class="btn sm gold" data-action="nova-indicacao">+ Nova Indicação</button>
+      </div>
+      <div class="table-wrap">
+      <table>
+        <thead><tr><th>Paciente indicado</th><th>Quem indicou</th><th>Status do indicado</th></tr></thead>
+        <tbody>
+        ${inds.map(i=>{
+          const pac = DB.pacientes.find(p=>p.nome===i.pacienteIndicado);
+          const status = pac? calcStatus(pac) : null;
+          return `<tr>
+            <td>${escapeHtml(i.pacienteIndicado)}</td>
+            <td>${escapeHtml(i.indicadoPor)||'<span class="muted">a preencher</span>'}</td>
+            <td>${status?`<span class="badge-status" style="background:${etapaCor(status)}22;color:${etapaCor(status)}">${escapeHtml(status)}</span>`:'<span class="muted">paciente não encontrado</span>'}</td>
+          </tr>`;
+        }).join('')}
+        </tbody>
+      </table>
+      </div>
+    </div>
+  </div>`;
+}
+function bindIndicacoesEvents(){
+  const btn = document.querySelector('[data-action="nova-indicacao"]');
+  if(btn) btn.addEventListener('click', ()=>{
+    const nome = prompt('Nome do paciente indicado:');
+    if(!nome) return;
+    const quem = prompt('Quem indicou?') || '';
+    DB.indicacoes.push({id:uid('ind'), pacienteIndicado:nome.trim(), indicadoPor:quem.trim()});
+    saveState(); render(); toast('Indicação registrada.');
+  });
+}
+
+/* ============================================================
+   8) DASHBOARD
+   ============================================================ */
+let dashboardMesSelecionado = null; // definido em renderDashboard() na 1ª vez
+
+function mesesDisponiveis(){
+  // Março/2026 em diante, como na planilha original; estende automaticamente
+  // até o mês atual se os dados forem além.
+  const inicio = new Date(2026,2,1); // Março/2026
+  const hoje = new Date();
+  const maisRecente = DB.pacientes.reduce((acc,p)=>{
+    const d = p.dataContato && new Date(p.dataContato+'T00:00:00');
+    return d && d>acc ? d : acc;
+  }, hoje);
+  const fim = maisRecente>hoje?maisRecente:hoje;
+  const meses = [];
+  let cursor = new Date(inicio);
+  while(cursor<=fim){
+    meses.push(cursor.getFullYear()+'-'+String(cursor.getMonth()+1).padStart(2,'0'));
+    cursor.setMonth(cursor.getMonth()+1);
+  }
+  return meses;
+}
+
+function aggregateMonth(key){
+  const novos = DB.pacientes.filter(p=>monthKey(p.dataContato)===key);
+  const fechadosMes = DB.pacientes.filter(p=>monthKey(p.dataFechamento)===key && (p.fechouTratamento==='Sim'||p.fechouTratamento==='Parcial'));
+  const valorTotal = fechadosMes.reduce((s,p)=>s+(p.valorFechado||0),0);
+  const taxa = novos.length? fechadosMes.length/novos.length : 0;
+  const ticket = fechadosMes.length? valorTotal/fechadosMes.length : 0;
+  return {novos:novos.length, fechados:fechadosMes.length, taxa, valorTotal, ticket};
+}
+
+function funilTotais(mesFiltro){
+  const base = DB.pacientes;
+  const novos = base.length;
+  const agendados = base.filter(p=>p.marcouConsulta==='Sim').length;
+  const compareceram = base.filter(p=>p.compareceu==='Sim').length;
+  const fechados = base.filter(p=>{ const s=calcStatus(p); return s==='Fechado (Total)'||s==='Fechado (Parcial)'; }).length;
+  let noMes = {novos:0,agendados:0,compareceram:0,fechados:0};
+  if(mesFiltro){
+    noMes.novos = base.filter(p=>monthKey(p.dataContato)===mesFiltro).length;
+    noMes.agendados = base.filter(p=>p.marcouConsulta==='Sim'&&monthKey(p.dataConsulta)===mesFiltro).length;
+    noMes.compareceram = base.filter(p=>p.compareceu==='Sim'&&monthKey(p.dataConsulta)===mesFiltro).length;
+    noMes.fechados = base.filter(p=>{ const s=calcStatus(p); return (s==='Fechado (Total)'||s==='Fechado (Parcial)')&&monthKey(p.dataFechamento)===mesFiltro; }).length;
+  }
+  return {novos,agendados,compareceram,fechados,noMes};
+}
+
+function renderDashboard(){
+  const meses = mesesDisponiveis();
+  if(!dashboardMesSelecionado || !meses.includes(dashboardMesSelecionado)){
+    dashboardMesSelecionado = meses[meses.length-1];
+  }
+  const atual = aggregateMonth(dashboardMesSelecionado);
+  const funil = funilTotais(dashboardMesSelecionado);
+  const maxNovos = Math.max(...meses.map(k=>aggregateMonth(k).novos), 1);
+
+  return `
+  <div class="section-title">
+    <h2 style="font-size:16px;margin:0;">Resumo do mês</h2>
+    <select id="mes-select" style="width:auto;min-width:160px;">
+      ${meses.map(k=>`<option value="${k}" ${k===dashboardMesSelecionado?'selected':''}>${monthLabel(k)}</option>`).join('')}
+    </select>
+  </div>
+  <div class="grid cols-4">
+    <div class="card stat-tile"><div class="lbl">Novos Pacientes</div><div class="val">${atual.novos}</div></div>
+    <div class="card stat-tile"><div class="lbl">Fechados (Ganhos)</div><div class="val">${atual.fechados}</div></div>
+    <div class="card stat-tile"><div class="lbl">Taxa de Conversão</div><div class="val">${(atual.taxa*100).toFixed(1)}%</div></div>
+    <div class="card stat-tile"><div class="lbl">Valor Total Fechado</div><div class="val" style="font-size:20px;">${fmtMoeda(atual.valorTotal)}</div></div>
+  </div>
+  <div class="card" style="margin-top:16px;">
+    <div class="stat-tile" style="padding:6px 0 0;"><div class="lbl">Ticket Médio do Mês</div><div class="val">${fmtMoeda(atual.ticket)}</div></div>
+  </div>
+
+  <div class="card" style="margin-top:16px;">
+    <h3 style="margin-bottom:10px;">Evolução mês a mês</h3>
+    <div class="bars">
+      ${meses.map(k=>{
+        const a = aggregateMonth(k);
+        const hNovos = Math.max(a.novos>0?4:0, Math.round((a.novos/maxNovos)*130));
+        return `<div class="bar-col">
+          <div class="bar-box">
+            <span class="val">${a.novos}</span>
+            <div class="bar-fill" style="height:${hNovos}px;"></div>
+          </div>
+          <div class="lbl">${monthLabel(k)}</div>
+        </div>`;
+      }).join('')}
+    </div>
+    <div class="muted small">Barra = novos pacientes por mês (1º contato). Use a tabela abaixo para o detalhe de fechamentos e ticket médio.</div>
+    <div class="table-wrap" style="margin-top:12px;">
+      <table>
+        <thead><tr><th>Mês</th><th>Novos Pacientes</th><th>Fechados (Ganhos)</th><th>Taxa de Conversão</th><th>Valor Total Fechado</th><th>Ticket Médio</th></tr></thead>
+        <tbody>
+        ${meses.map(k=>{ const a=aggregateMonth(k); return `<tr><td>${monthLabel(k)}</td><td>${a.novos}</td><td>${a.fechados}</td><td>${(a.taxa*100).toFixed(1)}%</td><td>${fmtMoeda(a.valorTotal)}</td><td>${fmtMoeda(a.ticket)}</td></tr>`; }).join('')}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:16px;">
+    <h3>Funil de Conversão <span class="muted small">(Total Geral desde o início da base × mês selecionado)</span></h3>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Etapa</th><th>Total Geral</th><th>% do Total</th><th>Nº no mês (${monthLabel(dashboardMesSelecionado)})</th></tr></thead>
+        <tbody>
+          <tr><td>Novos Pacientes</td><td>${funil.novos}</td><td>100%</td><td>${funil.noMes.novos}</td></tr>
+          <tr><td>Agendados</td><td>${funil.agendados}</td><td>${(funil.agendados/funil.novos*100).toFixed(1)}%</td><td>${funil.noMes.agendados}</td></tr>
+          <tr><td>Compareceram</td><td>${funil.compareceram}</td><td>${(funil.compareceram/funil.novos*100).toFixed(1)}%</td><td>${funil.noMes.compareceram}</td></tr>
+          <tr><td>Fechados</td><td>${funil.fechados}</td><td>${(funil.fechados/funil.novos*100).toFixed(1)}%</td><td>${funil.noMes.fechados}</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="muted small" style="margin-top:8px;">"Agendados" e "Compareceram" contam quem já passou por essa etapa em algum momento (não apenas quem está nela agora) — mesma regra usada na planilha original.</div>
+  </div>`;
+}
+function bindDashboardEvents(){
+  const sel = document.getElementById('mes-select');
+  if(sel) sel.addEventListener('change', ()=>{ dashboardMesSelecionado = sel.value; render(); });
+}
+
+/* ============================================================
+   9) AGENDA — urgência (heurística: ver Contexto/README sobre limitação)
+   ============================================================ */
+function calcUrgencia(p){
+  const status = calcStatus(p);
+  const hoje = hojeISO();
+  let dias = null, texto = '';
+  if(status==='Novo Paciente'){
+    dias = diasEntre(p.dataContato, hoje);
+    texto = 'Fazer 1º contato / agendar consulta';
+    if(dias===null) return {nivel:'proximo', texto, dias:null};
+    return {nivel: dias>=3?'atrasado':(dias>=1?'proximo':'em-dia'), texto, dias};
+  }
+  if(status==='Consulta Marcada'){
+    dias = diasEntre(p.dataConsulta, hoje);
+    texto = dias!==null && dias>0 ? 'Registrar resultado da consulta (compareceu?)' : 'Confirmar presença na consulta';
+    if(dias===null) return {nivel:'proximo', texto, dias:null};
+    return {nivel: dias>0?'atrasado':(dias>=-1?'proximo':'em-dia'), texto, dias};
+  }
+  if(status==='Não Compareceu'){
+    dias = diasEntre(p.dataConsulta, hoje);
+    texto = 'Tentar reagendar consulta';
+    return {nivel:'atrasado', texto, dias};
+  }
+  if(status==='Compareceu'){
+    dias = diasEntre(p.dataConsulta, hoje);
+    texto = 'Follow-up: apresentar plano/orçamento';
+    if(dias===null) return {nivel:'proximo', texto, dias:null};
+    return {nivel: dias>=5?'atrasado':(dias>=2?'proximo':'em-dia'), texto, dias};
+  }
+  if(status==='Plano de Tratamento'){
+    dias = diasEntre(p.dataConsulta, hoje);
+    texto = 'Follow-up: fechar tratamento';
+    if(dias===null) return {nivel:'proximo', texto, dias:null};
+    return {nivel: dias>=5?'atrasado':(dias>=2?'proximo':'em-dia'), texto, dias};
+  }
+  if(status==='Pendente'){
+    const ref = p.dataFechamento || p.dataConsulta || p.dataContato;
+    dias = diasEntre(ref, hoje);
+    texto = 'Retomar contato — decisão pendente'+(p.observacoes?`: ${p.observacoes}`:'');
+    if(dias===null) return {nivel:'proximo', texto, dias:null};
+    return {nivel: dias>=5?'atrasado':(dias>=2?'proximo':'em-dia'), texto, dias};
+  }
+  return null;
+}
+
+function renderAgenda(){
+  const abertos = DB.pacientes.filter(p=>ESTAGIOS_ABERTOS.includes(calcStatus(p)));
+  const itens = abertos.map(p=>({p, u:calcUrgencia(p)})).filter(x=>x.u);
+  const ordem = {atrasado:0, proximo:1, 'em-dia':2};
+  itens.sort((a,b)=> (ordem[a.u.nivel]-ordem[b.u.nivel]) || ((b.u.dias??0)-(a.u.dias??0)) );
+  const nivelLabel = {atrasado:'Atrasado', proximo:'Próximo', 'em-dia':'Em dia'};
+  const nivelClasse = {atrasado:'tag-urg-atrasado', proximo:'tag-urg-proximo', 'em-dia':'tag-urg-em-dia'};
+  return `
+  <div class="card">
+    <div class="section-title"><h2 style="font-size:16px;margin:0;">Próximas ações (${itens.length})</h2>
+      <span class="muted small">Ordenado por urgência: atrasado → próximo → em dia</span>
+    </div>
+    <div class="table-wrap">
+    <table>
+      <thead><tr><th>Urgência</th><th>Paciente</th><th>Status</th><th>Ação sugerida</th><th>Responsável</th></tr></thead>
+      <tbody>
+      ${itens.length? itens.map(({p,u})=>`
+        <tr class="clickable" data-open="${p.id}">
+          <td><span class="badge-status ${nivelClasse[u.nivel]}">${nivelLabel[u.nivel]}</span></td>
+          <td><b>${escapeHtml(p.nome)}</b></td>
+          <td><span class="badge-status" style="background:${etapaCor(calcStatus(p))}22;color:${etapaCor(calcStatus(p))}">${escapeHtml(calcStatus(p))}</span></td>
+          <td>${escapeHtml(u.texto)}</td>
+          <td>${escapeHtml(p.responsavel||'—')}</td>
+        </tr>`).join('') : `<tr><td colspan="5" class="empty">Nenhuma ação pendente — tudo em dia.</td></tr>`}
+      </tbody>
+    </table>
+    </div>
+  </div>`;
+}
+
+/* ============================================================
+   10) ASSISTENTE DE VENDAS (simulado — sem IA real conectada)
+   ============================================================ */
+let assistentePacienteId = null;
+const RESPOSTAS_OBJECAO = {
+  'Preço': 'Entendo a preocupação com o valor. Podemos apresentar as opções de parcelamento disponíveis e reforçar o que está incluso no plano de tratamento, sem pressionar por uma decisão imediata.',
+  'Parou de responder': 'Enviar uma mensagem curta e sem cobrança, reabrindo o assunto com uma pergunta aberta (ex: "posso te ajudar com mais alguma dúvida sobre o tratamento?").',
+  'Fechou com concorrente': 'Agradecer a confiança até aqui e deixar a porta aberta para reavaliação futura, sem criticar a outra clínica.',
+  'Sem orçamento no momento': 'Perguntar se faz sentido reagendar o contato para um período mais adequado financeiramente, e registrar a data sugerida em Observações.',
+  'Não gostou do tratamento sugerido': 'Investigar o que especificamente gerou a objeção e, se pertinente, sugerir uma reavaliação com a ortodontista para ajustar o plano.',
+  'Está com outras prioridades': 'Respeitar o momento do paciente e propor retomar contato em uma data futura combinada.',
+  'Retorna mais para frente': 'Registrar a data provável de retorno em Observações e agendar um lembrete de follow-up.',
+};
+function renderAssistente(){
+  const abertos = DB.pacientes.filter(p=>ESTAGIOS_ABERTOS.includes(calcStatus(p)));
+  const p = abertos.find(x=>x.id===assistentePacienteId) || abertos[0] || null;
+  if(p) assistentePacienteId = p.id;
+  const u = p? calcUrgencia(p) : null;
+  return `
+  <div class="grid cols-3">
+    <div class="card" style="grid-column:span 1;">
+      <h3>Selecionar paciente</h3>
+      <select id="assist-select">
+        ${abertos.length? abertos.map(x=>`<option value="${x.id}" ${x.id===p?.id?'selected':''}>${escapeHtml(x.nome)} — ${escapeHtml(calcStatus(x))}</option>`).join(''):'<option>Nenhum paciente em aberto</option>'}
+      </select>
+      <hr class="hr">
+      <div class="ethics-box">
+        <b>Limites éticos do assistente:</b><br>
+        Não diagnostica quadros clínicos, não promete resultado de tratamento, não cria senso de urgência falso e não pressiona pacientes em momento de vulnerabilidade. Serve para apoiar a secretária a conduzir a conversa com mais consistência — a decisão clínica é sempre da ortodontista.
+      </div>
+    </div>
+    <div class="card" style="grid-column:span 2;">
+      ${p? `
+        <h3>${escapeHtml(p.nome)}</h3>
+        <div class="muted small" style="margin-bottom:10px;">${escapeHtml(p.telefone||'sem telefone')} · Responsável: ${escapeHtml(p.responsavel||'—')}</div>
+        <div class="grid cols-3" style="margin-bottom:14px;">
+          <div class="pill">Status: ${escapeHtml(calcStatus(p))}</div>
+          <div class="pill">Origem: ${escapeHtml(p.origem||'—')}</div>
+          <div class="pill">${(p.procedimentos||[]).join(', ')||'Procedimento n/d'}</div>
+        </div>
+        ${u? `<div class="card" style="background:var(--bg);box-shadow:none;"><b>Próxima ação sugerida:</b> ${escapeHtml(u.texto)}</div>`:''}
+        <h4 style="margin-top:16px;">Objeções comuns — clique para ver sugestão de resposta</h4>
+        <div class="chips-check">
+          ${DB.motivosPerda.map(m=>`<div class="chip-check" data-objecao="${escapeHtml(m)}">${escapeHtml(m)}</div>`).join('')}
+        </div>
+        <div id="resposta-objecao" class="card" style="background:var(--gold-100);box-shadow:none;display:none;margin-top:12px;"></div>
+        <h4 style="margin-top:16px;">Nota rápida</h4>
+        <textarea id="nota-rapida" rows="2" placeholder="Escrever nota e salvar em Observações do paciente…"></textarea>
+        <button class="btn primary sm" style="margin-top:8px;" data-action="salvar-nota">Salvar nota</button>
+      `: `<div class="empty">Nenhum paciente em aberto no momento — todos estão fechados, perdidos ou não precisam de contato agora.</div>`}
+    </div>
+  </div>`;
+}
+function bindAssistenteEvents(){
+  const sel = document.getElementById('assist-select');
+  if(sel) sel.addEventListener('change', ()=>{ assistentePacienteId = sel.value; render(); });
+  document.querySelectorAll('[data-objecao]').forEach(el=>{
+    el.addEventListener('click', ()=>{
+      const box = document.getElementById('resposta-objecao');
+      box.style.display='block';
+      box.innerHTML = `<b>${escapeHtml(el.dataset.objecao)}:</b><br>${escapeHtml(RESPOSTAS_OBJECAO[el.dataset.objecao]||'Sem sugestão cadastrada.')}`;
+    });
+  });
+  const salvarBtn = document.querySelector('[data-action="salvar-nota"]');
+  if(salvarBtn) salvarBtn.addEventListener('click', ()=>{
+    const txt = document.getElementById('nota-rapida').value.trim();
+    if(!txt) return;
+    const p = DB.pacientes.find(x=>x.id===assistentePacienteId);
+    if(p){
+      const carimbo = new Date().toLocaleDateString('pt-BR');
+      p.observacoes = (p.observacoes? p.observacoes+' | ':'') + `[${carimbo}] ${txt}`;
+      saveState(); render(); toast('Nota salva nas observações do paciente.');
+    }
+  });
+}
+
+/* ============================================================
+   11) CONFIGURAÇÕES
+   ============================================================ */
+function renderConfig(){
+  return `
+  <div class="grid cols-2">
+    <div class="card">
+      <h3>Dados da Clínica</h3>
+      <label class="field"><span class="lbl">Nome</span><input id="cfg-nome" value="${escapeHtml(DB.clinica.nome)}"></label>
+      <label class="field"><span class="lbl">Cidade</span><input id="cfg-cidade" value="${escapeHtml(DB.clinica.cidade)}"></label>
+      <label class="field"><span class="lbl">Tempo de mercado</span><input id="cfg-tempo" value="${escapeHtml(DB.clinica.tempoMercado)}"></label>
+      <label class="field"><span class="lbl">Especialidades (separadas por vírgula)</span><input id="cfg-esp" value="${escapeHtml(DB.clinica.especialidades.join(', '))}"></label>
+      <button class="btn primary sm" data-action="save-clinica">Salvar dados da clínica</button>
+    </div>
+
+    <div class="card">
+      <h3>Funcionários / Responsáveis</h3>
+      <div class="muted small" style="margin-bottom:8px;">Julia (dentista/sócia) confirmado pela clínica. Papel de Natalia ainda é hipótese — confirmar com Mariana e Celso.</div>
+      ${DB.funcionarios.map(f=>`
+        <div class="chk-item">
+          <div><b>${escapeHtml(f.nome)}</b> — ${escapeHtml(f.cargo)}<div class="muted small">${escapeHtml(f.papelHipotese||'')}</div></div>
+        </div>`).join('')}
+      <hr class="hr">
+      <div class="muted small">Lista usada no campo "Responsável" dos pacientes:</div>
+      <div id="lista-responsaveis">${listEditorHtml(DB.responsaveis,'responsaveis')}</div>
+      <button class="btn sm gold" data-add-list="responsaveis" style="margin-top:8px;">+ Adicionar responsável</button>
+    </div>
+
+    <div class="card">
+      <h3>Procedimentos</h3>
+      <div class="table-wrap">
+      <table>
+        <thead><tr><th>Nome</th><th>Valor médio</th><th></th></tr></thead>
+        <tbody>
+        ${DB.procedimentos.map(p=>`
+          <tr>
+            <td>${escapeHtml(p.nome)}</td>
+            <td><input data-proc-valor="${p.id}" type="number" step="0.01" value="${p.valorMedio||0}" style="max-width:130px;"></td>
+            <td><button class="btn sm danger" data-del-proc="${p.id}">Remover</button></td>
+          </tr>`).join('')}
+        </tbody>
+      </table>
+      </div>
+      <button class="btn sm gold" data-action="add-proc" style="margin-top:8px;">+ Adicionar procedimento</button>
+    </div>
+
+    <div class="card">
+      <h3>Origens de Lead</h3>
+      <div id="lista-origens">${listEditorHtml(DB.origens,'origens')}</div>
+      <button class="btn sm gold" data-add-list="origens" style="margin-top:8px;">+ Adicionar origem</button>
+    </div>
+
+    <div class="card">
+      <h3>Motivos de Perda</h3>
+      <div id="lista-motivos">${listEditorHtml(DB.motivosPerda,'motivosPerda')}</div>
+      <button class="btn sm gold" data-add-list="motivosPerda" style="margin-top:8px;">+ Adicionar motivo</button>
+    </div>
+
+    <div class="card">
+      <h3>Etapas do Funil</h3>
+      <div class="muted small" style="margin-bottom:8px;">Nome e ordem são fixos (definidos pela regra automática de status). A cor de exibição no Kanban pode ser ajustada.</div>
+      ${DB.etapasFunil.map(e=>`
+        <div class="chk-item">
+          <span>${escapeHtml(e.nome)}</span>
+          <input type="color" data-etapa-cor="${e.id}" value="${e.cor}" style="width:44px;padding:2px;">
+        </div>`).join('')}
+    </div>
+
+    <div class="card">
+      <h3>Backup e Exportação</h3>
+      <p class="muted small">Enquanto não há banco de dados online (ver roadmap abaixo), o backup em JSON é a forma de não depender só do navegador deste computador.</p>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;">
+        <button class="btn primary sm" data-action="export-json">⬇️ Exportar backup (JSON)</button>
+        <label class="btn sm" style="cursor:pointer;">⬆️ Importar backup (JSON)<input type="file" accept="application/json" id="import-json" style="display:none;"></label>
+        <button class="btn sm" data-action="export-csv">⬇️ Exportar pacientes (CSV)</button>
+      </div>
+    </div>
+
+    <div class="card" style="grid-column:span 2;">
+      <h3>Checklist para uso com pacientes reais</h3>
+      <div class="table-wrap">
+      <table>
+        <thead><tr><th>Item</th><th>Status</th></tr></thead>
+        <tbody>
+          <tr><td>Interface / Cadastro de pacientes / Kanban / Agenda / Dashboard / Configurações</td><td><span class="badge-status" style="background:var(--success-bg);color:var(--success);">✅ Pronto</span></td></tr>
+          <tr><td>Dados reais dos 52 pacientes migrados</td><td><span class="badge-status" style="background:var(--success-bg);color:var(--success);">✅ Pronto</span></td></tr>
+          <tr><td>Assistente comercial</td><td><span class="badge-status" style="background:var(--warn-bg);color:var(--warn);">⚠️ Simulado (sem IA real)</span></td></tr>
+          <tr><td>Banco de dados online</td><td><span class="badge-status" style="background:var(--danger-bg);color:var(--danger);">❌ Não implementado</span></td></tr>
+          <tr><td>Login real / usuários autenticados</td><td><span class="badge-status" style="background:var(--danger-bg);color:var(--danger);">❌ Não implementado</span></td></tr>
+          <tr><td>Multi-clínica seguro (clinica_id)</td><td><span class="badge-status" style="background:var(--danger-bg);color:var(--danger);">❌ Não implementado</span></td></tr>
+          <tr><td>Controle de permissões</td><td><span class="badge-status" style="background:var(--danger-bg);color:var(--danger);">❌ Não implementado</span></td></tr>
+          <tr><td><b>Pronto para pacientes reais no dia a dia</b></td><td><span class="badge-status" style="background:var(--danger-bg);color:var(--danger);">❌ Falta banco + login (Etapas 1 e 2 do roadmap)</span></td></tr>
+        </tbody>
+      </table>
+      </div>
+    </div>
+  </div>`;
+}
+function listEditorHtml(arr, key){
+  return arr.map((v,i)=>`
+    <div class="list-edit-row">
+      <input class="grow" data-list="${key}" data-idx="${i}" value="${escapeHtml(v)}">
+      <button class="btn sm danger" data-del-list="${key}" data-idx="${i}">✕</button>
+    </div>`).join('');
+}
+function bindConfigEvents(){
+  const saveClinica = document.querySelector('[data-action="save-clinica"]');
+  if(saveClinica) saveClinica.addEventListener('click', ()=>{
+    DB.clinica.nome = document.getElementById('cfg-nome').value.trim();
+    DB.clinica.cidade = document.getElementById('cfg-cidade').value.trim();
+    DB.clinica.tempoMercado = document.getElementById('cfg-tempo').value.trim();
+    DB.clinica.especialidades = document.getElementById('cfg-esp').value.split(',').map(s=>s.trim()).filter(Boolean);
+    saveState(); render(); toast('Dados da clínica atualizados.');
+  });
+  document.querySelectorAll('[data-list]').forEach(el=>{
+    el.addEventListener('change', ()=>{
+      DB[el.dataset.list][parseInt(el.dataset.idx,10)] = el.value.trim();
+      saveState(); toast('Lista atualizada.');
+    });
+  });
+  document.querySelectorAll('[data-del-list]').forEach(el=>{
+    el.addEventListener('click', ()=>{
+      DB[el.dataset.delList ?? el.getAttribute('data-del-list')].splice(parseInt(el.dataset.idx,10),1);
+      saveState(); render();
+    });
+  });
+  document.querySelectorAll('[data-add-list]').forEach(el=>{
+    el.addEventListener('click', ()=>{
+      const key = el.dataset.addList;
+      const v = prompt('Novo valor:');
+      if(v){ DB[key].push(v.trim()); saveState(); render(); }
+    });
+  });
+  document.querySelectorAll('[data-proc-valor]').forEach(el=>{
+    el.addEventListener('change', ()=>{
+      const proc = DB.procedimentos.find(p=>p.id===el.dataset.procValor);
+      if(proc){ proc.valorMedio = parseFloat(el.value)||0; saveState(); toast('Valor médio atualizado.'); }
+    });
+  });
+  document.querySelectorAll('[data-del-proc]').forEach(el=>{
+    el.addEventListener('click', ()=>{
+      DB.procedimentos = DB.procedimentos.filter(p=>p.id!==el.dataset.delProc);
+      saveState(); render();
+    });
+  });
+  const addProc = document.querySelector('[data-action="add-proc"]');
+  if(addProc) addProc.addEventListener('click', ()=>{
+    const nome = prompt('Nome do novo procedimento:');
+    if(nome){ DB.procedimentos.push({id:uid('proc'), nome:nome.trim(), valorMedio:0}); saveState(); render(); }
+  });
+  document.querySelectorAll('[data-etapa-cor]').forEach(el=>{
+    el.addEventListener('input', ()=>{
+      const et = DB.etapasFunil.find(e=>e.id===el.dataset.etapaCor);
+      if(et){ et.cor = el.value; saveState(); }
+    });
+  });
+  const expJson = document.querySelector('[data-action="export-json"]');
+  if(expJson) expJson.addEventListener('click', exportBackupJSON);
+  const expCsv = document.querySelector('[data-action="export-csv"]');
+  if(expCsv) expCsv.addEventListener('click', exportPacientesCSV);
+  const impJson = document.getElementById('import-json');
+  if(impJson) impJson.addEventListener('change', importBackupJSON);
+}
+
+function exportBackupJSON(){
+  const blob = new Blob([JSON.stringify(DB,null,2)], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = `backup-crm-${DB.clinica.nome.replace(/\s+/g,'-').toLowerCase()}-${hojeISO()}.json`;
+  document.body.appendChild(a); a.click(); a.remove();
+  URL.revokeObjectURL(url);
+  toast('Backup JSON exportado.');
+}
+function importBackupJSON(e){
+  const file = e.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = (ev)=>{
+    try{
+      const novo = JSON.parse(ev.target.result);
+      if(!novo.pacientes) throw new Error('Arquivo não parece um backup válido.');
+      if(confirm('Importar este backup vai substituir todos os dados atuais. Continuar?')){
+        DB = novo; saveState(); render(); toast('Backup importado com sucesso.');
+      }
+    }catch(err){ alert('Erro ao importar backup: '+err.message); }
+  };
+  reader.readAsText(file);
+}
+function exportPacientesCSV(){
+  const headers = ['Nome','Telefone','Email','Origem','Procedimentos','Responsável','Data 1º Contato','Marcou Consulta','Data Consulta','Compareceu','Fez Radiografia','Plano de Tratamento','Valor Orçamento','Fechou Tratamento','Valor Fechado','Data Fechamento','Motivo da Perda','Status Atual','Observações'];
+  const rows = DB.pacientes.map(p=>[
+    p.nome,p.telefone,p.email,p.origem,(p.procedimentos||[]).join('; '),p.responsavel,
+    fmtData(p.dataContato),p.marcouConsulta,fmtData(p.dataConsulta),p.compareceu,p.fezRadiografia,
+    p.planoTratamento,p.valorOrcamento??'',p.fechouTratamento,p.valorFechado??'',fmtData(p.dataFechamento),
+    p.motivoPerda,calcStatus(p),p.observacoes
+  ]);
+  const csv = [headers, ...rows].map(r=>r.map(v=>`"${String(v??'').replace(/"/g,'""')}"`).join(',')).join('\n');
+  const blob = new Blob(['﻿'+csv], {type:'text/csv;charset=utf-8;'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href=url; a.download=`pacientes-${DB.clinica.nome.replace(/\s+/g,'-').toLowerCase()}-${hojeISO()}.csv`;
+  document.body.appendChild(a); a.click(); a.remove();
+  URL.revokeObjectURL(url);
+  toast('CSV de pacientes exportado.');
+}
+
+/* ============================================================
+   12) bind por rota + boot
+   ============================================================ */
+function bindRouteEvents(){
+  if(ROUTE==='pacientes') bindPacientesEvents();
+  if(ROUTE==='kanban') bindKanbanEvents();
+  if(ROUTE==='indicacoes') bindIndicacoesEvents();
+  if(ROUTE==='dashboard') bindDashboardEvents();
+  if(ROUTE==='assistente') bindAssistenteEvents();
+  if(ROUTE==='config') bindConfigEvents();
+}
+
+loadState();
+render();
+</script>
 </body>
 </html>
