@@ -245,6 +245,58 @@ tr.clickable:hover{background:var(--ink-100);}
 
 .chk-item{display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--line);font-size:13px;}
 .chk-item:last-child{border-bottom:none;}
+
+/* ===== V2 — gráficos de barra horizontal (Dashboard/Indicações) ===== */
+.hbar-row{display:flex;align-items:center;gap:10px;margin-bottom:9px;}
+.hbar-row:last-child{margin-bottom:0;}
+.hbar-label{width:150px;flex:0 0 150px;font-size:12.5px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.hbar-track{flex:1;background:var(--bg);border-radius:6px;height:14px;overflow:hidden;}
+.hbar-fill{height:100%;background:var(--ink-700);border-radius:6px;}
+.hbar-val{width:92px;flex:0 0 92px;text-align:right;font-size:12px;font-weight:700;}
+
+/* ===== V2 — funil duplo (Dashboard) ===== */
+.funnel-card{text-align:center;padding:18px 10px;}
+.funnel-top{font-size:13px;font-weight:700;color:var(--text-muted);}
+.funnel-arrow{font-family:"Fraunces",serif;font-size:22px;font-weight:700;color:var(--gold-600);margin:8px 0;}
+.funnel-bottom{font-size:17px;font-weight:800;color:var(--ink-900);}
+
+/* ===== V2 — WhatsApp (simulado) ===== */
+.wa-layout{display:flex;gap:14px;min-height:520px;}
+.wa-list{width:300px;flex:0 0 300px;border:1px solid var(--line);border-radius:var(--radius);background:var(--paper);overflow-y:auto;max-height:calc(100vh - 210px);}
+.wa-item{padding:12px 14px;border-bottom:1px solid var(--line);cursor:pointer;}
+.wa-item:hover{background:var(--ink-100);}
+.wa-item.active{background:var(--ink-100);}
+.wa-item .nm{font-weight:800;font-size:13px;display:flex;justify-content:space-between;gap:8px;align-items:center;}
+.wa-item .snippet{font-size:12px;color:var(--text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:3px;}
+.wa-dot{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:6px;flex:0 0 auto;}
+.wa-dot.normal{background:var(--success);}
+.wa-dot.atencao{background:var(--warn);}
+.wa-dot.atrasado{background:var(--danger);}
+.wa-panel{flex:1;display:flex;flex-direction:column;border:1px solid var(--line);border-radius:var(--radius);background:var(--paper);overflow:hidden;max-height:calc(100vh - 210px);}
+.wa-panel-head{padding:14px 18px;border-bottom:1px solid var(--line);}
+.wa-messages{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:8px;background:var(--bg);}
+.wa-bubble{max-width:68%;padding:9px 13px;border-radius:14px;font-size:13px;line-height:1.45;}
+.wa-bubble.paciente{align-self:flex-start;background:var(--paper);border:1px solid var(--line);border-bottom-left-radius:4px;}
+.wa-bubble.clinica{align-self:flex-end;background:var(--ink-900);color:#fff;border-bottom-right-radius:4px;}
+.wa-bubble .hora{display:block;font-size:10px;opacity:.65;margin-top:4px;}
+.wa-compose{display:flex;gap:8px;padding:12px 14px;border-top:1px solid var(--line);}
+.wa-compose textarea{flex:1;resize:none;min-height:38px;}
+
+/* ===== V2 — Agenda em calendário ===== */
+.cal-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:10px;}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;}
+.cal-dow{font-size:11px;text-transform:uppercase;color:var(--text-muted);text-align:center;font-weight:700;padding-bottom:4px;}
+.cal-day{min-height:76px;border:1px solid var(--line);border-radius:8px;padding:6px;cursor:pointer;background:var(--paper);}
+.cal-day:hover{border-color:var(--ink-700);}
+.cal-day.outro-mes{visibility:hidden;pointer-events:none;}
+.cal-day.hoje{border-color:var(--gold-500);border-width:2px;}
+.cal-day.selecionado{background:var(--ink-100);}
+.cal-day .num{font-weight:700;font-size:12.5px;}
+.cal-day .qtd{margin-top:5px;font-size:10.5px;background:var(--ink-900);color:#fff;border-radius:999px;padding:1px 7px;display:inline-block;}
+
+/* ===== V2.1 — cabeçalho fixo da tabela de Pacientes ("congelar 1ª linha") ===== */
+.pacientes-scroll{max-height:calc(100vh - 250px);overflow-y:auto;overflow-x:auto;}
+.pacientes-scroll thead th{position:sticky;top:0;background:var(--paper);z-index:2;box-shadow:0 1px 0 var(--line);}
 </style>
 </head>
 <body>
@@ -1719,10 +1771,93 @@ const SEED_FUNCIONARIOS = [
 const NOME_CLINICA = 'Mori Ortodontia';
 
 /* ============================================================
+   1b) DADOS_DEMO_V2 — SOMENTE PARA HOMOLOGAÇÃO (V2)
+   ------------------------------------------------------------
+   Tudo dentro deste objeto é conteúdo SIMULADO, criado apenas para a
+   cliente conseguir visualizar como WhatsApp e Pós-Vendas vão operar
+   no futuro. NADA aqui é dado real do WhatsApp (não há integração) nem
+   paciente novo de verdade.
+
+   - whatsappSeed: conversas de exemplo para pacientes REAIS já existentes
+     (usa nome/telefone reais para dar contexto, mas o CONTEÚDO das
+     mensagens foi escrito para esta demonstração — não são mensagens
+     reais trocadas pelo WhatsApp). Os horários são gerados de forma
+     RELATIVA ("minutosAtras") a partir do momento em que o CRM é aberto
+     pela primeira vez neste navegador, para que os estados de alerta
+     (Normal/Atenção/Atrasado) sempre façam sentido na hora da demo.
+
+   - posVendaDemoPacientes: pacientes 100% fictícios (nome com sufixo
+     "(Demonstração)" para nunca serem confundidos com os 52 pacientes
+     reais), usados apenas se não houver nenhum paciente real com
+     consulta exatamente ontem — para a aba Pós-Vendas nunca aparecer
+     vazia durante a apresentação à cliente.
+
+   QUANDO A INTEGRAÇÃO REAL DE WHATSAPP EXISTIR: remover whatsappSeed e
+   passar a carregar DB.whatsappConversas a partir da API/banco real.
+   ============================================================ */
+const DADOS_DEMO_V2 = {
+  whatsappSeed: [
+    { // Andrea Reis Ferreira de Melo — Perdido — propositalmente SEM conversa
+      // (fica reservada para demonstrar o botão "WhatsApp" abrindo uma
+      // conversa nova e vazia, sem inventar histórico, a partir do Kanban)
+    },
+    { pacienteId: 'pac-008', // Esther Andrade dos Santos — Pendente
+      mensagens: [
+        { autor:'paciente', minutosAtras:175, texto:'Oi, bom dia! Sobre o aparelho da minha filha, dá pra remarcar pra depois das festas?' },
+        { autor:'clinica', minutosAtras:172, texto:'Bom dia, Esther! Sem problemas, podemos deixar para dezembro mesmo, como combinado.' },
+        { autor:'paciente', minutosAtras:150, texto:'Perfeito, muito obrigada! 🙏' },
+      ]
+    },
+    { pacienteId: 'pac-018', // Fernando Ferreira Medeiros — Pendente
+      mensagens: [
+        { autor:'clinica', minutosAtras:200, texto:'Oi Fernando, tudo bem? Passando para saber se já bateu o martelo sobre o Invisalign 🙂' },
+        { autor:'paciente', minutosAtras:100, texto:'Oi! Ainda não consegui ver direito, mas estou analisando sim.' },
+      ]
+    },
+    { pacienteId: 'pac-026', // Kezia Cristina Teodoro dos Santos — Pendente
+      mensagens: [
+        { autor:'clinica', minutosAtras:40, texto:'Kezia, bom dia! Conseguiu conversar em casa sobre o orçamento que passamos?' },
+        { autor:'paciente', minutosAtras:20, texto:'Bom dia! Consegui sim, só preciso confirmar uma data com meu marido, te aviso essa semana.' },
+      ]
+    },
+    { pacienteId: 'pac-006', // Guilherme Moraes — Fechado (Total) — conversa já respondida
+      mensagens: [
+        { autor:'paciente', minutosAtras:300, texto:'Oi, meu aparelho está funcionando super bem, obrigado pela atenção!' },
+        { autor:'clinica', minutosAtras:295, texto:'Que ótima notícia, Guilherme! Fico muito feliz. Qualquer coisa é só chamar 😊' },
+      ]
+    },
+  ].filter(s => s.pacienteId), // remove o placeholder "sem conversa" acima
+
+  posVendaDemoPacientes: [
+    { id:'demo-pv-1', nome:'Camila Duarte (Demonstração)', telefone:'(31) 90000-0001', procedimentos:['Avaliação + Limpeza'] },
+    { id:'demo-pv-2', nome:'Rafael Nogueira (Demonstração)', telefone:'(31) 90000-0002', procedimentos:['Aparelho Fixo Metálico'] },
+  ],
+
+  // [V2.1] Um "contato novo" fictício de WhatsApp — número que nunca aparece
+  // nos 52 pacientes reais — para demonstrar a regra de "número novo vira
+  // lead automaticamente" sem precisar digitar nada. Fica pendente até a
+  // secretária clicar nele (ver processarNovoContatoWhatsApp()).
+  novoContatoWhatsappSeed: {
+    telefone: '(31) 90009-0009',
+    mensagem: 'Oi! Vi o perfil de vocês no Instagram, queria saber mais sobre o Invisalign 🙂',
+  },
+};
+
+/* ============================================================
    2) ESTADO / PERSISTÊNCIA (localStorage — protótipo local,
       sem banco online nesta etapa, conforme roadmap do CRM-base)
    ============================================================ */
-const STORAGE_KEY = 'cqc_crm_state_v1';
+// [V2 — CORREÇÃO] A chave original ('cqc_crm_state_v1') é a mesma usada
+// por QUALQUER instância local do CRM-base da Clínica que Converte (é assim
+// que o documento técnico original define). Isso é inofensivo em produção
+// (cada clínica fica num domínio/subdomínio próprio), mas é uma armadilha
+// ao testar arquivos .html localmente: o Chrome (diferente do Firefox)
+// compartilha o localStorage entre TODAS as páginas abertas via file://,
+// então abrir dois protótipos locais diferentes no mesmo navegador faz um
+// "vazar" para o outro. Foi exatamente isso que causou o estado
+// "Clínica Sorriso Pleno" aparecendo aqui. Tornar a chave específica desta
+// clínica elimina essa colisão específica.
+const STORAGE_KEY = 'cqc_crm_mori_ortodontia_v1';
 
 function uid(prefix){ return prefix+'-'+Math.random().toString(36).slice(2,9); }
 
@@ -1745,16 +1880,119 @@ function buildInitialState(){
     pacientes: SEED_PACIENTES.map(p=>({...p})),
     indicacoes: SEED_INDICACOES.map(i=>({id:uid('ind'), ...i})),
     theme: 'system',
+    // [V2] conversas de WhatsApp — geradas a partir de DADOS_DEMO_V2.whatsappSeed,
+    // com horários relativos ao momento desta primeira carga (ver comentário acima).
+    whatsappConversas: seedWhatsappConversas(),
+    // [V2] ids (pacientes reais ou demo) já marcados como "pós-venda realizado".
+    // Estrutura temporária em localStorage — candidata a virar tabela `followups`
+    // (ou equivalente) quando o banco real existir.
+    posVendasConcluidos: [],
+    // [V2.1] Estrutura comum enxuta para as ações comerciais novas desta
+    // rodada (Resgate e Follow-up de Plano). Cada item:
+    // { tipo:'resgate'|'followup_plano', pacienteId, dataHora }.
+    // O Pós-Vendas mantém seu próprio mecanismo já aprovado (acima) —
+    // ver relatório sobre unificação completa no Supabase.
+    acoesComerciaisConcluidas: [],
+    // [V2.1] contato de WhatsApp fictício pendente de "processamento" —
+    // ver DADOS_DEMO_V2.novoContatoWhatsappSeed.
+    novoContatoWhatsappDemo: { ...DADOS_DEMO_V2.novoContatoWhatsappSeed, processado:false },
   };
 }
 
+function seedWhatsappConversas(){
+  return DADOS_DEMO_V2.whatsappSeed.map(seed=>({
+    id: uid('wa'),
+    pacienteId: seed.pacienteId,
+    mensagens: seed.mensagens.map(m=>({
+      autor: m.autor,
+      texto: m.texto,
+      hora: new Date(Date.now() - m.minutosAtras*60000).toISOString(),
+    })),
+  }));
+}
+
 let DB = null;
+let AVISO_ESTADO_IGNORADO = false; // [V2 — CORREÇÃO] true quando um estado salvo foi descartado por incompatibilidade
+
+// [V2 — CORREÇÃO] Checagem RASA: o valor salvo em localStorage tem, no
+// mínimo, a "família" de campos que este CRM espera (um objeto de clínica
+// + todas as listas principais como array)? Isso pega tanto o caso de um
+// protótipo totalmente diferente (ex: "Clínica Sorriso Pleno") quanto
+// qualquer JSON corrompido/de outra origem.
+function pareceEstadoDesteCRM(db){
+  if(!db || typeof db !== 'object') return false;
+  if(!db.clinica || typeof db.clinica !== 'object') return false;
+  const arraysObrigatorios = ['pacientes','procedimentos','origens','motivosPerda','etapasFunil','responsaveis','funcionarios','indicacoes'];
+  return arraysObrigatorios.every(chave => Array.isArray(db[chave]));
+}
+
+// [V2 — CORREÇÃO] Garante o formato de UM paciente sem apagar nenhum campo
+// que já exista no registro (o "...p" no início preserva tudo; os campos
+// listados depois só ENTRAM em vigor quando o valor original está ausente
+// ou com tipo errado).
+function normalizarPaciente(p){
+  return {
+    ...p,
+    id: p.id || uid('pac'),
+    nome: p.nome || '',
+    procedimentos: Array.isArray(p.procedimentos) ? p.procedimentos : [],
+    valorOrcamento: p.valorOrcamento ?? null,
+    valorFechado: p.valorFechado ?? null,
+  };
+}
+
+// [V2 — CORREÇÃO] Passagem mais profunda que a antiga migrarEstadoV2():
+// garante que TODA lista/objeto que as telas usam sem checagem (filtros de
+// Pacientes, Configurações, Kanban etc.) exista com o tipo certo — usando
+// os mesmos dados de exemplo padrão como fallback quando faltar. NUNCA
+// apaga um campo que já existe; só preenche o que estiver faltando.
+function normalizarEstado(db){
+  db.clinica = (db.clinica && typeof db.clinica==='object') ? db.clinica : { nome:NOME_CLINICA, cidade:'', tempoMercado:'', especialidades:[] };
+  db.usuarioAtual = db.usuarioAtual || { nome:'', cargo:'' };
+  db.funcionarios = Array.isArray(db.funcionarios) ? db.funcionarios : SEED_FUNCIONARIOS.map(f=>({id:uid('func'), ...f}));
+  db.procedimentos = Array.isArray(db.procedimentos) ? db.procedimentos : SEED_PROCEDIMENTOS.map(p=>({id:uid('proc'), ...p}));
+  db.origens = Array.isArray(db.origens) ? db.origens : [...SEED_ORIGENS];
+  db.motivosPerda = Array.isArray(db.motivosPerda) ? db.motivosPerda : [...SEED_MOTIVOS_PERDA];
+  db.responsaveis = Array.isArray(db.responsaveis) ? db.responsaveis : ['Mariana','Natalia','Julia'];
+  db.etapasFunil = Array.isArray(db.etapasFunil) ? db.etapasFunil : ETAPAS_PADRAO.map(e=>({...e}));
+  db.indicacoes = Array.isArray(db.indicacoes) ? db.indicacoes : [];
+  db.pacientes = (Array.isArray(db.pacientes) ? db.pacientes : []).map(normalizarPaciente);
+  db.theme = db.theme || 'system';
+  if(!Array.isArray(db.whatsappConversas)) db.whatsappConversas = seedWhatsappConversas();
+  if(!Array.isArray(db.posVendasConcluidos)) db.posVendasConcluidos = [];
+  // [V2.1 — migração defensiva V2 → V2.1] preenche só o que for novo,
+  // sem apagar nada que já exista num estado salvo pela V2.
+  if(!Array.isArray(db.acoesComerciaisConcluidas)) db.acoesComerciaisConcluidas = [];
+  if(!db.novoContatoWhatsappDemo || typeof db.novoContatoWhatsappDemo!=='object'){
+    db.novoContatoWhatsappDemo = { ...DADOS_DEMO_V2.novoContatoWhatsappSeed, processado:false };
+  }
+  return db;
+}
 
 function loadState(){
   try{
     const raw = localStorage.getItem(STORAGE_KEY);
-    if(raw){ DB = JSON.parse(raw); }
-    else { DB = buildInitialState(); saveState(); }
+    if(raw){
+      const carregado = JSON.parse(raw);
+      if(pareceEstadoDesteCRM(carregado)){
+        // Estado reconhecível: normaliza (preenche o que faltar) e usa.
+        DB = normalizarEstado(carregado);
+      } else {
+        // [V2 — CORREÇÃO] Estado salvo nesta chave NÃO tem a forma esperada
+        // por este CRM — provavelmente outro protótipo local (mesmo
+        // navegador/origem). IMPORTANTE: não apagamos esse valor de
+        // localStorage nem tentamos "consertá-lo" — apenas deixamos de
+        // usá-lo e partimos dos dados de exemplo da Mori. O dado antigo
+        // continua salvo em disco, intacto, para quem quiser recuperá-lo.
+        console.warn('Estado salvo em', STORAGE_KEY, 'não tem o formato deste CRM — ignorado com segurança, nada foi apagado.');
+        DB = buildInitialState();
+        saveState();
+        AVISO_ESTADO_IGNORADO = true;
+      }
+    } else {
+      DB = buildInitialState();
+      saveState();
+    }
   }catch(e){
     console.error('Falha ao carregar estado, recriando seed.', e);
     DB = buildInitialState();
@@ -1803,6 +2041,89 @@ function etapaCor(nome){
   return e ? e.cor : '#5c6c70';
 }
 
+// [V2] "Vendido" = fechou tratamento Total OU Parcial (regra definitiva
+// aprovada para as métricas de conversão da V2 — não considerar só "Sim").
+function isVendido(p){
+  return p.fechouTratamento==='Sim' || p.fechouTratamento==='Parcial';
+}
+function ontemISO(){
+  const d = new Date();
+  d.setDate(d.getDate()-1);
+  return d.toISOString().slice(0,10);
+}
+function fmtMinutos(min){
+  if(min===null||min===undefined) return '';
+  if(min<60) return `${min} min`;
+  const h = Math.floor(min/60), m = min%60;
+  return `${h}h${m>0?String(m).padStart(2,'0'):''}`;
+}
+// Gráfico de barra horizontal reutilizado por Dashboard (origem/procedimentos)
+// e Indicações (ranking de indicadores). items: [{label, count}]
+function renderBarListHorizontal(items){
+  if(!items.length) return '<div class="empty">Sem dados suficientes.</div>';
+  const max = Math.max(...items.map(i=>i.count), 1);
+  const total = items.reduce((s,i)=>s+i.count,0) || 1;
+  return items.map(i=>`
+    <div class="hbar-row">
+      <div class="hbar-label" title="${escapeHtml(i.label)}">${escapeHtml(i.label)}</div>
+      <div class="hbar-track"><div class="hbar-fill" style="width:${(i.count/max*100).toFixed(1)}%"></div></div>
+      <div class="hbar-val">${i.count} <span class="muted">(${(i.count/total*100).toFixed(0)}%)</span></div>
+    </div>`).join('');
+}
+
+/* ============================================================
+   LÓGICA TEMPORÁRIA DE PROTÓTIPO (V2) — campos que ainda não existem
+   no modelo de dados real. Isoladas aqui de propósito: quando os campos
+   verdadeiros (`data_perda`, `data_envio_plano`) existirem no banco,
+   estas funções devem ser substituídas por leitura direta do campo.
+   ============================================================ */
+// Deriva uma "data da perda" a partir da última data conhecida do paciente,
+// SEM alterar nenhum dado real — é só uma leitura calculada.
+function derivarDataPerdaDemo(p){
+  return p.dataFechamento || p.dataConsulta || p.dataContato || null;
+}
+function infoResgate(p){
+  const dataPerda = derivarDataPerdaDemo(p);
+  const dias = diasEntre(dataPerda, hojeISO());
+  return { dataPerda, dias, elegivel: dias!==null && dias>=30 };
+}
+// Deriva o estado de "envio do plano de tratamento" a partir dos campos
+// já existentes (usa a data da consulta como proxy de "quando o plano foi
+// apresentado"), já que `data_envio_plano` ainda não existe no modelo.
+function estadoPlanoTratamentoDemo(p){
+  if(p.planoTratamento !== 'Sim') return { estado:'nao_enviado', label:'Não enviado' };
+  const resolvido = isVendido(p) || p.fechouTratamento==='Não' || p.fechouTratamento==='Não precisa no momento';
+  if(resolvido) return { estado:'enviado', label:'Enviado' };
+  const concluido = acaoComercialConcluida('followup_plano', p.id);
+  if(concluido) return { estado:'followup_feito', label:'Follow-up realizado', dataHora:concluido.dataHora };
+  const dataEnvioDerivada = p.dataConsulta || p.dataContato;
+  const dias = diasEntre(dataEnvioDerivada, hojeISO());
+  if(dias!==null && dias>=1) return { estado:'followup', label:'Follow-up necessário' };
+  return { estado:'enviado', label:'Enviado' };
+}
+
+/* ============================================================
+   [V2.1] AÇÕES COMERCIAIS — estrutura comum enxuta
+   ------------------------------------------------------------
+   Resgate (Kanban → Perdidos) e Follow-up de Plano (Pacientes) precisam
+   do mesmo comportamento: "isso ficou pendente, a secretária fez o
+   contato, agora precisa CONFIRMAR que a ação foi realizada" — abrir o
+   WhatsApp sozinho não conclui nada. Em vez de duas estruturas
+   independentes, as duas usam esta única lista com um campo `tipo`.
+   O Pós-Vendas já tinha seu próprio mecanismo aprovado antes desta
+   rodada (`DB.posVendasConcluidos`) e não foi alterado — ver relatório
+   sobre unificação completa (as três) no Supabase.
+   ============================================================ */
+function concluirAcaoComercial(tipo, pacienteId){
+  if(!acaoComercialConcluida(tipo, pacienteId)){
+    DB.acoesComerciaisConcluidas.push({ tipo, pacienteId, dataHora:new Date().toISOString() });
+    saveState();
+  }
+}
+function acaoComercialConcluida(tipo, pacienteId){
+  return DB.acoesComerciaisConcluidas.find(a=>a.tipo===tipo && a.pacienteId===pacienteId) || null;
+}
+
 /* ============================================================
    4) ROTEAMENTO / RENDER PRINCIPAL
    ============================================================ */
@@ -1810,11 +2131,26 @@ const ROUTES = [
   {id:'assistente', label:'Assistente de Vendas', ic:'💬'},
   {id:'pacientes', label:'Pacientes', ic:'🧑‍⚕️'},
   {id:'kanban', label:'Kanban', ic:'🗂️'},
+  {id:'whatsapp', label:'WhatsApp', ic:'📱'},          // [V2]
+  {id:'posvendas', label:'Pós-Vendas', ic:'📞'},        // [V2]
   {id:'indicacoes', label:'Indicações', ic:'🔗'},
   {id:'dashboard', label:'Dashboard', ic:'📊'},
   {id:'agenda', label:'Agenda', ic:'🗓️'},
   {id:'config', label:'Configurações', ic:'⚙️'},
 ];
+// [V2] rótulo do menu com contador (ex: "WhatsApp (2)") — badges avisam
+// a secretária sem precisar entrar na aba.
+function labelComBadge(route){
+  if(route.id==='whatsapp'){
+    const n = contarConversasAtrasadas();
+    return n>0 ? `${route.label} (${n})` : route.label;
+  }
+  if(route.id==='posvendas'){
+    const n = filaPosVenda().length;
+    return n>0 ? `${route.label} (${n})` : route.label;
+  }
+  return route.label;
+}
 let ROUTE = 'dashboard';
 let ROUTE_PARAM = null;
 
@@ -1843,7 +2179,7 @@ function render(){
       <nav class="nav">
         ${ROUTES.map(r=>`
           <div class="nav-item ${ROUTE===r.id?'active':''}" data-nav="${r.id}">
-            <span class="ic">${r.ic}</span><span>${r.label}</span>
+            <span class="ic">${r.ic}</span><span>${labelComBadge(r)}</span>
           </div>`).join('')}
       </nav>
       <div class="sidebar-foot">
@@ -1869,14 +2205,40 @@ function render(){
     assistente: renderAssistente,
     pacientes: renderPacientes,
     kanban: renderKanban,
+    whatsapp: renderWhatsapp,     // [V2]
+    posvendas: renderPosVendas,   // [V2]
     indicacoes: renderIndicacoes,
     dashboard: renderDashboard,
     agenda: renderAgenda,
     config: renderConfig,
   };
-  content.innerHTML = (renderers[ROUTE]||renderDashboard)();
+  // [V2 — CORREÇÃO] Rede de segurança: se QUALQUER tela lançar um erro
+  // inesperado (ex: dado salvo em formato que esta versão não reconhece),
+  // nunca deixa a área principal em branco sem explicação — mostra uma
+  // tela de recuperação com opções, sem apagar nada sozinho.
+  let erroDeRenderizacao = null;
+  try{
+    content.innerHTML = (renderers[ROUTE]||renderDashboard)();
+  }catch(e){
+    console.error('Erro ao renderizar a tela "'+ROUTE+'":', e);
+    erroDeRenderizacao = e;
+    content.innerHTML = telaDeErro(e);
+  }
   bindGlobalEvents();
-  bindRouteEvents();
+  if(!erroDeRenderizacao) bindRouteEvents();
+}
+
+function telaDeErro(e){
+  return `
+  <div class="card">
+    <h3>Não foi possível carregar esta tela</h3>
+    <p class="muted">Houve um erro inesperado ao montar esta tela — os dados salvos neste navegador podem estar em um formato que esta versão do CRM não reconhece.</p>
+    <p class="muted small">Detalhe técnico: ${escapeHtml(e && e.message || String(e))}</p>
+    <div style="display:flex;gap:10px;margin-top:14px;flex-wrap:wrap;">
+      <button class="btn sm" data-action="baixar-estado-atual">⬇️ Baixar backup do estado atual</button>
+      <button class="btn sm danger" data-action="resetar-dados">Restaurar dados de exemplo da Mori Ortodontia</button>
+    </div>
+  </div>`;
 }
 
 function bindGlobalEvents(){
@@ -1890,6 +2252,67 @@ function bindGlobalEvents(){
   });
   const novoBtn = document.querySelector('[data-action="novo-paciente"]');
   if(novoBtn) novoBtn.addEventListener('click', ()=>openPacienteModal(null));
+
+  // [V2] Botões reutilizáveis de navegação entre módulos (Kanban, Pacientes,
+  // Pós-Vendas e Agenda podem todos aparecer na mesma tela renderizada, por
+  // isso ficam centralizados aqui em vez de repetidos em cada bindXEvents).
+  document.querySelectorAll('[data-wa-paciente]').forEach(el=>{
+    el.addEventListener('click', (e)=>{
+      e.stopPropagation();
+      const contexto = el.dataset.waContexto ? { tipo: el.dataset.waContexto } : null;
+      abrirWhatsAppPaciente(el.dataset.waPaciente, contexto);
+    });
+  });
+  document.querySelectorAll('[data-ver-paciente]').forEach(el=>{
+    el.addEventListener('click', (e)=>{ e.stopPropagation(); abrirPaciente(el.dataset.verPaciente); });
+  });
+
+  // [V2.1] Conclusão explícita de ações comerciais — nunca automática só
+  // por abrir o WhatsApp (ver seção "AÇÕES COMERCIAIS" no código).
+  document.querySelectorAll('[data-resgate-realizado]').forEach(el=>{
+    el.addEventListener('click', (e)=>{
+      e.stopPropagation();
+      concluirAcaoComercial('resgate', el.dataset.resgateRealizado);
+      render();
+      toast('Resgate marcado como realizado.');
+    });
+  });
+  document.querySelectorAll('[data-followup-realizado]').forEach(el=>{
+    el.addEventListener('click', (e)=>{
+      e.stopPropagation();
+      concluirAcaoComercial('followup_plano', el.dataset.followupRealizado);
+      render();
+      toast('Follow-up marcado como realizado.');
+    });
+  });
+  // Atalho de conclusão direto de dentro da conversa de WhatsApp (item 10).
+  document.querySelectorAll('[data-wa-concluir-acao]').forEach(el=>{
+    el.addEventListener('click', ()=>{
+      const tipo = el.dataset.waConcluirAcao;
+      const conversa = DB.whatsappConversas.find(c=>c.id===whatsappConversaSelecionadaId);
+      if(!conversa) return;
+      if(tipo==='pos_venda'){
+        if(!DB.posVendasConcluidos.includes(conversa.pacienteId)) DB.posVendasConcluidos.push(conversa.pacienteId);
+        saveState();
+      } else {
+        concluirAcaoComercial(tipo, conversa.pacienteId);
+      }
+      render();
+      toast('Ação marcada como realizada.');
+    });
+  });
+
+  // [V2 — CORREÇÃO] Ações da tela de recuperação (telaDeErro) — reutilizam
+  // as funções de backup já existentes; nunca apagam dados sem confirmação.
+  const baixarBtn = document.querySelector('[data-action="baixar-estado-atual"]');
+  if(baixarBtn) baixarBtn.addEventListener('click', exportBackupJSON);
+  const resetBtn = document.querySelector('[data-action="resetar-dados"]');
+  if(resetBtn) resetBtn.addEventListener('click', ()=>{
+    if(confirm('Isso substitui o estado atual deste navegador pelos dados de exemplo da Mori Ortodontia. Se quiser guardar o que está salvo agora, baixe o backup antes de continuar. Deseja restaurar os dados de exemplo?')){
+      DB = buildInitialState(); saveState(); render();
+      toast('Dados de exemplo da Mori Ortodontia restaurados.');
+    }
+  });
 }
 
 /* ============================================================
@@ -1925,27 +2348,72 @@ function renderPacientes(){
       <select data-filter="status"><option value="">Todos os status</option>${statusOptions.map(s=>`<option value="${escapeHtml(s)}" ${filtroPacientes.status===s?'selected':''}>${escapeHtml(s)}</option>`).join('')}</select>
       <span class="muted small">${lista.length} de ${DB.pacientes.length} pacientes</span>
     </div>
-    <div class="table-wrap">
+    <div class="table-wrap pacientes-scroll">
     <table>
-      <thead><tr><th>Nome</th><th>Origem</th><th>Procedimento</th><th>Responsável</th><th>1º Contato</th><th>Status</th><th>Orçamento</th><th>Fechado</th></tr></thead>
+      <thead><tr><th>Paciente</th><th>Procedimento</th><th>Data da Consulta</th><th>Radiografia</th><th>Orçamento</th><th>Fechado</th><th>Plano de Tratamento</th><th>Ação</th></tr></thead>
       <tbody>
-      ${lista.length? lista.map(p=>{
-        const status = calcStatus(p);
-        return `<tr class="clickable" data-open="${p.id}">
+      ${lista.length? lista.map(p=>`<tr class="clickable" data-open="${p.id}">
           <td><b>${escapeHtml(p.nome)}</b><div class="muted small">${escapeHtml(p.telefone||'')}</div></td>
-          <td>${escapeHtml(p.origem||'—')}</td>
           <td>${(p.procedimentos||[]).map(x=>`<span class="pill">${escapeHtml(x)}</span>`).join(' ')||'<span class="muted">—</span>'}</td>
-          <td>${escapeHtml(p.responsavel||'—')}</td>
-          <td>${fmtData(p.dataContato)}</td>
-          <td><span class="badge-status" style="background:${etapaCor(status)}22;color:${etapaCor(status)}">${escapeHtml(status||'—')}</span></td>
+          <td>${fmtData(p.dataConsulta)}</td>
+          <td>${celulaRadiografia(p)}</td>
           <td>${fmtMoeda(p.valorOrcamento)}</td>
-          <td>${fmtMoeda(p.valorFechado)}</td>
-        </tr>`;
-      }).join('') : `<tr><td colspan="8" class="empty">Nenhum paciente encontrado com esses filtros.</td></tr>`}
+          <td>${celulaFechado(p)}</td>
+          <td>${celulaPlano(p)}</td>
+          <td>${celulaAcao(p)}</td>
+        </tr>`).join('') : `<tr><td colspan="8" class="empty">Nenhum paciente encontrado com esses filtros.</td></tr>`}
       </tbody>
     </table>
     </div>
+    <div class="muted small" style="margin-top:10px;">Origem, responsável e data do 1º contato continuam disponíveis no cadastro do paciente (clique na linha) e nos filtros acima — só saíram desta tabela para deixar a visualização mais direta.</div>
   </div>`;
+}
+
+// [V2] células auxiliares da tabela de Pacientes — cada uma isolada para
+// ficar fácil de reaproveitar (ex: mesma badge de Radiografia em outro lugar).
+function celulaRadiografia(p){
+  if(p.fezRadiografia==='Sim') return `<span class="badge-status" style="background:var(--success-bg);color:var(--success);">Sim</span>`;
+  if(p.fezRadiografia==='Não') return `<span class="badge-status" style="background:var(--ink-100);color:var(--text-muted);">Não</span>`;
+  return '<span class="muted">—</span>';
+}
+// [V2.1 — CORREÇÃO] Esta coluna mostra SOMENTE o status `fechouTratamento`
+// (Sim/Parcial/Pendente/Não precisa no momento/Não) — nunca mais o valor em
+// R$. O valor fechado continua existindo normalmente no cadastro/cálculos,
+// só não aparece mais misturado nesta célula.
+function celulaFechado(p){
+  if(!p.fechouTratamento) return '<span class="muted">—</span>';
+  const ok = p.fechouTratamento==='Sim' || p.fechouTratamento==='Parcial';
+  const ruim = p.fechouTratamento==='Não';
+  const bg = ok? 'var(--success-bg)' : ruim? 'var(--danger-bg)' : 'var(--warn-bg)';
+  const cor = ok? 'var(--success)' : ruim? 'var(--danger)' : 'var(--warn)';
+  return `<span class="badge-status" style="background:${bg};color:${cor};">${escapeHtml(p.fechouTratamento)}</span>`;
+}
+function celulaPlano(p){
+  const info = estadoPlanoTratamentoDemo(p);
+  const estilos = {
+    nao_enviado: 'background:var(--ink-100);color:var(--text-muted);',
+    enviado: 'background:var(--success-bg);color:var(--success);',
+    followup: 'background:var(--danger-bg);color:var(--danger);font-weight:800;',
+    followup_feito: 'background:var(--ink-100);color:var(--text-muted);', // [V2.1]
+  };
+  return `<span class="badge-status" style="${estilos[info.estado]}">${escapeHtml(info.label)}</span>`;
+}
+function celulaAcao(p){
+  const plano = estadoPlanoTratamentoDemo(p);
+  if(plano.estado==='followup'){
+    // [V2.1] abrir o WhatsApp não conclui o follow-up — a secretária
+    // precisa confirmar explicitamente com o botão ao lado.
+    return `<div style="display:flex;gap:6px;flex-wrap:wrap;">
+      <button class="btn sm gold" data-wa-paciente="${p.id}" data-wa-contexto="followup_plano">WhatsApp</button>
+      <button class="btn sm primary" data-followup-realizado="${p.id}">Marcar follow-up realizado</button>
+    </div>`;
+  }
+  if(plano.estado==='followup_feito'){
+    const dataTxt = plano.dataHora ? ' em '+fmtData(plano.dataHora.slice(0,10)) : '';
+    return `<span class="muted small">✓ Follow-up realizado${dataTxt}</span>`;
+  }
+  if(isVendido(p)) return `<span class="muted small">Fechado</span>`;
+  return '<span class="muted">—</span>';
 }
 
 function bindPacientesEvents(){
@@ -1977,7 +2445,10 @@ function openPacienteModal(paciente){
     <div class="modal">
       <div class="modal-head">
         <h3>${isNew?'Novo Paciente':'Editar Paciente'}</h3>
-        <button class="modal-close" data-close>✕</button>
+        <div style="display:flex;align-items:center;gap:8px;">
+          ${!isNew? `<button type="button" class="btn sm gold" data-modal-whatsapp>💬 WhatsApp</button>`:''}
+          <button class="modal-close" data-close>✕</button>
+        </div>
       </div>
       <form id="form-paciente">
         <div class="modal-body">
@@ -2049,6 +2520,13 @@ function openPacienteModal(paciente){
 
   modalRoot.querySelectorAll('[data-close]').forEach(el=>el.addEventListener('click', closeModal));
   modalRoot.querySelector('[data-close-backdrop]').addEventListener('click', (e)=>{ if(e.target===e.currentTarget) closeModal(); });
+  // [V2.1] Botão WhatsApp do modal — reaproveita abrirWhatsAppPaciente(),
+  // sem duplicar a lógica de busca/criação de conversa.
+  const waModalBtn = modalRoot.querySelector('[data-modal-whatsapp]');
+  if(waModalBtn) waModalBtn.addEventListener('click', ()=>{
+    closeModal();
+    abrirWhatsAppPaciente(p.id);
+  });
   modalRoot.querySelectorAll('.chip-check').forEach(el=>{
     el.addEventListener('click', (e)=>{
       e.preventDefault();
@@ -2124,7 +2602,14 @@ function renderKanban(){
           <span>${escapeHtml(et.nome)}</span><span>${items.length}</span>
         </div>
         <div class="kanban-col-body">
-          ${items.length? items.map(p=>`
+          ${items.length? items.map(p=>{
+            // [V2] resgate de perdidos — regra: data_perda + 30 dias = elegível.
+            // `data_perda` ainda não existe no modelo real; ver infoResgate().
+            const resgate = et.nome==='Perdido' ? infoResgate(p) : null;
+            // [V2.1] resgate realizado — abrir o WhatsApp sozinho NÃO conclui;
+            // precisa da confirmação explícita da secretária.
+            const resgateFeito = et.nome==='Perdido' ? acaoComercialConcluida('resgate', p.id) : null;
+            return `
             <div class="kcard" data-open="${p.id}">
               <div class="nm">${escapeHtml(p.nome)}</div>
               <div class="meta">
@@ -2135,9 +2620,25 @@ function renderKanban(){
               <div class="meta">
                 <span>💰 ${fmtMoeda(p.fechouTratamento?p.valorFechado ?? p.valorOrcamento : p.valorOrcamento)}</span>
               </div>
+              ${resgate? `
+                <div class="meta">
+                  <span>Perda: ${fmtData(resgate.dataPerda)}</span>
+                  <span>·</span>
+                  <span>${resgate.dias!==null? resgate.dias+' dias perdido' : 'data indisponível'}</span>
+                </div>
+                ${resgateFeito
+                  ? `<div class="obs" style="background:var(--ink-100);color:var(--text-muted);">✓ Resgate realizado em ${fmtData(resgateFeito.dataHora.slice(0,10))}</div>`
+                  : (resgate.elegivel? `<div class="obs" style="background:var(--success-bg);color:var(--success);font-weight:800;">🔁 Resgate disponível</div>`:'')}
+              `:''}
               ${(et.nome==='Pendente'||et.nome==='Não Precisa no Momento') && p.observacoes? `<div class="obs">${escapeHtml(p.observacoes)}</div>`:''}
               ${et.nome==='Perdido' && p.motivoPerda? `<div class="obs">Motivo: ${escapeHtml(p.motivoPerda)}</div>`:''}
-            </div>`).join('') : `<div class="empty small">vazio</div>`}
+              ${et.nome==='Perdido'? `
+                <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;">
+                  <button class="btn sm gold" data-wa-paciente="${p.id}" data-wa-contexto="resgate">WhatsApp</button>
+                  ${resgate.elegivel && !resgateFeito? `<button class="btn sm primary" data-resgate-realizado="${p.id}">Marcar resgate realizado</button>`:''}
+                </div>`:''}
+            </div>`;
+          }).join('') : `<div class="empty small">vazio</div>`}
         </div>
       </div>`;
     }).join('')}
@@ -2155,6 +2656,30 @@ function bindKanbanEvents(){
 /* ============================================================
    7) INDICAÇÕES
    ============================================================ */
+/* ============================================================
+   [V2.1] CLASSIFICAÇÃO TEMPORÁRIA DE TIPO DE INDICADOR
+   ------------------------------------------------------------
+   O campo estruturado `tipo_indicador` (paciente | profissional | outro)
+   AINDA NÃO EXISTE no modelo de dados — hoje só existe o texto livre
+   `indicadoPor`, digitado pela secretária. Esta função classifica esse
+   texto por palavras-chave SOMENTE para fins de demonstração nesta
+   homologação. O texto original de `indicadoPor` nunca é alterado — a
+   classificação é sempre calculada na hora, nunca gravada por cima do
+   dado real.
+   Quando o campo `tipo_indicador` existir de verdade (Supabase), esta
+   função inteira deve ser removida e a classificação passa a vir direto
+   da coluna, não de um palpite por texto.
+   Retorna 'paciente' | 'profissional' | 'outro' | null (null = sem
+   indicador registrado, não deve ser exibido como se fosse "Outros").
+   ============================================================ */
+function classificarTipoIndicador(nomeIndicador){
+  const texto = (nomeIndicador||'').toLowerCase().trim();
+  if(!texto) return null;
+  if(/\bdr\.?\b|\bdra\.?\b|doutor|doutora/.test(texto)) return 'profissional';
+  if(/paciente/.test(texto)) return 'paciente';
+  return 'outro';
+}
+
 function renderIndicacoes(){
   const inds = DB.indicacoes;
   const ranking = {};
@@ -2191,7 +2716,36 @@ function renderIndicacoes(){
       </table>
       </div>
     </div>
+  </div>
+  <div class="card" style="margin-top:16px;">
+    <h3>Qual tipo de indicador mais gera indicações</h3>
+    ${renderGraficoTipoIndicador()}
   </div>`;
+}
+// [V2.1] Substitui o gráfico "De onde vêm as indicações" (que mostrava
+// pessoa por pessoa) por uma visão por CATEGORIA de indicador — o que a
+// clínica realmente quer saber para decidir onde investir esforço de
+// relacionamento (pacientes vs. rede de profissionais vs. outros).
+function renderGraficoTipoIndicador(){
+  const contagem = { paciente:0, profissional:0, outro:0 };
+  let semClassificar = 0;
+  DB.indicacoes.forEach(i=>{
+    const tipo = classificarTipoIndicador(i.indicadoPor);
+    if(tipo) contagem[tipo]++;
+    else semClassificar++;
+  });
+  const totalClassificado = contagem.paciente + contagem.profissional + contagem.outro;
+  const itens = [
+    { label:'Pacientes', count:contagem.paciente },
+    { label:'Dentistas / Profissionais', count:contagem.profissional },
+    { label:'Outros', count:contagem.outro },
+  ];
+  return `
+    ${renderBarListHorizontal(itens)}
+    <div class="muted small" style="margin-top:10px;">
+      ${totalClassificado} de ${DB.indicacoes.length} indicações classificadas
+      ${semClassificar? ` — ${semClassificar} sem indicador registrado (não entram nesta contagem).` : '.'}
+    </div>`;
 }
 function bindIndicacoesEvents(){
   const btn = document.querySelector('[data-action="nova-indicacao"]');
@@ -2255,17 +2809,27 @@ function funilTotais(mesFiltro){
 
 function renderDashboard(){
   const meses = mesesDisponiveis();
-  if(!dashboardMesSelecionado || !meses.includes(dashboardMesSelecionado)){
+  // [V2.1] o seletor agora também aceita 'total' (visão geral/base inteira).
+  if(!dashboardMesSelecionado || (dashboardMesSelecionado!=='total' && !meses.includes(dashboardMesSelecionado))){
     dashboardMesSelecionado = meses[meses.length-1];
   }
-  const atual = aggregateMonth(dashboardMesSelecionado);
-  const funil = funilTotais(dashboardMesSelecionado);
+  // Os widgets ANTIGOS (Resumo do mês / Evolução / Funil de Conversão já
+  // existente) nunca souberam lidar com "total" — continuam se comportando
+  // exatamente como antes, usando o último mês real como fallback quando
+  // 'total' estiver selecionado, para não quebrar nem mudar a regra deles.
+  const mesParaWidgetsAntigos = dashboardMesSelecionado==='total' ? meses[meses.length-1] : dashboardMesSelecionado;
+  const atual = aggregateMonth(mesParaWidgetsAntigos);
+  const funil = funilTotais(mesParaWidgetsAntigos);
   const maxNovos = Math.max(...meses.map(k=>aggregateMonth(k).novos), 1);
+  // [V2.1] Os 3 componentes NOVOS (Origem, Procedimentos, Conversão) é que
+  // respondem de verdade ao período — inclusive a 'total'.
+  const funilDuplo = calcularFunilDuplo(dashboardMesSelecionado);
 
   return `
   <div class="section-title">
     <h2 style="font-size:16px;margin:0;">Resumo do mês</h2>
-    <select id="mes-select" style="width:auto;min-width:160px;">
+    <select id="mes-select" style="width:auto;min-width:180px;">
+      <option value="total" ${dashboardMesSelecionado==='total'?'selected':''}>Total Geral (todo o período)</option>
       ${meses.map(k=>`<option value="${k}" ${k===dashboardMesSelecionado?'selected':''}>${monthLabel(k)}</option>`).join('')}
     </select>
   </div>
@@ -2309,7 +2873,7 @@ function renderDashboard(){
     <h3>Funil de Conversão <span class="muted small">(Total Geral desde o início da base × mês selecionado)</span></h3>
     <div class="table-wrap">
       <table>
-        <thead><tr><th>Etapa</th><th>Total Geral</th><th>% do Total</th><th>Nº no mês (${monthLabel(dashboardMesSelecionado)})</th></tr></thead>
+        <thead><tr><th>Etapa</th><th>Total Geral</th><th>% do Total</th><th>Nº no mês (${monthLabel(mesParaWidgetsAntigos)})</th></tr></thead>
         <tbody>
           <tr><td>Novos Pacientes</td><td>${funil.novos}</td><td>100%</td><td>${funil.noMes.novos}</td></tr>
           <tr><td>Agendados</td><td>${funil.agendados}</td><td>${(funil.agendados/funil.novos*100).toFixed(1)}%</td><td>${funil.noMes.agendados}</td></tr>
@@ -2319,7 +2883,74 @@ function renderDashboard(){
       </table>
     </div>
     <div class="muted small" style="margin-top:8px;">"Agendados" e "Compareceram" contam quem já passou por essa etapa em algum momento (não apenas quem está nela agora) — mesma regra usada na planilha original.</div>
+  </div>
+
+  <div class="grid cols-2" style="margin-top:16px;">
+    <div class="card">
+      <h3>Origem dos Leads <span class="muted small">(${dashboardMesSelecionado==='total'?'total geral':monthLabel(dashboardMesSelecionado)})</span></h3>
+      ${renderBarListHorizontal(contagemPorOrigem(dashboardMesSelecionado))}
+    </div>
+    <div class="card">
+      <h3>Procedimentos mais frequentes <span class="muted small">(${dashboardMesSelecionado==='total'?'total geral':monthLabel(dashboardMesSelecionado)})</span></h3>
+      ${renderBarListHorizontal(contagemPorProcedimento(dashboardMesSelecionado))}
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:16px;">
+    <h3>Conversão <span class="muted small">("Vendido" = Fechou Tratamento Sim ou Parcial · ${dashboardMesSelecionado==='total'?'total geral':monthLabel(dashboardMesSelecionado)})</span></h3>
+    <div class="grid cols-2">
+      <div class="funnel-card">
+        <div class="funnel-top">${funilDuplo.novosLeads} Novos Leads</div>
+        <div class="funnel-arrow">↓ ${(funilDuplo.taxa1*100).toFixed(1)}%</div>
+        <div class="funnel-bottom">${funilDuplo.vendidos} Vendidos</div>
+      </div>
+      <div class="funnel-card">
+        <div class="funnel-top">${funilDuplo.compareceram} Compareceram</div>
+        <div class="funnel-arrow">↓ ${(funilDuplo.taxa2*100).toFixed(1)}%</div>
+        <div class="funnel-bottom">${funilDuplo.vendidosCompareceram} Vendidos</div>
+      </div>
+    </div>
+    <div class="muted small" style="margin-top:8px;">Ao selecionar um mês, considera a COORTE daquele período: os leads que chegaram (ou compareceram) naquele mês, e quantos deles fecharam — não importa quando fecharam.</div>
   </div>`;
+}
+// [V2.1] Os 3 componentes abaixo aceitam um filtro de período opcional
+// ('total' ou uma chave 'YYYY-MM' de mesesDisponiveis()). Sem filtro (ou
+// 'total'), consideram a base inteira — igual ao comportamento original.
+//
+// IMPORTANTE (coorte, não "evento no mês"): diferente do restante do
+// Dashboard (que já existia antes desta rodada e usa "o fechamento
+// aconteceu neste mês"), aqui um mês filtra pela DATA DE ORIGEM do lead
+// (1º contato) ou do comparecimento — e dentro desse grupo, olha se
+// fechou depois, não importa quando. É a regra pedida especificamente
+// para este bloco de Conversão; os indicadores mensais antigos (Resumo do
+// mês / Evolução / Funil de Conversão já existente) NÃO mudaram.
+function contagemPorOrigem(mesFiltro){
+  const base = (mesFiltro && mesFiltro!=='total') ? DB.pacientes.filter(p=>monthKey(p.dataContato)===mesFiltro) : DB.pacientes;
+  const mapa = {};
+  base.forEach(p=>{ const k=p.origem||'Não informado'; mapa[k]=(mapa[k]||0)+1; });
+  return Object.entries(mapa).sort((a,b)=>b[1]-a[1]).map(([label,count])=>({label,count}));
+}
+function contagemPorProcedimento(mesFiltro){
+  const base = (mesFiltro && mesFiltro!=='total') ? DB.pacientes.filter(p=>monthKey(p.dataContato)===mesFiltro) : DB.pacientes;
+  const mapa = {};
+  base.forEach(p=>{ (p.procedimentos||[]).forEach(proc=>{ mapa[proc]=(mapa[proc]||0)+1; }); });
+  return Object.entries(mapa).sort((a,b)=>b[1]-a[1]).map(([label,count])=>({label,count}));
+}
+function calcularFunilDuplo(mesFiltro){
+  const filtrar = mesFiltro && mesFiltro!=='total';
+  const cohortLeads = filtrar ? DB.pacientes.filter(p=>monthKey(p.dataContato)===mesFiltro) : DB.pacientes;
+  const cohortCompareceram = filtrar
+    ? DB.pacientes.filter(p=>p.compareceu==='Sim' && monthKey(p.dataConsulta)===mesFiltro)
+    : DB.pacientes.filter(p=>p.compareceu==='Sim');
+  const novosLeads = cohortLeads.length;
+  const vendidos = cohortLeads.filter(isVendido).length;
+  const compareceram = cohortCompareceram.length;
+  const vendidosCompareceram = cohortCompareceram.filter(isVendido).length;
+  return {
+    novosLeads, vendidos, compareceram, vendidosCompareceram,
+    taxa1: novosLeads? vendidos/novosLeads : 0,
+    taxa2: compareceram? vendidosCompareceram/compareceram : 0,
+  };
 }
 function bindDashboardEvents(){
   const sel = document.getElementById('mes-select');
@@ -2372,34 +3003,89 @@ function calcUrgencia(p){
   return null;
 }
 
+// [V2] Agenda virou calendário mensal (a lista de "próximas ações" da V1
+// ficou confusa para a cliente). `calcUrgencia()` acima é MANTIDA — ela
+// continua sendo usada pelo Assistente de Vendas ("próxima ação sugerida").
+let agendaMes = null;              // {year, month(0-11)} — mês em exibição
+let agendaDiaSelecionado = null;   // 'YYYY-MM-DD' ou null
+
+function consultasPorDia(){
+  const mapa = {};
+  DB.pacientes.forEach(p=>{
+    if(p.dataConsulta){ (mapa[p.dataConsulta] = mapa[p.dataConsulta]||[]).push(p); }
+  });
+  return mapa;
+}
+
 function renderAgenda(){
-  const abertos = DB.pacientes.filter(p=>ESTAGIOS_ABERTOS.includes(calcStatus(p)));
-  const itens = abertos.map(p=>({p, u:calcUrgencia(p)})).filter(x=>x.u);
-  const ordem = {atrasado:0, proximo:1, 'em-dia':2};
-  itens.sort((a,b)=> (ordem[a.u.nivel]-ordem[b.u.nivel]) || ((b.u.dias??0)-(a.u.dias??0)) );
-  const nivelLabel = {atrasado:'Atrasado', proximo:'Próximo', 'em-dia':'Em dia'};
-  const nivelClasse = {atrasado:'tag-urg-atrasado', proximo:'tag-urg-proximo', 'em-dia':'tag-urg-em-dia'};
+  if(!agendaMes){ const h=new Date(); agendaMes = {year:h.getFullYear(), month:h.getMonth()}; }
+  const {year, month} = agendaMes;
+  const nomesMes = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+  const primeiroDia = new Date(year, month, 1);
+  const offsetSegunda = (primeiroDia.getDay()+6)%7; // semana começa na Segunda
+  const diasNoMes = new Date(year, month+1, 0).getDate();
+  const porDia = consultasPorDia();
+  const hojeStr = hojeISO();
+
+  const celulas = [];
+  for(let i=0;i<offsetSegunda;i++) celulas.push(null);
+  for(let d=1; d<=diasNoMes; d++) celulas.push(`${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`);
+  while(celulas.length % 7 !== 0) celulas.push(null);
+
+  const consultasDoDia = agendaDiaSelecionado ? (porDia[agendaDiaSelecionado]||[]) : [];
+
   return `
   <div class="card">
-    <div class="section-title"><h2 style="font-size:16px;margin:0;">Próximas ações (${itens.length})</h2>
-      <span class="muted small">Ordenado por urgência: atrasado → próximo → em dia</span>
+    <div class="cal-head">
+      <button class="btn sm" data-cal="prev">‹ Mês anterior</button>
+      <h3 style="margin:0;">${nomesMes[month]} ${year}</h3>
+      <div style="display:flex;gap:8px;">
+        <button class="btn sm" data-cal="hoje">Hoje</button>
+        <button class="btn sm" data-cal="next">Próximo mês ›</button>
+      </div>
     </div>
-    <div class="table-wrap">
-    <table>
-      <thead><tr><th>Urgência</th><th>Paciente</th><th>Status</th><th>Ação sugerida</th><th>Responsável</th></tr></thead>
-      <tbody>
-      ${itens.length? itens.map(({p,u})=>`
-        <tr class="clickable" data-open="${p.id}">
-          <td><span class="badge-status ${nivelClasse[u.nivel]}">${nivelLabel[u.nivel]}</span></td>
-          <td><b>${escapeHtml(p.nome)}</b></td>
-          <td><span class="badge-status" style="background:${etapaCor(calcStatus(p))}22;color:${etapaCor(calcStatus(p))}">${escapeHtml(calcStatus(p))}</span></td>
-          <td>${escapeHtml(u.texto)}</td>
-          <td>${escapeHtml(p.responsavel||'—')}</td>
-        </tr>`).join('') : `<tr><td colspan="5" class="empty">Nenhuma ação pendente — tudo em dia.</td></tr>`}
-      </tbody>
-    </table>
+    <div class="cal-grid">
+      ${['SEG','TER','QUA','QUI','SEX','SAB','DOM'].map(d=>`<div class="cal-dow">${d}</div>`).join('')}
+      ${celulas.map(iso=>{
+        if(!iso) return `<div class="cal-day outro-mes"></div>`;
+        const lista = porDia[iso]||[];
+        const cls = ['cal-day'];
+        if(iso===hojeStr) cls.push('hoje');
+        if(iso===agendaDiaSelecionado) cls.push('selecionado');
+        return `<div class="${cls.join(' ')}" data-dia="${iso}">
+          <div class="num">${parseInt(iso.slice(8,10),10)}</div>
+          ${lista.length? `<div class="qtd">${lista.length} consulta${lista.length>1?'s':''}</div>`:''}
+        </div>`;
+      }).join('')}
     </div>
-  </div>`;
+  </div>
+  ${agendaDiaSelecionado? `
+  <div class="card" style="margin-top:16px;">
+    <h3>${fmtData(agendaDiaSelecionado)}</h3>
+    ${consultasDoDia.length? consultasDoDia.map(p=>`
+      <div class="chk-item">
+        <div>
+          <b>${escapeHtml(p.nome)}</b><br>
+          <span class="muted small">Horário não informado · ${(p.procedimentos||[]).join(', ')||'Procedimento n/d'}</span>
+        </div>
+        <button class="btn sm" data-ver-paciente="${p.id}">Ver paciente</button>
+      </div>`).join('') : `<div class="empty">Nenhuma consulta neste dia.</div>`}
+  </div>`:''}
+  `;
+}
+function bindAgendaEvents(){
+  document.querySelectorAll('[data-cal]').forEach(el=>{
+    el.addEventListener('click', ()=>{
+      const acao = el.dataset.cal;
+      if(acao==='hoje'){ const h=new Date(); agendaMes={year:h.getFullYear(),month:h.getMonth()}; agendaDiaSelecionado=hojeISO(); }
+      else if(acao==='prev'){ agendaMes.month--; if(agendaMes.month<0){ agendaMes.month=11; agendaMes.year--; } }
+      else if(acao==='next'){ agendaMes.month++; if(agendaMes.month>11){ agendaMes.month=0; agendaMes.year++; } }
+      render();
+    });
+  });
+  document.querySelectorAll('[data-dia]').forEach(el=>{
+    el.addEventListener('click', ()=>{ agendaDiaSelecionado = el.dataset.dia; render(); });
+  });
 }
 
 /* ============================================================
@@ -2475,6 +3161,336 @@ function bindAssistenteEvents(){
       p.observacoes = (p.observacoes? p.observacoes+' | ':'') + `[${carimbo}] ${txt}`;
       saveState(); render(); toast('Nota salva nas observações do paciente.');
     }
+  });
+}
+
+/* ============================================================
+   10b) WHATSAPP (V2 — SIMULADO, sem integração real)
+   ------------------------------------------------------------
+   Nada aqui envia ou recebe mensagem de verdade. As conversas vêm de
+   DADOS_DEMO_V2 (contatos reais, conteúdo simulado) e de conversas
+   criadas na hora ao clicar em "WhatsApp" em outra tela (vazias, sem
+   histórico inventado). Enviar só acrescenta a mensagem localmente.
+   ============================================================ */
+let whatsappConversaSelecionadaId = null;
+
+// Resolve nome/telefone de um pacienteId — cobre tanto pacientes reais
+// quanto os pacientes fictícios de demonstração do Pós-Vendas (seção 12).
+function resolverContatoWhatsapp(pacienteId){
+  const p = DB.pacientes.find(x=>x.id===pacienteId);
+  if(p) return { nome:p.nome, telefone:p.telefone };
+  const demo = DADOS_DEMO_V2.posVendaDemoPacientes.find(x=>x.id===pacienteId);
+  if(demo) return { nome:demo.nome, telefone:demo.telefone };
+  return { nome:'Contato', telefone:'' };
+}
+
+// [V2] Funções de navegação reutilizáveis entre módulos (item 9 do briefing).
+function abrirPaciente(pacienteId){
+  const p = DB.pacientes.find(x=>x.id===pacienteId);
+  if(p) openPacienteModal(p);
+  else toast('Este contato é só de demonstração — não tem cadastro de paciente.');
+}
+// [V2.1] `contexto` é opcional — ex: {tipo:'resgate'} — só serve para a
+// própria tela de WhatsApp saber mostrar (ou não) o atalho "Ação pendente"
+// de volta para quem abriu a conversa (ver acaoPendenteInfo()). Não afeta
+// mensagens nem cria nenhum vínculo além dessa dica de onde veio o clique.
+function abrirWhatsAppPaciente(pacienteId, contexto){
+  let conversa = DB.whatsappConversas.find(c=>c.pacienteId===pacienteId);
+  if(!conversa){
+    // Sem histórico simulado para este paciente: abre uma conversa nova e
+    // vazia, sem inventar mensagens — exatamente como pedido para o botão
+    // de resgate do Kanban.
+    conversa = { id: uid('wa'), pacienteId, mensagens: [] };
+    DB.whatsappConversas.push(conversa);
+  }
+  if(contexto) conversa.contextoAcao = contexto;
+  saveState();
+  whatsappConversaSelecionadaId = conversa.id;
+  navigate('whatsapp');
+}
+
+/* ============================================================
+   [V2.1] SIMULAÇÃO — "Novo contato de WhatsApp" vira "Novo Lead"
+   ------------------------------------------------------------
+   Reproduz, sem nenhuma API real, a regra aprovada para a integração
+   futura: número novo → normaliza o telefone → procura paciente pelo
+   telefone → se existir, só vincula a conversa; se não existir, cria um
+   lead novo (origem WhatsApp, entra em "Novo Paciente" no Kanban).
+   Isolado nestas 3 funções pequenas para facilitar a troca pelo webhook
+   de verdade depois — o "gatilho" muda (de um clique aqui para uma
+   chamada de API), mas a lógica de busca/criação é praticamente a mesma.
+   O lead criado aqui SEMPRE fica marcado com `demoWhatsapp:true` e um id
+   com prefixo `pac-demo-wa-` — nunca é confundido com os 52 originais.
+   ============================================================ */
+// Normalização simples (grau de demonstração): mantém só dígitos e remove
+// o DDI do Brasil quando presente, para comparar números escritos em
+// formatos diferentes. Uma normalização definitiva (E.164 completo) fica
+// para quando a API real do WhatsApp for integrada.
+function normalizarTelefone(tel){
+  if(!tel) return '';
+  let d = String(tel).replace(/\D/g,'');
+  d = d.replace(/^0+/,'');
+  if(d.length>11 && d.startsWith('55')) d = d.slice(2);
+  return d;
+}
+function buscarPacientePorTelefone(telefoneOriginalOuNormalizado){
+  const alvo = normalizarTelefone(telefoneOriginalOuNormalizado);
+  if(!alvo) return null;
+  return DB.pacientes.find(p=>normalizarTelefone(p.telefone)===alvo) || null;
+}
+function processarNovoContatoWhatsApp(telefoneOriginal, mensagemTexto){
+  let paciente = buscarPacientePorTelefone(telefoneOriginal);
+  let novo = false;
+  if(!paciente){
+    paciente = {
+      id: uid('pac-demo-wa'),
+      nome: 'Novo contato WhatsApp (Demonstração)',
+      telefone: telefoneOriginal, email:'', origem:'WhatsApp',
+      procedimentos:[], procedimentoOriginal:'', responsavel:'',
+      dataContato: hojeISO(), marcouConsulta:'', dataConsulta:'', compareceu:'',
+      fezRadiografia:'', planoTratamento:'', valorOrcamento:null,
+      fechouTratamento:'', valorFechado:null, dataFechamento:'',
+      motivoPerda:'', observacoes:'',
+      demoWhatsapp: true, // [V2.1] marca explícita — nunca confundir com os 52 reais
+    };
+    DB.pacientes.push(paciente);
+    novo = true;
+  }
+  let conversa = DB.whatsappConversas.find(c=>c.pacienteId===paciente.id);
+  if(!conversa){
+    conversa = { id: uid('wa'), pacienteId: paciente.id, mensagens: [] };
+    DB.whatsappConversas.push(conversa);
+  }
+  conversa.mensagens.push({ autor:'paciente', texto: mensagemTexto, hora: new Date().toISOString() });
+  saveState();
+  return { paciente, conversa, novo };
+}
+
+// [V2.1] Quando uma conversa foi aberta a partir de um Resgate/Follow-up/
+// Pós-Venda pendente, mostra um atalho de conclusão direto na conversa —
+// para a secretária não precisar voltar para a tela de origem. Some
+// sozinho assim que a ação for concluída (por aqui ou pela tela de origem).
+function acaoPendenteInfo(conversa){
+  if(!conversa || !conversa.contextoAcao) return null;
+  const tipo = conversa.contextoAcao.tipo;
+  const pacienteId = conversa.pacienteId;
+  if(tipo==='resgate' && !acaoComercialConcluida('resgate', pacienteId)){
+    return { label:'Ação pendente: Resgate', tipoAttr:'resgate' };
+  }
+  if(tipo==='followup_plano' && !acaoComercialConcluida('followup_plano', pacienteId)){
+    return { label:'Ação pendente: Follow-up de Plano', tipoAttr:'followup_plano' };
+  }
+  if(tipo==='pos_venda' && !DB.posVendasConcluidos.includes(pacienteId)){
+    return { label:'Ação pendente: Pós-Venda', tipoAttr:'pos_venda' };
+  }
+  return null;
+}
+
+// Regra do alerta de 2 horas: paciente enviou e a clínica ainda não
+// respondeu. "atencao" = entre 90min e 2h; "atrasado" = 2h ou mais.
+function statusConversaWhatsapp(conversa){
+  if(!conversa.mensagens.length) return { aguardando:false, nivel:'normal', minutos:null };
+  const ultima = conversa.mensagens[conversa.mensagens.length-1];
+  if(ultima.autor !== 'paciente') return { aguardando:false, nivel:'normal', minutos:null };
+  const minutos = Math.max(0, Math.floor((Date.now() - new Date(ultima.hora).getTime())/60000));
+  const nivel = minutos>=120 ? 'atrasado' : (minutos>=90 ? 'atencao' : 'normal');
+  return { aguardando:true, nivel, minutos };
+}
+function contarConversasAtrasadas(){
+  return DB.whatsappConversas.filter(c=>{ const s=statusConversaWhatsapp(c); return s.aguardando && s.nivel==='atrasado'; }).length;
+}
+function fmtHoraCurta(iso){
+  const d = new Date(iso), hoje = new Date();
+  const hh = String(d.getHours()).padStart(2,'0'), mm = String(d.getMinutes()).padStart(2,'0');
+  if(d.toDateString()===hoje.toDateString()) return `${hh}:${mm}`;
+  return `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')} ${hh}:${mm}`;
+}
+
+function renderWhatsapp(){
+  const conversas = DB.whatsappConversas.map(c=>({ c, contato: resolverContatoWhatsapp(c.pacienteId), st: statusConversaWhatsapp(c) }));
+  const ordem = {atrasado:0, atencao:1, normal:2};
+  conversas.sort((a,b)=>{
+    const oa = a.st.aguardando? ordem[a.st.nivel] : 3;
+    const ob = b.st.aguardando? ordem[b.st.nivel] : 3;
+    if(oa!==ob) return oa-ob;
+    const ha = a.c.mensagens.length? new Date(a.c.mensagens[a.c.mensagens.length-1].hora).getTime() : 0;
+    const hb = b.c.mensagens.length? new Date(b.c.mensagens[b.c.mensagens.length-1].hora).getTime() : 0;
+    return hb-ha;
+  });
+
+  if((!whatsappConversaSelecionadaId || !conversas.find(x=>x.c.id===whatsappConversaSelecionadaId)) && conversas.length){
+    whatsappConversaSelecionadaId = conversas[0].c.id;
+  }
+  const selecionada = conversas.find(x=>x.c.id===whatsappConversaSelecionadaId);
+  const aguardando = conversas.filter(x=>x.st.aguardando).length;
+  const atrasadas = conversas.filter(x=>x.st.aguardando && x.st.nivel==='atrasado').length;
+  // [V2.1] "novo contato" fictício pendente de processar — ver seção 9.
+  const novoContato = (DB.novoContatoWhatsappDemo && !DB.novoContatoWhatsappDemo.processado) ? DB.novoContatoWhatsappDemo : null;
+  // [V2.1] atalho de conclusão contextual (item 10) — só aparece quando existe.
+  const acaoInfo = selecionada ? acaoPendenteInfo(selecionada.c) : null;
+
+  return `
+  <div class="card" style="margin-bottom:14px;">
+    <div style="display:flex;gap:20px;flex-wrap:wrap;align-items:center;justify-content:space-between;">
+      <div style="display:flex;gap:28px;flex-wrap:wrap;">
+        <div><span class="muted small">Aguardando resposta:</span> <b>${aguardando}</b></div>
+        <div><span class="muted small">Aguardando +2h:</span> <b style="color:${atrasadas>0?'var(--danger)':'inherit'};">${atrasadas}</b></div>
+      </div>
+      <button class="btn ghost sm" data-action="wa-simular-contato" title="Ferramenta de teste: simula uma mensagem chegando de um número qualquer">🧪 Simular contato manual</button>
+    </div>
+  </div>
+  <div class="wa-layout">
+    <div class="wa-list">
+      ${novoContato? `
+        <div class="wa-item" data-wa-processar-novo-contato style="border-left:3px solid var(--gold-500);">
+          <div class="nm"><span>🆕 Novo contato <span class="pill">Demonstração</span></span></div>
+          <div class="muted small">${escapeHtml(novoContato.telefone)}</div>
+          <div class="snippet">${escapeHtml(novoContato.mensagem)}</div>
+          <div class="small" style="margin-top:4px;color:var(--gold-600);">Clique para simular o recebimento — cria o lead automaticamente</div>
+        </div>
+      `:''}
+      ${conversas.length? conversas.map(({c,contato,st})=>{
+        const ultima = c.mensagens[c.mensagens.length-1];
+        return `<div class="wa-item ${c.id===whatsappConversaSelecionadaId?'active':''}" data-wa-open="${c.id}">
+          <div class="nm">
+            <span><span class="wa-dot ${st.aguardando?st.nivel:'normal'}"></span>${escapeHtml(contato.nome)}</span>
+            ${ultima? `<span class="muted small">${fmtHoraCurta(ultima.hora)}</span>`:''}
+          </div>
+          <div class="snippet">${ultima? escapeHtml((ultima.autor==='clinica'?'Você: ':'')+ultima.texto) : 'Sem mensagens ainda'}</div>
+          ${st.aguardando? `<div class="small" style="margin-top:3px;color:${st.nivel==='atrasado'?'var(--danger)':st.nivel==='atencao'?'var(--warn)':'var(--success)'};">Aguardando há ${fmtMinutos(st.minutos)}</div>`:''}
+        </div>`;
+      }).join('') : (novoContato? '' : `<div class="empty">Nenhuma conversa ainda.</div>`)}
+    </div>
+    <div class="wa-panel">
+      ${selecionada? `
+        <div class="wa-panel-head">
+          <b>${escapeHtml(selecionada.contato.nome)}</b>
+          <div class="muted small">${escapeHtml(selecionada.contato.telefone||'sem telefone')}</div>
+        </div>
+        ${acaoInfo? `
+          <div style="margin:10px 14px 0;padding:10px 14px;border-radius:10px;background:var(--warn-bg);display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;">
+            <span class="small" style="font-weight:700;color:var(--warn);">${acaoInfo.label}</span>
+            <button class="btn sm primary" data-wa-concluir-acao="${acaoInfo.tipoAttr}">Marcar como realizado</button>
+          </div>
+        `:''}
+        <div class="wa-messages">
+          ${selecionada.c.mensagens.length? selecionada.c.mensagens.map(m=>`
+            <div class="wa-bubble ${m.autor}">${escapeHtml(m.texto)}<span class="hora">${fmtHoraCurta(m.hora)}</span></div>
+          `).join('') : `<div class="empty">Nenhuma mensagem ainda. Envie a primeira mensagem abaixo.</div>`}
+        </div>
+        <div class="wa-compose">
+          <textarea id="wa-input" rows="1" placeholder="Digite uma mensagem…"></textarea>
+          <button class="btn primary sm" data-action="wa-enviar">Enviar</button>
+        </div>
+      ` : `<div class="empty" style="margin:auto;">Selecione uma conversa ao lado.</div>`}
+    </div>
+  </div>`;
+}
+function bindWhatsappEvents(){
+  document.querySelectorAll('[data-wa-open]').forEach(el=>{
+    el.addEventListener('click', ()=>{ whatsappConversaSelecionadaId = el.dataset.waOpen; render(); });
+  });
+  const enviarBtn = document.querySelector('[data-action="wa-enviar"]');
+  if(enviarBtn) enviarBtn.addEventListener('click', ()=>{
+    const input = document.getElementById('wa-input');
+    const texto = input.value.trim();
+    if(!texto) return;
+    const conversa = DB.whatsappConversas.find(c=>c.id===whatsappConversaSelecionadaId);
+    if(conversa){
+      conversa.mensagens.push({ autor:'clinica', texto, hora: new Date().toISOString() });
+      saveState(); render();
+      toast('Mensagem enviada (simulação local — nenhum WhatsApp real foi acionado).');
+    }
+  });
+  // [V2.1] processa o "novo contato" fictício — demonstra a regra de
+  // dedup por telefone criando um lead novo (esse número nunca existe
+  // nos 52 reais).
+  const novoContatoEl = document.querySelector('[data-wa-processar-novo-contato]');
+  if(novoContatoEl) novoContatoEl.addEventListener('click', ()=>{
+    const seed = DB.novoContatoWhatsappDemo;
+    const resultado = processarNovoContatoWhatsApp(seed.telefone, seed.mensagem);
+    DB.novoContatoWhatsappDemo.processado = true;
+    saveState();
+    whatsappConversaSelecionadaId = resultado.conversa.id;
+    render();
+    toast('Novo lead de demonstração criado a partir do WhatsApp (origem: WhatsApp).');
+  });
+  // [V2.1] ferramenta de teste manual — deixa testar tanto o caminho
+  // "telefone já cadastrado" quanto "telefone novo" sob demanda.
+  const simularBtn = document.querySelector('[data-action="wa-simular-contato"]');
+  if(simularBtn) simularBtn.addEventListener('click', ()=>{
+    const tel = prompt('Telefone de quem está "enviando a mensagem"\n(use um telefone já cadastrado para ver o CRM reconhecer, ou um novo número para ver criar um lead):');
+    if(!tel) return;
+    const msg = prompt('Texto da mensagem:') || 'Olá!';
+    const resultado = processarNovoContatoWhatsApp(tel, msg);
+    whatsappConversaSelecionadaId = resultado.conversa.id;
+    render();
+    toast(resultado.novo
+      ? 'Número não encontrado na base — novo lead de demonstração criado e vinculado.'
+      : 'Número já cadastrado — mensagem vinculada ao paciente existente: '+resultado.paciente.nome);
+  });
+}
+
+/* ============================================================
+   10c) PÓS-VENDAS (V2)
+   ------------------------------------------------------------
+   Regra: paciente compareceu ONTEM e ainda não teve o pós-venda marcado
+   como realizado. Se não houver nenhum paciente real nessa condição
+   (ex: ao testar em outro dia), usa os fictícios de DADOS_DEMO_V2 para a
+   tela nunca ficar vazia na demonstração — nunca mistura os dois ao
+   mesmo tempo, e os fictícios são sempre visivelmente rotulados.
+   ============================================================ */
+function filaPosVenda(){
+  const ontem = ontemISO();
+  const reais = DB.pacientes
+    .filter(p=> p.compareceu==='Sim' && p.dataConsulta===ontem && !DB.posVendasConcluidos.includes(p.id))
+    .map(p=>({ id:p.id, nome:p.nome, telefone:p.telefone, procedimentos:p.procedimentos, demo:false }));
+  if(reais.length) return reais;
+  return DADOS_DEMO_V2.posVendaDemoPacientes
+    .filter(d=>!DB.posVendasConcluidos.includes(d.id))
+    .map(d=>({ id:d.id, nome:d.nome, telefone:d.telefone, procedimentos:d.procedimentos, demo:true }));
+}
+
+function renderPosVendas(){
+  const fila = filaPosVenda();
+  const concluidos = DB.posVendasConcluidos.slice(-10);
+  return `
+  <div class="card">
+    <div class="section-title">
+      <h2 style="font-size:16px;margin:0;">Pós-vendas de hoje</h2>
+      <span class="muted small">${fila.length} paciente${fila.length!==1?'s':''} precisa${fila.length!==1?'m':''} de contato</span>
+    </div>
+    ${fila.length===0? `<div class="empty">Nenhum pós-venda pendente no momento.</div>` : `
+    <div class="grid cols-3">
+      ${fila.map(item=>`
+        <div class="card" style="box-shadow:none;">
+          ${item.demo? `<span class="pill" style="background:var(--warn-bg);color:var(--warn);margin-bottom:6px;">🧪 Demonstração</span>`:''}
+          <div style="font-weight:800;">${escapeHtml(item.nome)}</div>
+          <div class="muted small">${escapeHtml(item.telefone||'sem telefone')}</div>
+          <div class="small" style="margin-top:6px;">Consulta: ontem</div>
+          <div class="small">${(item.procedimentos||[]).join(', ')||'Procedimento n/d'}</div>
+          <div style="display:flex;gap:8px;margin-top:10px;">
+            <button class="btn sm gold" data-wa-paciente="${item.id}" data-wa-contexto="pos_venda">WhatsApp</button>
+            <button class="btn sm primary" data-pv-realizado="${item.id}">Marcar como realizado</button>
+          </div>
+        </div>`).join('')}
+    </div>`}
+  </div>
+  ${concluidos.length? `
+  <div class="card" style="margin-top:16px;">
+    <h3 style="font-size:14px;">Concluídos recentemente</h3>
+    ${concluidos.map(id=>`<div class="small muted">✓ ${escapeHtml(resolverContatoWhatsapp(id).nome)} — pós-venda realizado</div>`).join('')}
+  </div>`:''}
+  `;
+}
+function bindPosVendasEvents(){
+  document.querySelectorAll('[data-pv-realizado]').forEach(el=>{
+    el.addEventListener('click', ()=>{
+      const id = el.dataset.pvRealizado;
+      if(!DB.posVendasConcluidos.includes(id)) DB.posVendasConcluidos.push(id);
+      saveState(); render();
+      toast('Pós-venda marcado como realizado.');
+    });
   });
 }
 
@@ -2690,14 +3706,22 @@ function exportPacientesCSV(){
 function bindRouteEvents(){
   if(ROUTE==='pacientes') bindPacientesEvents();
   if(ROUTE==='kanban') bindKanbanEvents();
+  if(ROUTE==='whatsapp') bindWhatsappEvents();     // [V2]
+  if(ROUTE==='posvendas') bindPosVendasEvents();   // [V2]
   if(ROUTE==='indicacoes') bindIndicacoesEvents();
   if(ROUTE==='dashboard') bindDashboardEvents();
+  if(ROUTE==='agenda') bindAgendaEvents();         // [V2]
   if(ROUTE==='assistente') bindAssistenteEvents();
   if(ROUTE==='config') bindConfigEvents();
 }
 
 loadState();
 render();
+// [V2 — CORREÇÃO] Avisa uma única vez, no boot, se um estado salvo nesta
+// chave foi descartado por não ser deste CRM (ver loadState()).
+if(AVISO_ESTADO_IGNORADO){
+  toast('Um estado salvo neste navegador não era desta clínica (Mori) e foi ignorado com segurança — nada foi apagado.');
+}
 </script>
 </body>
 </html>
