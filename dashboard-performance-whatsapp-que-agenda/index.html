@@ -429,25 +429,35 @@ table.creatives tbody tr:hover{background:var(--bg);}
 
       <!-- CAMPANHAS -->
       <section class="page" id="page-campaigns">
-        <div class="placeholder-panel">
-          <div class="icon-wrap">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="16" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="7" y1="13" x2="13" y2="13"/></svg>
+        <p class="section-label">Campanhas</p>
+        <div class="panel">
+          <div class="panel-head">
+            <h2>Performance por Campanha</h2>
+            <span class="hint" id="campaignsCountHint"></span>
           </div>
-          <h2>Campanhas</h2>
-          <p>Esta página vai listar automaticamente todas as campanhas ativas na conta de Meta Ads, com gasto, resultado e status de entrega de cada uma, assim que a integração com a Meta Marketing API for feita.</p>
-          <span class="badge status-paused">Mock / aguardando integração</span>
+          <div class="panel-body table-wrap">
+            <table class="creatives">
+              <thead><tr id="campaignsHeadRow"></tr></thead>
+              <tbody id="campaignsBody"></tbody>
+            </table>
+          </div>
         </div>
       </section>
 
       <!-- CRIATIVOS -->
       <section class="page" id="page-creatives">
-        <div class="placeholder-panel">
-          <div class="icon-wrap">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="M21 15l-5-5-9 9"/></svg>
+        <p class="section-label">Criativos</p>
+        <div class="panel">
+          <div class="panel-head">
+            <h2>Todos os Criativos</h2>
+            <span class="hint" id="creativesCountHint"></span>
           </div>
-          <h2>Criativos</h2>
-          <p>Aqui vai entrar a biblioteca de criativos com preview de imagem/vídeo, agrupamento por tipo e comparação lado a lado — hoje esse cruzamento já existe na tabela "Performance por Criativo" da Visão Geral.</p>
-          <span class="badge status-paused">Mock / aguardando integração</span>
+          <div class="panel-body table-wrap">
+            <table class="creatives">
+              <thead><tr id="creativesHeadRow"></tr></thead>
+              <tbody id="creativesBody"></tbody>
+            </table>
+          </div>
         </div>
       </section>
 
@@ -535,78 +545,193 @@ table.creatives tbody tr:hover{background:var(--bg);}
 "use strict";
 
 /* ============================================================
-   1. DADOS MOCK — contadores brutos por anúncio.
-   Todas as métricas derivadas (CTR, CPC, CPA, ROAS, custo por
-   checkout) são calculadas a partir daqui, nunca guardadas prontas,
-   para os números sempre fecharem matematicamente e para um novo
-   anúncio adicionado a este array aparecer em todo o dashboard sem
-   qualquer alteração de código.
+   1. CATÁLOGO DE ENTIDADES (dimensões)
+   Campanha → conjunto → anúncio. Nada aqui é uma lista fixa de "A1,
+   A2, A3": tudo o que os componentes mostram deriva destes arrays,
+   então adicionar uma linha em AD_CATALOG (ou CAMPAIGNS/ADSETS) é
+   suficiente para o anúncio aparecer em todo o dashboard.
+   A chave primária do anúncio é sempre ad_id — nunca ad_name.
    ============================================================ */
-const adsBase = [
-  { ad_id:"120001", ad_name:"A1 | Demonstração | Vídeo", type:"video", status:"ACTIVE",
-    impressions:11500, clicks:410, lpViews:340, checkouts:44, sales:12, spend:168.00, revenue:600.00 },
-  { ad_id:"120002", ad_name:"A2 | Objeções | Carrossel", type:"carousel", status:"ACTIVE",
-    impressions:9800, clicks:320, lpViews:260, checkouts:32, sales:7, spend:140.00, revenue:315.00,
-    previousCtr:0.0398 },
-  { ad_id:"120003", ad_name:"A3 | Padronização | Estático", type:"image", status:"ACTIVE",
-    impressions:6200, clicks:200, lpViews:160, checkouts:18, sales:0, spend:83.20, revenue:0.00 },
-  { ad_id:"120004", ad_name:"A4 | Depoimento | Vídeo", type:"video", status:"ACTIVE",
-    impressions:1900, clicks:60, lpViews:50, checkouts:6, sales:1, spend:12.60, revenue:63.00 },
-  { ad_id:"120005", ad_name:"A5 | Prova Social | Carrossel", type:"carousel", status:"ACTIVE",
-    impressions:2000, clicks:97, lpViews:82, checkouts:16, sales:2, spend:24.00, revenue:100.00 },
-  { ad_id:"120006", ad_name:"A6 | Oferta Especial | Estático", type:"image", status:"PAUSED",
-    impressions:0, clicks:0, lpViews:0, checkouts:0, sales:0, spend:0.00, revenue:0.00 },
+const CAMPAIGNS = [
+  { campaign_id:"c_001", campaign_name:"WhatsApp que Agenda — Conversão" },
 ];
 
-const RAW_FIELDS = ["impressions","clicks","lpViews","checkouts","sales","spend","revenue"];
+const ADSETS = [
+  { adset_id:"as_001", adset_name:"Interesses — Clínicas e Odontologia", campaign_id:"c_001" },
+];
 
-// fator de escala por período em relação à base ("7d") + leve variação
-// determinística por ad_id, para o filtro de período parecer real sem
-// depender de números aleatórios (o que quebraria a consistência entre renders).
-const periodFactors = { hoje:0.16, ontem:0.14, "7d":1, "30d":4.35, personalizado:4.35 };
+const AD_CATALOG = [
+  { ad_id:"120001", ad_name:"A1 | Demonstração | Vídeo", type:"video", status:"ACTIVE", adset_id:"as_001" },
+  { ad_id:"120002", ad_name:"A2 | Objeções | Carrossel", type:"carousel", status:"ACTIVE", adset_id:"as_001", previousCtr:0.0398 },
+  { ad_id:"120003", ad_name:"A3 | Padronização | Estático", type:"image", status:"ACTIVE", adset_id:"as_001" },
+  { ad_id:"120004", ad_name:"A4 | Depoimento | Vídeo", type:"video", status:"ACTIVE", adset_id:"as_001" },
+  { ad_id:"120005", ad_name:"A5 | Prova Social | Carrossel", type:"carousel", status:"ACTIVE", adset_id:"as_001" },
+  { ad_id:"120006", ad_name:"A6 | Oferta Especial | Estático", type:"image", status:"PAUSED", adset_id:"as_001" },
+];
+
+function adDimensions(ad_id){
+  const ad = AD_CATALOG.find(a => a.ad_id === ad_id);
+  const adset = ADSETS.find(s => s.adset_id === ad.adset_id);
+  const campaign = CAMPAIGNS.find(c => c.campaign_id === adset.campaign_id);
+  return Object.assign({}, ad, {
+    adset_id: adset.adset_id, adset_name: adset.adset_name,
+    campaign_id: campaign.campaign_id, campaign_name: campaign.campaign_name,
+  });
+}
+
+/* ============================================================
+   2. MÉTRICAS DIÁRIAS MOCK — granularidade "1 registro por dia +
+   ad_id", a mesma que teremos em marketing_daily_metrics no Supabase
+   (ver docs/arquitetura-meta-ads.md). O filtro de período soma os
+   registros do intervalo escolhido — Hoje/Ontem/7 dias/30 dias são só
+   janelas de data diferentes sobre a mesma tabela de fatos diária.
+
+   Duas fontes NUNCA misturadas na origem, espelhando a arquitetura
+   real: metaDailyRaw só tem o que a Meta reporta; salesDailyRaw só
+   tem o que vem da Landing Page + Kiwify/Supabase. A camada de dados
+   (seção 3) é quem faz o join das duas por (date, ad_id).
+   ============================================================ */
+const TODAY = new Date("2026-09-24T00:00:00Z");
+function isoDate(offsetDays){
+  const d = new Date(TODAY);
+  d.setUTCDate(d.getUTCDate() - offsetDays);
+  return d.toISOString().slice(0, 10);
+}
+
+// Totais dos últimos 7 dias por ad_id — os mesmos números já
+// homologados na V1 visual. A distribuição diária abaixo sempre soma
+// de volta exatamente a estes valores (ver splitByWeights).
+const SEVEN_DAY_TOTALS = {
+  "120001": { impressions:11500, clicks:410, lpViews:340, checkouts:44, sales:12, spend:168.00, revenue:600.00 },
+  "120002": { impressions:9800, clicks:320, lpViews:260, checkouts:32, sales:7, spend:140.00, revenue:315.00 },
+  "120003": { impressions:6200, clicks:200, lpViews:160, checkouts:18, sales:0, spend:83.20, revenue:0.00 },
+  "120004": { impressions:1900, clicks:60, lpViews:50, checkouts:6, sales:1, spend:12.60, revenue:63.00 },
+  "120005": { impressions:2000, clicks:97, lpViews:82, checkouts:16, sales:2, spend:24.00, revenue:100.00 },
+  "120006": { impressions:0, clicks:0, lpViews:0, checkouts:0, sales:0, spend:0, revenue:0 },
+};
+
+// Pesos dos últimos 7 dias (offset 0 = hoje ... offset 6 = 6 dias
+// atrás), somam 1.00 — mesmo perfil aplicado a todos os anúncios
+// nesta V1 mock, só para dar formato de calendário aos totais acima.
+const WEEK_WEIGHTS = [0.16, 0.15, 0.14, 0.15, 0.13, 0.14, 0.13];
+
+function splitByWeights(total, weights, decimals){
+  // Método do maior resto: garante que a soma das partes bate
+  // exatamente com `total`, mesmo depois de arredondar cada parte —
+  // essencial para os totais de 7 dias continuarem idênticos aos já
+  // homologados, registro a registro.
+  const scale = Math.pow(10, decimals);
+  const scaledTotal = Math.round(total * scale);
+  const raw = weights.map(w => w * scaledTotal);
+  const floor = raw.map(Math.floor);
+  const allocated = floor.reduce((a, b) => a + b, 0);
+  const remainder = scaledTotal - allocated;
+  const order = raw.map((v, i) => ({ i, frac: v - floor[i] })).sort((a, b) => b.frac - a.frac);
+  const result = floor.slice();
+  for(let k = 0; k < remainder; k++){ result[order[k % order.length].i] += 1; }
+  return result.map(v => v / scale);
+}
 
 function seededVariance(seed, spread){
   let hash = 0;
-  for(let i=0;i<seed.length;i++){ hash = (hash*31 + seed.charCodeAt(i)) >>> 0; }
+  for(let i = 0; i < seed.length; i++){ hash = (hash * 31 + seed.charCodeAt(i)) >>> 0; }
   const frac = (hash % 1000) / 1000;
   return 1 + (frac - 0.5) * 2 * spread;
 }
 
-function getPeriodAds(period){
-  if(period === "7d"){
-    return adsBase.map(a => Object.assign({}, a));
-  }
-  const factor = periodFactors[period] || 1;
-  return adsBase.map(ad => {
-    const scaled = Object.assign({}, ad);
-    const variance = seededVariance(ad.ad_id + period, 0.10);
-    const f = factor * variance;
-    scaled.clicks = Math.max(0, Math.round(ad.clicks * f));
-    scaled.lpViews = Math.min(scaled.clicks, Math.max(0, Math.round(ad.lpViews * f)));
-    scaled.checkouts = Math.min(scaled.lpViews, Math.max(0, Math.round(ad.checkouts * f)));
-    scaled.sales = Math.min(scaled.checkouts, Math.max(0, Math.round(ad.sales * f)));
-    scaled.impressions = Math.max(scaled.clicks, Math.round(ad.impressions * f));
-    scaled.spend = Math.round(ad.spend * f * 100) / 100;
-    scaled.revenue = Math.round(ad.revenue * f * 100) / 100;
-    return scaled;
-  });
+function clampFunnel(row){
+  // Garante impressões >= cliques >= LP views >= checkouts >= vendas,
+  // mesmo depois de multiplicar por uma variação e arredondar.
+  row.clicks = Math.min(row.clicks, row.impressions);
+  row.lpViews = Math.min(row.lpViews, row.clicks);
+  row.checkouts = Math.min(row.checkouts, row.lpViews);
+  row.sales = Math.min(row.sales, row.checkouts);
+  return row;
 }
+
+const ACCOUNT_ID = "act_1234567890";
+const metaDailyRaw = [];
+const salesDailyRaw = [];
+
+AD_CATALOG.forEach(ad => {
+  const totals = SEVEN_DAY_TOTALS[ad.ad_id];
+  const isPaused = ad.status === "PAUSED";
+
+  const impressionsByDay = splitByWeights(totals.impressions, WEEK_WEIGHTS, 0);
+  const clicksByDay = splitByWeights(totals.clicks, WEEK_WEIGHTS, 0);
+  const lpViewsByDay = splitByWeights(totals.lpViews, WEEK_WEIGHTS, 0);
+  const checkoutsByDay = splitByWeights(totals.checkouts, WEEK_WEIGHTS, 0);
+  const salesByDay = splitByWeights(totals.sales, WEEK_WEIGHTS, 0);
+  const spendByDay = splitByWeights(totals.spend, WEEK_WEIGHTS, 2);
+  const revenueByDay = splitByWeights(totals.revenue, WEEK_WEIGHTS, 2);
+
+  for(let offset = 0; offset < 7; offset++){
+    const date = isoDate(offset);
+    const impressions = impressionsByDay[offset];
+    const clicks = clicksByDay[offset];
+    const lpViews = lpViewsByDay[offset];
+    const checkouts = checkoutsByDay[offset];
+    const sales = salesByDay[offset];
+    const spend = spendByDay[offset];
+    const revenue = revenueByDay[offset];
+    const reach = Math.round(impressions / 1.25);
+    // A Meta reporta o próprio evento "Initiate Checkout" (pixel dela),
+    // que tende a divergir do checkout real registrado no Kiwify — por
+    // isso este campo nunca entra nos nossos cálculos (ver seção 7 do
+    // briefing / docs/arquitetura-meta-ads.md, "fonte da verdade").
+    const metaInitiateCheckout = Math.round(checkouts * seededVariance(ad.ad_id + date + "ic", 0.18));
+
+    metaDailyRaw.push({ date, ad_id:ad.ad_id, account_id:ACCOUNT_ID, spend, impressions, reach, clicks, initiate_checkout:metaInitiateCheckout });
+    salesDailyRaw.push({ date, ad_id:ad.ad_id, landing_page_views:lpViews, checkouts, sales, revenue });
+  }
+
+  if(isPaused) return; // anúncio pausado não gera histórico anterior nesta V1 mock
+
+  // Dias 7–29 (para 30 dias/personalizado): variação orgânica
+  // determinística em torno da média diária dos últimos 7 dias,
+  // sempre com o funil coerente (clampFunnel).
+  const dailyAvg = {
+    impressions: totals.impressions / 7, clicks: totals.clicks / 7, lpViews: totals.lpViews / 7,
+    checkouts: totals.checkouts / 7, sales: totals.sales / 7, spend: totals.spend / 7, revenue: totals.revenue / 7,
+  };
+  for(let offset = 7; offset < 30; offset++){
+    const date = isoDate(offset);
+    const f = seededVariance(ad.ad_id + date, 0.35);
+    const row = clampFunnel({
+      impressions: Math.max(0, Math.round(dailyAvg.impressions * f)),
+      clicks: Math.max(0, Math.round(dailyAvg.clicks * f)),
+      lpViews: Math.max(0, Math.round(dailyAvg.lpViews * f)),
+      checkouts: Math.max(0, Math.round(dailyAvg.checkouts * f)),
+      sales: Math.max(0, Math.round(dailyAvg.sales * f)),
+    });
+    const spend = Math.round(dailyAvg.spend * f * 100) / 100;
+    const revenue = Math.round(dailyAvg.revenue * f * 100) / 100;
+    const reach = Math.round(row.impressions / 1.25);
+    const metaInitiateCheckout = Math.round(row.checkouts * seededVariance(ad.ad_id + date + "ic", 0.18));
+
+    metaDailyRaw.push({ date, ad_id:ad.ad_id, account_id:ACCOUNT_ID, spend, impressions:row.impressions, reach, clicks:row.clicks, initiate_checkout:metaInitiateCheckout });
+    salesDailyRaw.push({ date, ad_id:ad.ad_id, landing_page_views:row.lpViews, checkouts:row.checkouts, sales:row.sales, revenue });
+  }
+});
+
+const RAW_FIELDS = ["impressions","clicks","lpViews","checkouts","sales","spend","revenue","reach","metaInitiateCheckout"];
 
 function deriveMetrics(r){
   const ctr = r.impressions > 0 ? r.clicks / r.impressions : null;
   const cpc = r.clicks > 0 ? r.spend / r.clicks : null;
+  const cpm = r.impressions > 0 ? (r.spend / r.impressions) * 1000 : null;
   const lpRate = r.clicks > 0 ? r.lpViews / r.clicks : null;
   const checkoutRate = r.lpViews > 0 ? r.checkouts / r.lpViews : null;
   const saleRate = r.checkouts > 0 ? r.sales / r.checkouts : null;
   const custoPorCheckout = r.checkouts > 0 ? r.spend / r.checkouts : null;
   const cpa = r.sales > 0 ? r.spend / r.sales : null;
   const roas = r.spend > 0 ? r.revenue / r.spend : null;
-  return Object.assign({}, r, { ctr, cpc, lpRate, checkoutRate, saleRate, custoPorCheckout, cpa, roas });
+  return Object.assign({}, r, { ctr, cpc, cpm, lpRate, checkoutRate, saleRate, custoPorCheckout, cpa, roas });
 }
 
 function aggregate(rows){
-  const sum = { impressions:0, clicks:0, lpViews:0, checkouts:0, sales:0, spend:0, revenue:0 };
-  rows.forEach(r => RAW_FIELDS.forEach(f => sum[f] += r[f]));
+  const sum = { impressions:0, clicks:0, lpViews:0, checkouts:0, sales:0, spend:0, revenue:0, reach:0, metaInitiateCheckout:0 };
+  rows.forEach(r => RAW_FIELDS.forEach(f => sum[f] += (r[f] || 0)));
   sum.spend = Math.round(sum.spend * 100) / 100;
   sum.revenue = Math.round(sum.revenue * 100) / 100;
   return deriveMetrics(sum);
@@ -630,7 +755,92 @@ const HEALTH_LABEL = { good:"Saudável", attention:"Atenção", critical:"Críti
 const PREV_RATIOS = { spend:0.8897, sales:0.8182, revenue:0.8256 };
 
 /* ============================================================
-   2. FORMATADORES
+   3. CAMADA DE DADOS — único ponto de acesso do frontend aos dados
+   do dashboard. Os componentes (cards, tabela, funil, alertas,
+   Campanhas, Criativos, status das fontes) só chamam estas funções;
+   nenhum deles lê metaDailyRaw/salesDailyRaw/AD_CATALOG diretamente.
+
+   Hoje o corpo de cada função lê os mocks acima. Quando a sincronização
+   real (Meta → Edge Function → Supabase) existir, só o CORPO destas
+   funções muda — para um `await supabase.from(...).select(...)` — os
+   componentes continuam chamando a mesma função com a mesma forma de
+   retorno. É por isso que todas já são `async` e devolvem Promise,
+   mesmo hoje sendo síncronas por baixo.
+   ============================================================ */
+function dateRangeForPeriod(period){
+  if(period === "hoje") return { start:0, end:0 };
+  if(period === "ontem") return { start:1, end:1 };
+  if(period === "7d") return { start:0, end:6 };
+  if(period === "30d") return { start:0, end:29 };
+  // "Personalizado" ainda não tem seletor de datas nesta V1 — usa o
+  // mesmo intervalo de 30 dias como exemplo de intervalo arbitrário.
+  if(period === "personalizado") return { start:0, end:29 };
+  return { start:0, end:6 };
+}
+
+function rawAdsForPeriod(period){
+  const { start, end } = dateRangeForPeriod(period);
+  const dates = new Set();
+  for(let offset = start; offset <= end; offset++){ dates.add(isoDate(offset)); }
+
+  return AD_CATALOG.map(ad => {
+    const sum = { impressions:0, clicks:0, lpViews:0, checkouts:0, sales:0, spend:0, revenue:0, reach:0, metaInitiateCheckout:0 };
+    metaDailyRaw.filter(r => r.ad_id === ad.ad_id && dates.has(r.date)).forEach(r => {
+      sum.impressions += r.impressions; sum.clicks += r.clicks; sum.spend += r.spend;
+      sum.reach += r.reach; sum.metaInitiateCheckout += r.initiate_checkout;
+    });
+    salesDailyRaw.filter(r => r.ad_id === ad.ad_id && dates.has(r.date)).forEach(r => {
+      sum.lpViews += r.landing_page_views; sum.checkouts += r.checkouts; sum.sales += r.sales; sum.revenue += r.revenue;
+    });
+    sum.spend = Math.round(sum.spend * 100) / 100;
+    sum.revenue = Math.round(sum.revenue * 100) / 100;
+    return Object.assign({}, adDimensions(ad.ad_id), sum);
+  });
+}
+
+async function getAdsPerformance(period){
+  return rawAdsForPeriod(period).map(deriveMetrics);
+}
+async function getDashboardSummary(period){
+  const ads = await getAdsPerformance(period);
+  return aggregate(ads);
+}
+async function getFunnelData(period){
+  const summary = await getDashboardSummary(period);
+  return funnelSteps(summary);
+}
+async function getPerformanceAlerts(period){
+  const ads = await getAdsPerformance(period);
+  const summary = await getDashboardSummary(period);
+  return generateAlerts(ads, summary);
+}
+async function getCampaigns(period){
+  const ads = await getAdsPerformance(period);
+  const byCampaign = new Map();
+  ads.forEach(ad => {
+    if(!byCampaign.has(ad.campaign_id)){
+      byCampaign.set(ad.campaign_id, { campaign_id:ad.campaign_id, campaign_name:ad.campaign_name, status:"PAUSED", ads:[] });
+    }
+    const c = byCampaign.get(ad.campaign_id);
+    c.ads.push(ad);
+    if(ad.status === "ACTIVE") c.status = "ACTIVE";
+  });
+  return Array.from(byCampaign.values()).map(c => Object.assign(
+    { campaign_id:c.campaign_id, campaign_name:c.campaign_name, status:c.status },
+    aggregate(c.ads)
+  ));
+}
+async function getCreatives(period){
+  // Mesma base de dados da Visão Geral — só a apresentação (colunas)
+  // muda, ver CREATIVES_COLUMNS.
+  return getAdsPerformance(period);
+}
+async function getSourceStatus(){
+  return dataSourceStatus;
+}
+
+/* ============================================================
+   4. FORMATADORES
    ============================================================ */
 function fmtCurrency(v){
   if(v === null || v === undefined) return "—";
@@ -649,9 +859,12 @@ function fmtRoas(v){
   return v.toLocaleString("pt-BR", { minimumFractionDigits:2, maximumFractionDigits:2 }) + "x";
 }
 function shortName(ad){ return ad.ad_name.split("|")[0].trim(); }
+function typeLabel(type){
+  return { video:"Vídeo", carousel:"Carrossel", image:"Estático" }[type] || type;
+}
 
 /* ============================================================
-   3. NAVEGAÇÃO
+   5. NAVEGAÇÃO
    ============================================================ */
 const NAV_ITEMS = [
   { id:"overview", label:"Visão Geral", icon:'<rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/>' },
@@ -663,8 +876,6 @@ const NAV_ITEMS = [
 
 let currentPage = "overview";
 let currentPeriod = "7d";
-let sortKey = "roas";
-let sortDir = "desc";
 
 const navList = document.getElementById("navList");
 NAV_ITEMS.forEach(item => {
@@ -685,6 +896,8 @@ function setPage(pageId){
   document.getElementById("sidebar").classList.remove("open");
   document.getElementById("sidebarBackdrop").classList.remove("show");
   if(pageId === "funnel") renderFunnelPage();
+  if(pageId === "campaigns") renderCampaigns();
+  if(pageId === "creatives") renderCreatives();
 }
 
 document.getElementById("sidebarToggle").addEventListener("click", () => {
@@ -697,7 +910,7 @@ document.getElementById("sidebarBackdrop").addEventListener("click", () => {
 });
 
 /* ============================================================
-   4. FILTRO DE PERÍODO
+   6. FILTRO DE PERÍODO
    ============================================================ */
 const PERIOD_OPTIONS = [
   { id:"hoje", label:"Hoje" },
@@ -717,12 +930,14 @@ PERIOD_OPTIONS.forEach(opt => {
     document.querySelectorAll(".period-btn").forEach(b => b.classList.toggle("active", b.dataset.period === opt.id));
     renderOverview();
     if(currentPage === "funnel") renderFunnelPage();
+    if(currentPage === "campaigns") renderCampaigns();
+    if(currentPage === "creatives") renderCreatives();
   });
   periodFilterEl.appendChild(btn);
 });
 
 /* ============================================================
-   5. CARDS PRINCIPAIS + MÉTRICAS SECUNDÁRIAS
+   7. CARDS PRINCIPAIS + MÉTRICAS SECUNDÁRIAS
    ============================================================ */
 function computePrevious(cur){
   const prevSpend = cur.spend * PREV_RATIOS.spend;
@@ -772,7 +987,7 @@ function renderSecondaryMetrics(agg){
     { label:"CTR", value:fmtPercent(agg.ctr,2) },
     { label:"CPC", value:fmtCurrency(agg.cpc) },
     { label:"LP Views", value:fmtNumber(agg.lpViews) },
-    { label:"Init. Checkout", value:fmtNumber(agg.checkouts) },
+    { label:"Checkouts", value:fmtNumber(agg.checkouts) },
     { label:"Custo / Checkout", value:fmtCurrency(agg.custoPorCheckout) },
   ];
   document.getElementById("metricsRow").innerHTML = tiles.map(t =>
@@ -781,15 +996,86 @@ function renderSecondaryMetrics(agg){
 }
 
 /* ============================================================
-   6. TABELA DE CRIATIVOS (dinâmica, ordenável)
+   8. TABELAS DINÂMICAS E ORDENÁVEIS
+   Três páginas (Visão Geral, Campanhas, Criativos) usam a mesma
+   base: um cabeçalho ordenável + linhas geradas a partir do array
+   que a camada de dados devolve. renderSortableHead/sortRows são
+   compartilhados; cada página só define suas colunas e o HTML de
+   uma linha.
    ============================================================ */
-// Definição completa das colunas de métrica — fonte única de verdade,
-// reaproveitável quando a página Criativos ganhar sua própria tabela.
-// A Visão Geral só exibe um subconjunto (OVERVIEW_METRIC_KEYS) para
-// priorizar leitura rápida; nenhuma métrica é removida dos dados.
-const TABLE_COLUMNS = [
+function renderSortableHead(headEl, columns, sortKey, sortDir, onSortChange){
+  headEl.innerHTML = columns.map(col => {
+    const sorted = col.key === sortKey;
+    const arrow = sorted ? (sortDir === "asc" ? "▲" : "▼") : "▼";
+    const cls = "th-" + col.key + (col.sortable ? " sortable" : "") + (sorted ? " sorted" : "");
+    return '<th class="'+cls+'" data-key="'+col.key+'">'+col.label+(col.sortable ? ' <span class="arrow">'+arrow+'</span>' : '')+'</th>';
+  }).join("");
+  headEl.querySelectorAll("th.sortable").forEach(th => {
+    th.addEventListener("click", () => onSortChange(th.dataset.key));
+  });
+}
+
+function sortRows(rows, sortKey, sortDir){
+  return rows.slice().sort((a, b) => {
+    let av = a[sortKey], bv = b[sortKey];
+    if(av === null && bv === null) return 0;
+    if(av === null) return 1;
+    if(bv === null) return -1;
+    if(typeof av === "string"){ av = av.toLowerCase(); bv = String(bv).toLowerCase(); }
+    if(av < bv) return sortDir === "asc" ? -1 : 1;
+    if(av > bv) return sortDir === "asc" ? 1 : -1;
+    return 0;
+  });
+}
+
+// --- Visão Geral: colunas essenciais só, para decisão rápida.
+// Definição completa das métricas continua existindo (CREATIVES_COLUMNS)
+// para a página Criativos — nenhuma métrica é removida dos dados.
+const OVERVIEW_COLUMNS = [
   { key:"ad_name", label:"Criativo", sortable:false },
   { key:"status", label:"Status", sortable:false },
+  { key:"spend", label:"Gasto", sortable:true, fmt:fmtCurrency },
+  { key:"ctr", label:"CTR", sortable:true, fmt:v=>fmtPercent(v,2) },
+  { key:"checkouts", label:"Checkouts", sortable:true, fmt:fmtNumber },
+  { key:"sales", label:"Vendas", sortable:true, fmt:fmtNumber },
+  { key:"cpa", label:"CPA", sortable:true, fmt:fmtCurrency },
+  { key:"roas", label:"ROAS", sortable:true, fmt:fmtRoas },
+];
+
+function overviewRowHtml(ad){
+  const health = getHealth(ad);
+  const statusBadge = ad.status === "ACTIVE"
+    ? '<span class="badge status-active">Ativo</span>'
+    : '<span class="badge status-paused">Pausado</span>';
+  const cells = OVERVIEW_COLUMNS.slice(2).map(col => '<td class="num-cell">'+col.fmt(ad[col.key])+'</td>').join("");
+  return '<tr data-ad-id="'+ad.ad_id+'">'
+    + '<td><div class="creative-name-cell"><span class="health-dot '+health+'" title="'+HEALTH_LABEL[health]+'"></span>'
+      + '<div class="txt"><span class="name">'+ad.ad_name+'</span><span class="meta">ID '+ad.ad_id+' · '+typeLabel(ad.type)+'</span></div></div></td>'
+    + '<td>'+statusBadge+'</td>'
+    + cells
+    + '</tr>';
+}
+
+let overviewSort = { key:"roas", dir:"desc" };
+async function renderOverviewTable(){
+  const ads = await getAdsPerformance(currentPeriod);
+  document.getElementById("tableCountHint").textContent = ads.length + " anúncio" + (ads.length !== 1 ? "s" : "") + " no período";
+  renderSortableHead(document.getElementById("tableHeadRow"), OVERVIEW_COLUMNS, overviewSort.key, overviewSort.dir, key => {
+    if(overviewSort.key === key){ overviewSort.dir = overviewSort.dir === "asc" ? "desc" : "asc"; }
+    else { overviewSort.key = key; overviewSort.dir = "desc"; }
+    renderOverviewTable();
+  });
+  const sorted = sortRows(ads, overviewSort.key, overviewSort.dir);
+  document.getElementById("tableBody").innerHTML = sorted.map(overviewRowHtml).join("");
+}
+
+// --- Criativos: todas as colunas relevantes por anúncio (ponto 12).
+const CREATIVES_COLUMNS = [
+  { key:"ad_name", label:"Criativo", sortable:true },
+  { key:"type", label:"Tipo", sortable:true },
+  { key:"status", label:"Status", sortable:true },
+  { key:"campaign_name", label:"Campanha", sortable:true },
+  { key:"adset_name", label:"Conjunto", sortable:true },
   { key:"spend", label:"Gasto", sortable:true, fmt:fmtCurrency },
   { key:"impressions", label:"Impressões", sortable:true, fmt:fmtNumber },
   { key:"ctr", label:"CTR", sortable:true, fmt:v=>fmtPercent(v,2) },
@@ -802,65 +1088,78 @@ const TABLE_COLUMNS = [
   { key:"roas", label:"ROAS", sortable:true, fmt:fmtRoas },
 ];
 
-const OVERVIEW_METRIC_KEYS = ["spend","ctr","checkouts","sales","cpa","roas"];
-const OVERVIEW_COLUMNS = TABLE_COLUMNS.filter(c => c.key === "ad_name" || c.key === "status" || OVERVIEW_METRIC_KEYS.includes(c.key));
-
-function renderTableHead(){
-  const row = document.getElementById("tableHeadRow");
-  row.innerHTML = OVERVIEW_COLUMNS.map(col => {
-    const sorted = col.key === sortKey;
-    const arrow = sorted ? (sortDir === "asc" ? "▲" : "▼") : "▼";
-    const cls = "th-" + col.key + (col.sortable ? " sortable" : "") + (sorted ? " sorted" : "");
-    return '<th class="'+cls+'" data-key="'+col.key+'">'+col.label+(col.sortable ? ' <span class="arrow">'+arrow+'</span>' : '')+'</th>';
-  }).join("");
-  row.querySelectorAll("th.sortable").forEach(th => {
-    th.addEventListener("click", () => {
-      const key = th.dataset.key;
-      if(sortKey === key){ sortDir = sortDir === "asc" ? "desc" : "asc"; }
-      else { sortKey = key; sortDir = "desc"; }
-      renderTable();
-    });
-  });
+function creativesCell(col, ad){
+  if(col.key === "ad_name"){
+    return '<div class="creative-name-cell"><span class="health-dot '+getHealth(ad)+'" title="'+HEALTH_LABEL[getHealth(ad)]+'"></span>'
+      + '<div class="txt"><span class="name">'+ad.ad_name+'</span><span class="meta">ID '+ad.ad_id+'</span></div></div>';
+  }
+  if(col.key === "type") return typeLabel(ad.type);
+  if(col.key === "status") return ad.status === "ACTIVE" ? '<span class="badge status-active">Ativo</span>' : '<span class="badge status-paused">Pausado</span>';
+  return col.fmt ? col.fmt(ad[col.key]) : ad[col.key];
 }
 
-function typeLabel(type){
-  return { video:"Vídeo", carousel:"Carrossel", image:"Estático" }[type] || type;
+function creativesRowHtml(ad){
+  const cells = CREATIVES_COLUMNS.map(col => '<td'+(col.key === "ad_name" ? "" : ' class="num-cell"')+'>'+creativesCell(col, ad)+'</td>').join("");
+  return '<tr data-ad-id="'+ad.ad_id+'">'+cells+'</tr>';
 }
 
-function renderTable(){
-  const ads = getPeriodAds(currentPeriod).map(deriveMetrics);
-  document.getElementById("tableCountHint").textContent = ads.length + " anúncio" + (ads.length !== 1 ? "s" : "") + " no período";
-
-  const sorted = ads.slice().sort((a,b) => {
-    let av = a[sortKey], bv = b[sortKey];
-    if(sortKey === "ad_name") { av = a.ad_name; bv = b.ad_name; }
-    // anúncios sem dado (null) sempre vão para o fim, nas duas direções —
-    // "sem dado" nunca deve aparecer como "melhor" em uma ordenação crescente.
-    if(av === null && bv === null) return 0;
-    if(av === null) return 1;
-    if(bv === null) return -1;
-    if(av < bv) return sortDir === "asc" ? -1 : 1;
-    if(av > bv) return sortDir === "asc" ? 1 : -1;
-    return 0;
+let creativesSort = { key:"roas", dir:"desc" };
+async function renderCreatives(){
+  const ads = await getCreatives(currentPeriod);
+  document.getElementById("creativesCountHint").textContent = ads.length + " anúncio" + (ads.length !== 1 ? "s" : "") + " no período";
+  renderSortableHead(document.getElementById("creativesHeadRow"), CREATIVES_COLUMNS, creativesSort.key, creativesSort.dir, key => {
+    if(creativesSort.key === key){ creativesSort.dir = creativesSort.dir === "asc" ? "desc" : "asc"; }
+    else { creativesSort.key = key; creativesSort.dir = "desc"; }
+    renderCreatives();
   });
+  const sorted = sortRows(ads, creativesSort.key, creativesSort.dir);
+  document.getElementById("creativesBody").innerHTML = sorted.map(creativesRowHtml).join("");
+}
 
-  document.getElementById("tableBody").innerHTML = sorted.map(ad => {
-    const health = getHealth(ad);
-    const statusBadge = ad.status === "ACTIVE"
-      ? '<span class="badge status-active">Ativo</span>'
-      : '<span class="badge status-paused">Pausado</span>';
-    const cells = OVERVIEW_COLUMNS.slice(2).map(col => '<td class="num-cell">'+col.fmt(ad[col.key])+'</td>').join("");
-    return '<tr data-ad-id="'+ad.ad_id+'">'
-      + '<td><div class="creative-name-cell"><span class="health-dot '+health+'" title="'+HEALTH_LABEL[health]+'"></span>'
-        + '<div class="txt"><span class="name">'+ad.ad_name+'</span><span class="meta">ID '+ad.ad_id+' · '+typeLabel(ad.type)+'</span></div></div></td>'
-      + '<td>'+statusBadge+'</td>'
-      + cells
-      + '</tr>';
+// --- Campanhas: agregado por campaign_id (ponto 11). Hoje só existe
+// 1 campanha no catálogo, mas o agrupamento é genérico para N.
+const CAMPAIGN_COLUMNS = [
+  { key:"campaign_name", label:"Campanha", sortable:true },
+  { key:"status", label:"Status", sortable:true },
+  { key:"spend", label:"Gasto", sortable:true, fmt:fmtCurrency },
+  { key:"impressions", label:"Impressões", sortable:true, fmt:fmtNumber },
+  { key:"clicks", label:"Cliques", sortable:true, fmt:fmtNumber },
+  { key:"ctr", label:"CTR", sortable:true, fmt:v=>fmtPercent(v,2) },
+  { key:"cpc", label:"CPC", sortable:true, fmt:fmtCurrency },
+  { key:"checkouts", label:"Checkouts", sortable:true, fmt:fmtNumber },
+  { key:"sales", label:"Vendas", sortable:true, fmt:fmtNumber },
+  { key:"cpa", label:"CPA", sortable:true, fmt:fmtCurrency },
+  { key:"roas", label:"ROAS", sortable:true, fmt:fmtRoas },
+];
+
+function campaignRowHtml(c){
+  const cells = CAMPAIGN_COLUMNS.map(col => {
+    if(col.key === "campaign_name"){
+      return '<td><span style="font-weight:700;color:var(--ink-900);">'+c.campaign_name+'</span><br><span class="meta" style="font-size:10.5px;color:var(--text-muted);">ID '+c.campaign_id+'</span></td>';
+    }
+    if(col.key === "status"){
+      return '<td>'+(c.status === "ACTIVE" ? '<span class="badge status-active">Ativa</span>' : '<span class="badge status-paused">Pausada</span>')+'</td>';
+    }
+    return '<td class="num-cell">'+col.fmt(c[col.key])+'</td>';
   }).join("");
+  return '<tr data-campaign-id="'+c.campaign_id+'">'+cells+'</tr>';
+}
+
+let campaignSort = { key:"roas", dir:"desc" };
+async function renderCampaigns(){
+  const campaigns = await getCampaigns(currentPeriod);
+  document.getElementById("campaignsCountHint").textContent = campaigns.length + " campanha" + (campaigns.length !== 1 ? "s" : "") + " no período";
+  renderSortableHead(document.getElementById("campaignsHeadRow"), CAMPAIGN_COLUMNS, campaignSort.key, campaignSort.dir, key => {
+    if(campaignSort.key === key){ campaignSort.dir = campaignSort.dir === "asc" ? "desc" : "asc"; }
+    else { campaignSort.key = key; campaignSort.dir = "desc"; }
+    renderCampaigns();
+  });
+  const sorted = sortRows(campaigns, campaignSort.key, campaignSort.dir);
+  document.getElementById("campaignsBody").innerHTML = sorted.map(campaignRowHtml).join("");
 }
 
 /* ============================================================
-   7. FUNIL
+   9. FUNIL
    ============================================================ */
 function funnelSteps(agg){
   return [
@@ -894,10 +1193,10 @@ function renderFunnel(agg, containerId){
   document.getElementById(containerId).innerHTML = html;
 }
 
-function renderFunnelPage(){
-  const ads = getPeriodAds(currentPeriod).map(deriveMetrics);
-  const agg = aggregate(getPeriodAds(currentPeriod));
-  renderFunnel(agg, "funnelDeep");
+async function renderFunnelPage(){
+  const ads = await getAdsPerformance(currentPeriod);
+  const summary = await getDashboardSummary(currentPeriod);
+  renderFunnel(summary, "funnelDeep");
   document.getElementById("funnelByCreativeBody").innerHTML = ads
     .filter(a => a.status !== "PAUSED")
     .sort((a,b) => (b.saleRate||0) - (a.saleRate||0))
@@ -906,7 +1205,7 @@ function renderFunnelPage(){
 }
 
 /* ============================================================
-   8. ALERTAS DE PERFORMANCE (regras simples, sem IA)
+   10. ALERTAS DE PERFORMANCE (regras simples, sem IA)
    ============================================================ */
 function generateAlerts(ads, agg){
   const alerts = [];
@@ -947,10 +1246,8 @@ function generateAlerts(ads, agg){
   return alerts;
 }
 
-function renderAlerts(){
-  const ads = getPeriodAds(currentPeriod).map(deriveMetrics);
-  const agg = aggregate(getPeriodAds(currentPeriod));
-  const alerts = generateAlerts(ads, agg);
+async function renderAlertsBlock(){
+  const alerts = await getPerformanceAlerts(currentPeriod);
   const LEVEL_LABEL = { critical:"Crítico", attention:"Atenção", positive:"Positivo", info:"Info" };
   document.getElementById("alertsList").innerHTML = alerts.length
     ? alerts.map(a => '<div class="alert-item level-'+a.level+'"><span class="dot"></span><span><span class="level-tag">'+LEVEL_LABEL[a.level]+'</span>'+a.text+'</span></div>').join("")
@@ -958,29 +1255,33 @@ function renderAlerts(){
 }
 
 /* ============================================================
-   9. STATUS DAS FONTES (sidebar)
+   11. STATUS DAS FONTES (sidebar)
    Estado atual desta V1: só "mock" e "pending" existem de fato.
    "synced"/"online"/"error" já têm cor e formatação prontas para quando
-   a integração real ligar (ex.: Meta Ads "synced", Kiwify "online",
-   uma falha de sync "error") — não são usados agora, só deixados
-   preparados. lastSyncMinutes fica null até haver sincronização real;
-   quando tiver um número, a linha "Atualizado há X min" aparece sozinha.
+   a integração real ligar — não são usados agora, só deixados
+   preparados. last_sync_at e error_message ficam null até haver
+   sincronização real; quando tiverem valor, aparecem sozinhos.
    ============================================================ */
 const SOURCE_STATE_LABEL = { mock:"mock", pending:"pending", synced:"good", online:"good", error:"critical" };
 
 const dataSourceStatus = [
-  { name:"Meta Ads", state:"mock", note:"Mock / aguardando integração", lastSyncMinutes:null },
-  { name:"Supabase", state:"mock", note:"Mock / aguardando integração", lastSyncMinutes:null },
-  { name:"Kiwify", state:"pending", note:"Aguardando validação de atribuição", lastSyncMinutes:null },
+  { name:"Meta Ads", status:"mock", note:"Aguardando integração", last_sync_at:null, error_message:null },
+  { name:"Supabase", status:"mock", note:"Aguardando integração", last_sync_at:null, error_message:null },
+  { name:"Kiwify", status:"pending", note:"Aguardando validação de atribuição", last_sync_at:null, error_message:null },
 ];
-document.getElementById("sourceStatusList").innerHTML = dataSourceStatus.map(s => {
-  const dotClass = SOURCE_STATE_LABEL[s.state] || "mock";
-  const syncLine = s.lastSyncMinutes !== null ? '<span class="sync">Atualizado há '+s.lastSyncMinutes+' min</span>' : "";
-  return '<div class="status-row"><span class="row-top"><span class="status-dot '+dotClass+'"></span><span class="src-name">'+s.name+'</span></span><span class="note">'+s.note+'</span>'+syncLine+'</div>';
-}).join("");
+
+async function renderSourceStatus(){
+  const sources = await getSourceStatus();
+  document.getElementById("sourceStatusList").innerHTML = sources.map(s => {
+    const dotClass = SOURCE_STATE_LABEL[s.status] || "mock";
+    const syncLine = s.last_sync_at ? '<span class="sync">Sincronizado '+s.last_sync_at+'</span>' : "";
+    const errorLine = s.error_message ? '<span class="sync" style="color:var(--danger);">'+s.error_message+'</span>' : "";
+    return '<div class="status-row"><span class="row-top"><span class="status-dot '+dotClass+'"></span><span class="src-name">'+s.name+'</span></span><span class="note">'+s.note+'</span>'+syncLine+errorLine+'</div>';
+  }).join("");
+}
 
 /* ============================================================
-   10. ESTADOS DE INTERFACE (página Vendas)
+   12. ESTADOS DE INTERFACE (página Vendas)
    ============================================================ */
 const STATE_DEFS = {
   empty: { icon:'<path d="M3 9l9-6 9 6-9 6-9-6z"/><path d="M3 9v6l9 6 9-6V9"/>', title:"Nenhum dado disponível para este período.", desc:"Assim que houver vendas atribuídas via Kiwify para o período selecionado, elas aparecerão aqui." , cls:""},
@@ -1005,20 +1306,19 @@ const FUTURE_FIELDS = ["attribution_id","utm_source","utm_medium","utm_campaign"
 document.getElementById("futureFields").innerHTML = FUTURE_FIELDS.map(f => '<div class="future-field">'+f+'</div>').join("");
 
 /* ============================================================
-   11. RENDER PRINCIPAL
+   13. RENDER PRINCIPAL
    ============================================================ */
-function renderOverview(){
-  const rawAds = getPeriodAds(currentPeriod);
-  const agg = aggregate(rawAds);
-  renderCards(agg);
-  renderSecondaryMetrics(agg);
-  renderTableHead();
-  renderTable();
-  renderFunnel(agg, "funnelOverview");
-  renderAlerts();
+async function renderOverview(){
+  const summary = await getDashboardSummary(currentPeriod);
+  renderCards(summary);
+  renderSecondaryMetrics(summary);
+  await renderOverviewTable();
+  renderFunnel(summary, "funnelOverview");
+  await renderAlertsBlock();
 }
 
 renderOverview();
+renderSourceStatus();
 renderStateBox("empty");
 })();
 </script>
