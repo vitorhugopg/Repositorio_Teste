@@ -1599,9 +1599,11 @@ const QA_HANDLERS = [
   { test:t => t.indexOf("atencao") !== -1 && (t.indexOf("anuncio") !== -1 || t.indexOf("criativo") !== -1), run:ctx => answerAttentionAd(ctx.diagnostics) },
   { test:t => t.indexOf("gargalo") !== -1, run:ctx => answerFunnel(ctx.funnel, ctx.summary) },
   { test:t => t.indexOf("funil") !== -1, run:ctx => answerFunnel(ctx.funnel, ctx.summary) },
-  { test:t => t.indexOf("fadiga") !== -1, run:ctx => answerFatigue(ctx.diagnostics) },
+  { test:t => t.indexOf("fadiga") !== -1 || t.indexOf("ctr") !== -1, run:ctx => answerFatigue(ctx.diagnostics) },
   { test:t => t.indexOf("escala") !== -1 || t.indexOf("oportunidade") !== -1, run:ctx => answerScaleOpportunity(ctx.diagnostics) },
-  { test:t => t.indexOf("venda") !== -1 && (t.indexOf("caiu") !== -1 || t.indexOf("cairam") !== -1 || t.indexOf("baixa") !== -1 || t.indexOf("baixas") !== -1 || t.indexOf("queda") !== -1), run:ctx => answerLowSales(ctx.diagnostics, ctx.funnel, ctx.summary) },
+  // "venda" sozinho já cobre tanto "por que caíram" quanto "como estão" —
+  // a mesma resposta (funil + anúncio em atenção, se houver) serve para as duas.
+  { test:t => t.indexOf("venda") !== -1, run:ctx => answerLowSales(ctx.diagnostics, ctx.funnel, ctx.summary) },
 ];
 
 async function runAnalystQuestion(question){
