@@ -147,8 +147,11 @@ button{font-family:inherit;}
 .status-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
 .status-dot.mock{background:#8a97a0;}
 .status-dot.pending{background:var(--gold-500);}
+.status-dot.good{background:var(--success);}
+.status-dot.critical{background:var(--danger);}
 .status-row .src-name{color:#fff;font-weight:600;}
 .status-row .note{padding-left:14px;line-height:1.35;}
+.status-row .sync{padding-left:14px;font-size:10.5px;color:rgba(255,255,255,.4);}
 
 .main{flex:1;min-width:0;display:flex;flex-direction:column;}
 
@@ -219,7 +222,7 @@ main#view-root{padding:28px 32px 60px;max-width:1320px;width:100%;margin:0 auto;
 
 /* ---------- table ---------- */
 .table-wrap{overflow-x:auto;}
-table.creatives{width:100%;border-collapse:collapse;font-size:12.5px;min-width:1040px;}
+table.creatives{width:100%;border-collapse:collapse;font-size:12.5px;}
 table.creatives th{
   text-align:left;padding:9px 10px;font-size:10.5px;text-transform:uppercase;letter-spacing:.04em;
   color:var(--text-muted);font-weight:700;border-bottom:1px solid var(--line);cursor:pointer;user-select:none;
@@ -251,7 +254,8 @@ table.creatives tbody tr:hover{background:var(--bg);}
 
 /* ---------- funnel ---------- */
 .funnel{display:flex;flex-direction:column;gap:0;}
-.funnel-step{display:grid;grid-template-columns:118px 1fr 84px 72px;align-items:center;gap:12px;padding:9px 0;}
+.funnel-caption{margin:0 0 10px;font-size:11.5px;color:var(--text-muted);}
+.funnel-step{display:grid;grid-template-columns:118px 1fr 84px;align-items:center;gap:12px;padding:9px 0;}
 .funnel-step .step-label{font-size:12.5px;font-weight:700;color:var(--ink-900);}
 .funnel-bar-track{background:var(--ink-100);border-radius:8px;height:26px;position:relative;overflow:hidden;}
 .funnel-bar-fill{
@@ -260,11 +264,11 @@ table.creatives tbody tr:hover{background:var(--bg);}
   transition:width .4s ease;
 }
 .funnel-step .step-value{font-size:13px;font-weight:700;color:var(--ink-900);font-variant-numeric:tabular-nums;text-align:right;white-space:nowrap;}
-.funnel-step .step-rate{font-size:12px;color:var(--text-muted);text-align:right;font-weight:600;white-space:nowrap;}
 .funnel-rate-between{
   font-size:11px;color:var(--gold-600);font-weight:700;
   padding-left:118px;margin:1px 0;
 }
+.funnel-rate-between strong{font-weight:800;}
 
 /* ---------- alerts ---------- */
 .alerts-list{display:flex;flex-direction:column;gap:8px;}
@@ -296,6 +300,11 @@ table.creatives tbody tr:hover{background:var(--bg);}
 .placeholder-panel p{margin:0 auto;max-width:460px;color:var(--text-muted);font-size:13.5px;line-height:1.6;}
 .placeholder-panel .badge{margin-top:16px;}
 
+/* ---------- dev preview block (Vendas) ---------- */
+.dev-preview-block{border:1px dashed var(--line);box-shadow:none;background:var(--bg);}
+.dev-preview-block .panel-head{border-bottom:1px dashed var(--line);}
+.dev-preview-block .panel-head h2{font-size:12.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--text-muted);}
+
 /* ---------- state demo (Vendas) ---------- */
 .state-demo-controls{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;}
 .state-select{
@@ -324,7 +333,7 @@ table.creatives tbody tr:hover{background:var(--bg);}
 }
 
 /* ---------- misc ---------- */
-.two-col{display:grid;grid-template-columns:1.3fr 1fr;gap:20px;align-items:start;}
+.two-col{display:grid;grid-template-columns:1.15fr 1fr;gap:20px;align-items:start;}
 
 .mobile-topbar-toggle{
   display:none;border:1px solid var(--line);background:var(--paper);border-radius:8px;
@@ -347,8 +356,7 @@ table.creatives tbody tr:hover{background:var(--bg);}
   .topbar{padding:16px;}
   .cards-grid{grid-template-columns:repeat(2,1fr);}
   .metrics-row{grid-template-columns:repeat(2,1fr);}
-  table.creatives{min-width:900px;}
-  .funnel-step{grid-template-columns:92px 1fr 64px 54px;gap:8px;}
+  .funnel-step{grid-template-columns:92px 1fr 64px;gap:8px;}
   .funnel-rate-between{padding-left:92px;}
 }
 </style>
@@ -390,32 +398,30 @@ table.creatives tbody tr:hover{background:var(--bg);}
         <div class="cards-grid" id="cardsGrid"></div>
         <div class="metrics-row" id="metricsRow"></div>
 
+        <div class="panel">
+          <div class="panel-head">
+            <h2>Performance por Criativo</h2>
+            <span class="hint" id="tableCountHint"></span>
+          </div>
+          <div class="panel-body table-wrap">
+            <table class="creatives">
+              <thead><tr id="tableHeadRow"></tr></thead>
+              <tbody id="tableBody"></tbody>
+            </table>
+          </div>
+        </div>
+
         <div class="two-col">
           <div class="panel">
-            <div class="panel-head">
-              <h2>Performance por Criativo</h2>
-              <span class="hint" id="tableCountHint"></span>
-            </div>
-            <div class="panel-body table-wrap">
-              <table class="creatives">
-                <thead><tr id="tableHeadRow"></tr></thead>
-                <tbody id="tableBody"></tbody>
-              </table>
+            <div class="panel-head"><h2>Funil</h2></div>
+            <div class="panel-body">
+              <div class="funnel" id="funnelOverview"></div>
             </div>
           </div>
-
-          <div style="display:flex;flex-direction:column;gap:20px;">
-            <div class="panel">
-              <div class="panel-head"><h2>Funil</h2></div>
-              <div class="panel-body">
-                <div class="funnel" id="funnelOverview"></div>
-              </div>
-            </div>
-            <div class="panel">
-              <div class="panel-head"><h2>Alertas de Performance</h2></div>
-              <div class="panel-body">
-                <div class="alerts-list" id="alertsList"></div>
-              </div>
+          <div class="panel">
+            <div class="panel-head"><h2>Alertas de Performance</h2></div>
+            <div class="panel-body">
+              <div class="alerts-list" id="alertsList"></div>
             </div>
           </div>
         </div>
@@ -480,19 +486,10 @@ table.creatives tbody tr:hover{background:var(--bg);}
         <p class="section-label">Vendas &amp; atribuição</p>
         <div class="panel">
           <div class="panel-head">
-            <h2>Preview de estados de interface</h2>
+            <h2>Vendas</h2>
             <span class="hint">Esta página depende do fluxo Kiwify → webhook → Supabase, ainda não validado</span>
           </div>
           <div class="panel-body">
-            <div class="state-demo-controls">
-              <select class="state-select" id="stateSelect">
-                <option value="empty">Sem dados</option>
-                <option value="loading">Carregando</option>
-                <option value="error">Erro</option>
-                <option value="no-attribution">Sem atribuição</option>
-                <option value="pending-attribution">Atribuição pendente de validação</option>
-              </select>
-            </div>
             <div id="stateBox"></div>
           </div>
         </div>
@@ -502,6 +499,29 @@ table.creatives tbody tr:hover{background:var(--bg);}
           <div class="panel-body">
             <p class="muted" style="font-size:12.5px;margin:0 0 4px;">Estrutura que o dashboard já está preparado para receber quando o webhook da Kiwify for validado:</p>
             <div class="future-fields" id="futureFields"></div>
+          </div>
+        </div>
+
+        <!-- Bloco de QA visual — não faz parte da experiência do usuário final.
+             Remover esta seção (dev-preview-block) inteira quando a integração
+             com Kiwify/Supabase estiver validada e os estados passarem a ser
+             acionados pelos dados reais, não escolhidos manualmente. -->
+        <div class="panel dev-preview-block" id="devPreviewBlock" data-dev-only="true">
+          <div class="panel-head">
+            <h2>Modo de desenvolvimento — preview técnico</h2>
+            <span class="hint">Não aparece na versão final</span>
+          </div>
+          <div class="panel-body">
+            <p class="muted" style="font-size:12px;margin:0 0 10px;">Simula manualmente cada estado do bloco "Vendas" acima, para validar layout. O usuário final nunca escolhe um estado — ele é definido pelos dados reais.</p>
+            <div class="state-demo-controls">
+              <select class="state-select" id="stateSelect">
+                <option value="empty">Sem dados</option>
+                <option value="loading">Carregando</option>
+                <option value="error">Erro</option>
+                <option value="no-attribution">Sem atribuição</option>
+                <option value="pending-attribution">Atribuição pendente de validação</option>
+              </select>
+            </div>
           </div>
         </div>
       </section>
@@ -763,6 +783,10 @@ function renderSecondaryMetrics(agg){
 /* ============================================================
    6. TABELA DE CRIATIVOS (dinâmica, ordenável)
    ============================================================ */
+// Definição completa das colunas de métrica — fonte única de verdade,
+// reaproveitável quando a página Criativos ganhar sua própria tabela.
+// A Visão Geral só exibe um subconjunto (OVERVIEW_METRIC_KEYS) para
+// priorizar leitura rápida; nenhuma métrica é removida dos dados.
 const TABLE_COLUMNS = [
   { key:"ad_name", label:"Criativo", sortable:false },
   { key:"status", label:"Status", sortable:false },
@@ -778,9 +802,12 @@ const TABLE_COLUMNS = [
   { key:"roas", label:"ROAS", sortable:true, fmt:fmtRoas },
 ];
 
+const OVERVIEW_METRIC_KEYS = ["spend","ctr","checkouts","sales","cpa","roas"];
+const OVERVIEW_COLUMNS = TABLE_COLUMNS.filter(c => c.key === "ad_name" || c.key === "status" || OVERVIEW_METRIC_KEYS.includes(c.key));
+
 function renderTableHead(){
   const row = document.getElementById("tableHeadRow");
-  row.innerHTML = TABLE_COLUMNS.map(col => {
+  row.innerHTML = OVERVIEW_COLUMNS.map(col => {
     const sorted = col.key === sortKey;
     const arrow = sorted ? (sortDir === "asc" ? "▲" : "▼") : "▼";
     const cls = "th-" + col.key + (col.sortable ? " sortable" : "") + (sorted ? " sorted" : "");
@@ -822,7 +849,7 @@ function renderTable(){
     const statusBadge = ad.status === "ACTIVE"
       ? '<span class="badge status-active">Ativo</span>'
       : '<span class="badge status-paused">Pausado</span>';
-    const cells = TABLE_COLUMNS.slice(2).map(col => '<td class="num-cell">'+col.fmt(ad[col.key])+'</td>').join("");
+    const cells = OVERVIEW_COLUMNS.slice(2).map(col => '<td class="num-cell">'+col.fmt(ad[col.key])+'</td>').join("");
     return '<tr data-ad-id="'+ad.ad_id+'">'
       + '<td><div class="creative-name-cell"><span class="health-dot '+health+'" title="'+HEALTH_LABEL[health]+'"></span>'
         + '<div class="txt"><span class="name">'+ad.ad_name+'</span><span class="meta">ID '+ad.ad_id+' · '+typeLabel(ad.type)+'</span></div></div></td>'
@@ -848,18 +875,20 @@ function funnelSteps(agg){
 function renderFunnel(agg, containerId){
   const steps = funnelSteps(agg);
   const max = steps[0].value || 1;
-  let html = "";
+  // Só existe UM percentual por etapa: a taxa de conversão em relação à
+  // etapa anterior (linha "A → B: X%"). Não mostramos nenhum outro
+  // percentual ao lado da barra para não gerar ambiguidade de leitura.
+  let html = '<p class="funnel-caption">Os percentuais indicam a taxa de conversão entre cada etapa e a etapa anterior.</p>';
   steps.forEach((step, i) => {
     const pct = Math.max(4, Math.round((step.value / max) * 100));
     html += '<div class="funnel-step">'
       + '<span class="step-label">'+step.label+'</span>'
       + '<div class="funnel-bar-track"><div class="funnel-bar-fill" style="width:'+pct+'%"></div></div>'
       + '<span class="step-value">'+fmtNumber(step.value)+'</span>'
-      + '<span class="step-rate">'+(i===0 ? "base" : fmtPercent(step.value / steps[0].value, 1))+'</span>'
       + '</div>';
     if(i < steps.length - 1){
       const rate = steps[i].value > 0 ? steps[i+1].value / steps[i].value : null;
-      html += '<div class="funnel-rate-between">'+step.label+' → '+steps[i+1].label+': '+fmtPercent(rate,1)+'</div>';
+      html += '<div class="funnel-rate-between">'+step.label+' → '+steps[i+1].label+': <strong>'+fmtPercent(rate,1)+'</strong></div>';
     }
   });
   document.getElementById(containerId).innerHTML = html;
@@ -908,6 +937,9 @@ function generateAlerts(ads, agg){
     alerts.push({ level:"attention", text:"Taxa Landing Page → Checkout está em "+fmtPercent(agg.checkoutRate,1)+", abaixo do esperado ("+fmtPercent(benchmarkCheckoutRate,0)+")." });
   }
 
+  // Nível fixo em "info": sem uma referência de ROAS de equilíbrio / CPA
+  // máximo ainda não é possível classificar esse número como bom ou ruim
+  // só pelo valor absoluto — isso fica para quando essa referência existir.
   if(agg.roas !== null){
     alerts.push({ level:"info", text:"ROAS geral do período está em "+fmtRoas(agg.roas)+"." });
   }
@@ -927,15 +959,25 @@ function renderAlerts(){
 
 /* ============================================================
    9. STATUS DAS FONTES (sidebar)
+   Estado atual desta V1: só "mock" e "pending" existem de fato.
+   "synced"/"online"/"error" já têm cor e formatação prontas para quando
+   a integração real ligar (ex.: Meta Ads "synced", Kiwify "online",
+   uma falha de sync "error") — não são usados agora, só deixados
+   preparados. lastSyncMinutes fica null até haver sincronização real;
+   quando tiver um número, a linha "Atualizado há X min" aparece sozinha.
    ============================================================ */
+const SOURCE_STATE_LABEL = { mock:"mock", pending:"pending", synced:"good", online:"good", error:"critical" };
+
 const dataSourceStatus = [
-  { name:"Meta Ads", state:"mock", note:"Mock / aguardando integração" },
-  { name:"Supabase", state:"mock", note:"Mock / aguardando integração" },
-  { name:"Kiwify", state:"pending", note:"Aguardando validação de atribuição" },
+  { name:"Meta Ads", state:"mock", note:"Mock / aguardando integração", lastSyncMinutes:null },
+  { name:"Supabase", state:"mock", note:"Mock / aguardando integração", lastSyncMinutes:null },
+  { name:"Kiwify", state:"pending", note:"Aguardando validação de atribuição", lastSyncMinutes:null },
 ];
-document.getElementById("sourceStatusList").innerHTML = dataSourceStatus.map(s =>
-  '<div class="status-row"><span class="row-top"><span class="status-dot '+s.state+'"></span><span class="src-name">'+s.name+'</span></span><span class="note">'+s.note+'</span></div>'
-).join("");
+document.getElementById("sourceStatusList").innerHTML = dataSourceStatus.map(s => {
+  const dotClass = SOURCE_STATE_LABEL[s.state] || "mock";
+  const syncLine = s.lastSyncMinutes !== null ? '<span class="sync">Atualizado há '+s.lastSyncMinutes+' min</span>' : "";
+  return '<div class="status-row"><span class="row-top"><span class="status-dot '+dotClass+'"></span><span class="src-name">'+s.name+'</span></span><span class="note">'+s.note+'</span>'+syncLine+'</div>';
+}).join("");
 
 /* ============================================================
    10. ESTADOS DE INTERFACE (página Vendas)
