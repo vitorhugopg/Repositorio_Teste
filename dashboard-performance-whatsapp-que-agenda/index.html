@@ -1,0 +1,984 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard de Performance — WhatsApp que Agenda</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+/* ============================================================
+   Dashboard de Performance — WhatsApp que Agenda
+   Marca: Clínica que Converte
+   Design tokens: "ink" (azul petróleo #0B2B33) + "gold" (dourado)
+   V1 — dados 100% mock, sem integrações
+   ============================================================ */
+:root{
+  --ink-950:#051318;
+  --ink-900:#0B2B33;
+  --ink-800:#123a44;
+  --ink-700:#1a4b57;
+  --ink-100:#e6eef0;
+  --gold-600:#a9861c;
+  --gold-500:#c9a227;
+  --gold-100:#faf1d6;
+  --chart-brand:#b8871e;
+  --chart-benchmark:#1f6fa0;
+  --paper:#ffffff;
+  --bg:#f6f4ee;
+  --line:#e3e0d5;
+  --text:#16232a;
+  --text-muted:#5c6c70;
+  --danger:#b23a3a;
+  --danger-bg:#fbe9e9;
+  --success:#2f7d5a;
+  --success-bg:#e7f3ec;
+  --warn:#c9861f;
+  --warn-bg:#fbf1de;
+  --info:#3a6fb2;
+  --info-bg:#eaf1fb;
+  --neutral:#6b7780;
+  --neutral-bg:#eceae2;
+  --radius:14px;
+  --radius-sm:9px;
+  --shadow:0 8px 24px rgba(11,43,51,.08);
+  --shadow-lg:0 16px 40px rgba(11,43,51,.16);
+  --sidebar-w:236px;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --paper:#0f1c21;
+    --bg:#081418;
+    --line:#213238;
+    --text:#eef3f2;
+    --text-muted:#9fb0b3;
+    --ink-100:#15323a;
+    --chart-brand:#a9861c;
+    --chart-benchmark:#4e9bcf;
+    --shadow:0 8px 24px rgba(0,0,0,.35);
+    --shadow-lg:0 16px 40px rgba(0,0,0,.5);
+    --danger-bg:#3a2222;
+    --success-bg:#173427;
+    --warn-bg:#3a2f16;
+    --info-bg:#1b2c3d;
+    --neutral-bg:#1c2a2e;
+  }
+}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;}
+body{
+  font-family:'Manrope',system-ui,sans-serif;
+  background:var(--bg);
+  color:var(--text);
+  -webkit-font-smoothing:antialiased;
+}
+h1,h2,h3,.brand-name{font-family:'Fraunces',serif;}
+button{font-family:inherit;}
+
+/* ---------- layout shell ---------- */
+.app{display:flex;min-height:100vh;}
+
+.sidebar{
+  width:var(--sidebar-w);
+  flex-shrink:0;
+  background:var(--ink-900);
+  color:#fff;
+  display:flex;
+  flex-direction:column;
+  padding:22px 16px;
+  position:sticky;
+  top:0;
+  height:100vh;
+}
+.sidebar-brand{
+  display:flex;
+  flex-direction:column;
+  gap:2px;
+  padding:4px 10px 22px;
+  border-bottom:1px solid rgba(255,255,255,.12);
+  margin-bottom:18px;
+}
+.sidebar-brand .mark{
+  font-family:'Fraunces',serif;
+  font-weight:600;
+  font-size:15px;
+  letter-spacing:.02em;
+  color:var(--gold-500);
+}
+.sidebar-brand .product{
+  font-size:12px;
+  color:rgba(255,255,255,.7);
+}
+.nav{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:2px;flex:1;}
+.nav-item{
+  display:flex;align-items:center;gap:10px;
+  padding:10px 12px;
+  border-radius:var(--radius-sm);
+  color:rgba(255,255,255,.72);
+  font-size:13.5px;
+  font-weight:600;
+  cursor:pointer;
+  border:none;background:none;width:100%;text-align:left;
+  transition:background .15s ease,color .15s ease;
+}
+.nav-item svg{flex-shrink:0;opacity:.85;}
+.nav-item:hover{background:rgba(255,255,255,.06);color:#fff;}
+.nav-item.active{background:rgba(201,162,39,.16);color:#fff;}
+.nav-item.active svg{opacity:1;color:var(--gold-500);}
+
+.sidebar-status{
+  border-top:1px solid rgba(255,255,255,.12);
+  padding-top:14px;
+  margin-top:14px;
+  display:flex;flex-direction:column;gap:9px;
+}
+.sidebar-status h4{
+  margin:0 0 2px;
+  font-size:11px;
+  text-transform:uppercase;
+  letter-spacing:.06em;
+  color:rgba(255,255,255,.5);
+  font-weight:700;
+}
+.status-row{display:flex;flex-direction:column;gap:2px;font-size:11.5px;color:rgba(255,255,255,.62);}
+.status-row .row-top{display:flex;align-items:center;gap:7px;}
+.status-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
+.status-dot.mock{background:#8a97a0;}
+.status-dot.pending{background:var(--gold-500);}
+.status-row .src-name{color:#fff;font-weight:600;}
+.status-row .note{padding-left:14px;line-height:1.35;}
+
+.main{flex:1;min-width:0;display:flex;flex-direction:column;}
+
+.topbar{
+  background:var(--paper);
+  border-bottom:1px solid var(--line);
+  padding:20px 32px;
+  display:flex;
+  align-items:flex-end;
+  justify-content:space-between;
+  gap:20px;
+  flex-wrap:wrap;
+  position:sticky;top:0;z-index:5;
+}
+.topbar h1{margin:0;font-size:22px;font-weight:600;color:var(--ink-900);}
+.topbar .subtitle{margin:2px 0 0;font-size:13px;color:var(--text-muted);font-weight:600;letter-spacing:.01em;}
+
+.period-filter{display:flex;gap:4px;background:var(--bg);border:1px solid var(--line);border-radius:999px;padding:3px;}
+.period-btn{
+  border:none;background:none;padding:7px 14px;border-radius:999px;
+  font-size:12.5px;font-weight:700;color:var(--text-muted);cursor:pointer;
+  transition:background .15s ease,color .15s ease;white-space:nowrap;
+}
+.period-btn:hover{color:var(--ink-900);}
+.period-btn.active{background:var(--ink-900);color:#fff;}
+
+main#view-root{padding:28px 32px 60px;max-width:1320px;width:100%;margin:0 auto;}
+.page{display:none;}
+.page.active{display:block;}
+
+/* ---------- cards ---------- */
+.section-label{
+  font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;
+  color:var(--text-muted);margin:0 0 12px;
+}
+.cards-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:14px;margin-bottom:22px;}
+.card{
+  background:var(--paper);border:1px solid var(--line);border-radius:var(--radius);
+  padding:16px 18px;box-shadow:var(--shadow);
+}
+.card .label{font-size:12px;color:var(--text-muted);font-weight:600;margin:0 0 8px;}
+.card .value{font-size:23px;font-weight:700;color:var(--ink-900);font-family:'Fraunces',serif;line-height:1.1;}
+.card .delta{display:flex;align-items:center;gap:4px;margin-top:8px;font-size:12px;font-weight:700;}
+.delta.up.good{color:var(--success);}
+.delta.down.good{color:var(--success);}
+.delta.up.bad{color:var(--danger);}
+.delta.down.bad{color:var(--danger);}
+.delta.neutral{color:var(--text-muted);}
+.delta svg{flex-shrink:0;}
+
+.metrics-row{display:grid;grid-template-columns:repeat(7,1fr);gap:12px;margin-bottom:28px;}
+.metric-tile{
+  background:var(--paper);border:1px solid var(--line);border-radius:var(--radius-sm);
+  padding:12px 14px;
+}
+.metric-tile .label{font-size:11px;color:var(--text-muted);font-weight:700;text-transform:uppercase;letter-spacing:.03em;}
+.metric-tile .value{font-size:16px;font-weight:700;color:var(--ink-900);margin-top:5px;}
+
+/* ---------- panel wrapper ---------- */
+.panel{
+  background:var(--paper);border:1px solid var(--line);border-radius:var(--radius);
+  box-shadow:var(--shadow);margin-bottom:24px;overflow:hidden;
+}
+.panel-head{padding:18px 20px 14px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;border-bottom:1px solid var(--line);}
+.panel-head h2{margin:0;font-size:15.5px;font-weight:600;color:var(--ink-900);}
+.panel-head .hint{font-size:11.5px;color:var(--text-muted);}
+.panel-body{padding:20px;}
+
+/* ---------- table ---------- */
+.table-wrap{overflow-x:auto;}
+table.creatives{width:100%;border-collapse:collapse;font-size:12.5px;min-width:1040px;}
+table.creatives th{
+  text-align:left;padding:9px 10px;font-size:10.5px;text-transform:uppercase;letter-spacing:.04em;
+  color:var(--text-muted);font-weight:700;border-bottom:1px solid var(--line);cursor:pointer;user-select:none;
+  white-space:nowrap;
+}
+table.creatives th.sortable:hover{color:var(--ink-900);}
+table.creatives th .arrow{opacity:0;font-size:9px;margin-left:3px;}
+table.creatives th.sorted .arrow{opacity:1;color:var(--gold-600);}
+table.creatives td{padding:10px 10px;border-bottom:1px solid var(--line);color:var(--text);white-space:nowrap;}
+table.creatives tbody tr:last-child td{border-bottom:none;}
+table.creatives tbody tr:hover{background:var(--bg);}
+.creative-name-cell{display:flex;align-items:center;gap:8px;}
+.creative-name-cell .txt{display:flex;flex-direction:column;}
+.creative-name-cell .name{font-weight:700;color:var(--ink-900);font-size:12.5px;}
+.creative-name-cell .meta{font-size:10.5px;color:var(--text-muted);}
+.health-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+.health-dot.good{background:var(--success);}
+.health-dot.attention{background:var(--warn);}
+.health-dot.critical{background:var(--danger);}
+.health-dot.new{background:var(--info);}
+.health-dot.paused{background:var(--neutral);}
+
+.badge{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:999px;font-size:10.5px;font-weight:700;letter-spacing:.02em;}
+.badge.status-active{background:var(--success-bg);color:var(--success);}
+.badge.status-paused{background:var(--neutral-bg);color:var(--neutral);}
+
+.num-cell{font-variant-numeric:tabular-nums;}
+.muted{color:var(--text-muted);}
+
+/* ---------- funnel ---------- */
+.funnel{display:flex;flex-direction:column;gap:0;}
+.funnel-step{display:grid;grid-template-columns:118px 1fr 84px 72px;align-items:center;gap:12px;padding:9px 0;}
+.funnel-step .step-label{font-size:12.5px;font-weight:700;color:var(--ink-900);}
+.funnel-bar-track{background:var(--ink-100);border-radius:8px;height:26px;position:relative;overflow:hidden;}
+.funnel-bar-fill{
+  height:100%;border-radius:8px;
+  background:linear-gradient(90deg,var(--ink-800),var(--ink-900));
+  transition:width .4s ease;
+}
+.funnel-step .step-value{font-size:13px;font-weight:700;color:var(--ink-900);font-variant-numeric:tabular-nums;text-align:right;white-space:nowrap;}
+.funnel-step .step-rate{font-size:12px;color:var(--text-muted);text-align:right;font-weight:600;white-space:nowrap;}
+.funnel-rate-between{
+  font-size:11px;color:var(--gold-600);font-weight:700;
+  padding-left:118px;margin:1px 0;
+}
+
+/* ---------- alerts ---------- */
+.alerts-list{display:flex;flex-direction:column;gap:8px;}
+.alert-item{
+  display:flex;align-items:flex-start;gap:10px;padding:11px 13px;border-radius:var(--radius-sm);
+  border:1px solid var(--line);font-size:12.5px;line-height:1.45;
+}
+.alert-item .dot{width:8px;height:8px;border-radius:50%;margin-top:5px;flex-shrink:0;}
+.alert-item.level-critical{background:var(--danger-bg);}
+.alert-item.level-critical .dot{background:var(--danger);}
+.alert-item.level-attention{background:var(--warn-bg);}
+.alert-item.level-attention .dot{background:var(--warn);}
+.alert-item.level-positive{background:var(--success-bg);}
+.alert-item.level-positive .dot{background:var(--success);}
+.alert-item.level-info{background:var(--info-bg);}
+.alert-item.level-info .dot{background:var(--info);}
+.alert-item .level-tag{font-size:9.5px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;margin-right:6px;opacity:.75;}
+
+/* ---------- placeholder pages ---------- */
+.placeholder-panel{
+  background:var(--paper);border:1px dashed var(--line);border-radius:var(--radius);
+  padding:52px 32px;text-align:center;box-shadow:var(--shadow);
+}
+.placeholder-panel .icon-wrap{
+  width:52px;height:52px;border-radius:14px;background:var(--ink-100);
+  display:flex;align-items:center;justify-content:center;margin:0 auto 18px;color:var(--ink-800);
+}
+.placeholder-panel h2{margin:0 0 8px;font-size:18px;color:var(--ink-900);}
+.placeholder-panel p{margin:0 auto;max-width:460px;color:var(--text-muted);font-size:13.5px;line-height:1.6;}
+.placeholder-panel .badge{margin-top:16px;}
+
+/* ---------- state demo (Vendas) ---------- */
+.state-demo-controls{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;}
+.state-select{
+  border:1px solid var(--line);border-radius:var(--radius-sm);padding:9px 12px;font-size:12.5px;
+  font-weight:600;color:var(--ink-900);background:var(--paper);font-family:inherit;cursor:pointer;
+}
+.state-box{
+  border:1px solid var(--line);border-radius:var(--radius);padding:40px 24px;text-align:center;
+  background:var(--bg);
+}
+.state-box .icon-wrap{width:44px;height:44px;border-radius:12px;background:var(--paper);border:1px solid var(--line);
+  display:flex;align-items:center;justify-content:center;margin:0 auto 14px;color:var(--text-muted);}
+.state-box .title{font-weight:700;color:var(--ink-900);font-size:14px;margin-bottom:4px;}
+.state-box .desc{font-size:12.5px;color:var(--text-muted);max-width:380px;margin:0 auto;}
+.state-box.error .icon-wrap{color:var(--danger);border-color:var(--danger);}
+.state-box.pending .icon-wrap{color:var(--warn);border-color:var(--warn);}
+.spinner{width:22px;height:22px;border-radius:50%;border:2.5px solid var(--line);border-top-color:var(--ink-800);
+  animation:spin .8s linear infinite;margin:0 auto 14px;}
+@keyframes spin{to{transform:rotate(360deg);}}
+
+.future-fields{
+  display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:16px;
+}
+.future-field{
+  background:var(--ink-100);border-radius:8px;padding:8px 10px;font-size:11px;font-family:monospace;color:var(--ink-800);
+}
+
+/* ---------- misc ---------- */
+.two-col{display:grid;grid-template-columns:1.3fr 1fr;gap:20px;align-items:start;}
+
+.mobile-topbar-toggle{
+  display:none;border:1px solid var(--line);background:var(--paper);border-radius:8px;
+  padding:8px;cursor:pointer;color:var(--ink-900);
+}
+.sidebar-backdrop{display:none;}
+.sidebar-backdrop.show{display:block;position:fixed;inset:0;background:rgba(5,19,24,.4);z-index:40;}
+
+@media (max-width:1180px){
+  .cards-grid{grid-template-columns:repeat(3,1fr);}
+  .metrics-row{grid-template-columns:repeat(4,1fr);}
+  .two-col{grid-template-columns:1fr;}
+  .future-fields{grid-template-columns:repeat(2,1fr);}
+}
+@media (max-width:820px){
+  .sidebar{position:fixed;left:0;top:0;bottom:0;z-index:50;transform:translateX(-100%);transition:transform .2s ease;box-shadow:var(--shadow-lg);}
+  .sidebar.open{transform:translateX(0);}
+  .mobile-topbar-toggle{display:inline-flex;}
+  main#view-root{padding:20px 16px 48px;}
+  .topbar{padding:16px;}
+  .cards-grid{grid-template-columns:repeat(2,1fr);}
+  .metrics-row{grid-template-columns:repeat(2,1fr);}
+  table.creatives{min-width:900px;}
+  .funnel-step{grid-template-columns:92px 1fr 64px 54px;gap:8px;}
+  .funnel-rate-between{padding-left:92px;}
+}
+</style>
+</head>
+<body>
+<div class="sidebar-backdrop" id="sidebarBackdrop"></div>
+<div class="app">
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-brand">
+      <span class="mark">Clínica que Converte</span>
+      <span class="product">WhatsApp que Agenda</span>
+    </div>
+    <ul class="nav" id="navList"></ul>
+    <div class="sidebar-status">
+      <h4>Status das fontes</h4>
+      <div id="sourceStatusList"></div>
+    </div>
+  </aside>
+
+  <div class="main">
+    <header class="topbar">
+      <div style="display:flex;align-items:center;gap:12px;">
+        <button class="mobile-topbar-toggle" id="sidebarToggle" aria-label="Abrir menu">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+        </button>
+        <div>
+          <h1>Dashboard de Performance</h1>
+          <p class="subtitle">WhatsApp que Agenda</p>
+        </div>
+      </div>
+      <div class="period-filter" id="periodFilter"></div>
+    </header>
+
+    <main id="view-root">
+
+      <!-- VISÃO GERAL -->
+      <section class="page active" id="page-overview">
+        <p class="section-label">Resumo do período</p>
+        <div class="cards-grid" id="cardsGrid"></div>
+        <div class="metrics-row" id="metricsRow"></div>
+
+        <div class="two-col">
+          <div class="panel">
+            <div class="panel-head">
+              <h2>Performance por Criativo</h2>
+              <span class="hint" id="tableCountHint"></span>
+            </div>
+            <div class="panel-body table-wrap">
+              <table class="creatives">
+                <thead><tr id="tableHeadRow"></tr></thead>
+                <tbody id="tableBody"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <div style="display:flex;flex-direction:column;gap:20px;">
+            <div class="panel">
+              <div class="panel-head"><h2>Funil</h2></div>
+              <div class="panel-body">
+                <div class="funnel" id="funnelOverview"></div>
+              </div>
+            </div>
+            <div class="panel">
+              <div class="panel-head"><h2>Alertas de Performance</h2></div>
+              <div class="panel-body">
+                <div class="alerts-list" id="alertsList"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- CAMPANHAS -->
+      <section class="page" id="page-campaigns">
+        <div class="placeholder-panel">
+          <div class="icon-wrap">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="16" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="7" y1="13" x2="13" y2="13"/></svg>
+          </div>
+          <h2>Campanhas</h2>
+          <p>Esta página vai listar automaticamente todas as campanhas ativas na conta de Meta Ads, com gasto, resultado e status de entrega de cada uma, assim que a integração com a Meta Marketing API for feita.</p>
+          <span class="badge status-paused">Mock / aguardando integração</span>
+        </div>
+      </section>
+
+      <!-- CRIATIVOS -->
+      <section class="page" id="page-creatives">
+        <div class="placeholder-panel">
+          <div class="icon-wrap">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="M21 15l-5-5-9 9"/></svg>
+          </div>
+          <h2>Criativos</h2>
+          <p>Aqui vai entrar a biblioteca de criativos com preview de imagem/vídeo, agrupamento por tipo e comparação lado a lado — hoje esse cruzamento já existe na tabela "Performance por Criativo" da Visão Geral.</p>
+          <span class="badge status-paused">Mock / aguardando integração</span>
+        </div>
+      </section>
+
+      <!-- FUNIL -->
+      <section class="page" id="page-funnel">
+        <p class="section-label">Funil completo do período</p>
+        <div class="panel">
+          <div class="panel-head">
+            <h2>Impressão → Venda</h2>
+            <span class="hint">Mesma base de dados da Visão Geral</span>
+          </div>
+          <div class="panel-body">
+            <div class="funnel" id="funnelDeep"></div>
+          </div>
+        </div>
+        <div class="panel">
+          <div class="panel-head"><h2>Taxa Checkout → Venda por criativo</h2></div>
+          <div class="panel-body table-wrap">
+            <table class="creatives" style="min-width:640px;">
+              <thead>
+                <tr>
+                  <th>Criativo</th>
+                  <th>Checkouts</th>
+                  <th>Vendas</th>
+                  <th>Checkout → Venda</th>
+                </tr>
+              </thead>
+              <tbody id="funnelByCreativeBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- VENDAS -->
+      <section class="page" id="page-sales">
+        <p class="section-label">Vendas &amp; atribuição</p>
+        <div class="panel">
+          <div class="panel-head">
+            <h2>Preview de estados de interface</h2>
+            <span class="hint">Esta página depende do fluxo Kiwify → webhook → Supabase, ainda não validado</span>
+          </div>
+          <div class="panel-body">
+            <div class="state-demo-controls">
+              <select class="state-select" id="stateSelect">
+                <option value="empty">Sem dados</option>
+                <option value="loading">Carregando</option>
+                <option value="error">Erro</option>
+                <option value="no-attribution">Sem atribuição</option>
+                <option value="pending-attribution">Atribuição pendente de validação</option>
+              </select>
+            </div>
+            <div id="stateBox"></div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-head"><h2>Campos previstos por venda</h2></div>
+          <div class="panel-body">
+            <p class="muted" style="font-size:12.5px;margin:0 0 4px;">Estrutura que o dashboard já está preparado para receber quando o webhook da Kiwify for validado:</p>
+            <div class="future-fields" id="futureFields"></div>
+          </div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+</div>
+
+<script>
+(function(){
+"use strict";
+
+/* ============================================================
+   1. DADOS MOCK — contadores brutos por anúncio.
+   Todas as métricas derivadas (CTR, CPC, CPA, ROAS, custo por
+   checkout) são calculadas a partir daqui, nunca guardadas prontas,
+   para os números sempre fecharem matematicamente e para um novo
+   anúncio adicionado a este array aparecer em todo o dashboard sem
+   qualquer alteração de código.
+   ============================================================ */
+const adsBase = [
+  { ad_id:"120001", ad_name:"A1 | Demonstração | Vídeo", type:"video", status:"ACTIVE",
+    impressions:11500, clicks:410, lpViews:340, checkouts:44, sales:12, spend:168.00, revenue:600.00 },
+  { ad_id:"120002", ad_name:"A2 | Objeções | Carrossel", type:"carousel", status:"ACTIVE",
+    impressions:9800, clicks:320, lpViews:260, checkouts:32, sales:7, spend:140.00, revenue:315.00,
+    previousCtr:0.0398 },
+  { ad_id:"120003", ad_name:"A3 | Padronização | Estático", type:"image", status:"ACTIVE",
+    impressions:6200, clicks:200, lpViews:160, checkouts:18, sales:0, spend:83.20, revenue:0.00 },
+  { ad_id:"120004", ad_name:"A4 | Depoimento | Vídeo", type:"video", status:"ACTIVE",
+    impressions:1900, clicks:60, lpViews:50, checkouts:6, sales:1, spend:12.60, revenue:63.00 },
+  { ad_id:"120005", ad_name:"A5 | Prova Social | Carrossel", type:"carousel", status:"ACTIVE",
+    impressions:2000, clicks:97, lpViews:82, checkouts:16, sales:2, spend:24.00, revenue:100.00 },
+  { ad_id:"120006", ad_name:"A6 | Oferta Especial | Estático", type:"image", status:"PAUSED",
+    impressions:0, clicks:0, lpViews:0, checkouts:0, sales:0, spend:0.00, revenue:0.00 },
+];
+
+const RAW_FIELDS = ["impressions","clicks","lpViews","checkouts","sales","spend","revenue"];
+
+// fator de escala por período em relação à base ("7d") + leve variação
+// determinística por ad_id, para o filtro de período parecer real sem
+// depender de números aleatórios (o que quebraria a consistência entre renders).
+const periodFactors = { hoje:0.16, ontem:0.14, "7d":1, "30d":4.35, personalizado:4.35 };
+
+function seededVariance(seed, spread){
+  let hash = 0;
+  for(let i=0;i<seed.length;i++){ hash = (hash*31 + seed.charCodeAt(i)) >>> 0; }
+  const frac = (hash % 1000) / 1000;
+  return 1 + (frac - 0.5) * 2 * spread;
+}
+
+function getPeriodAds(period){
+  if(period === "7d"){
+    return adsBase.map(a => Object.assign({}, a));
+  }
+  const factor = periodFactors[period] || 1;
+  return adsBase.map(ad => {
+    const scaled = Object.assign({}, ad);
+    const variance = seededVariance(ad.ad_id + period, 0.10);
+    const f = factor * variance;
+    scaled.clicks = Math.max(0, Math.round(ad.clicks * f));
+    scaled.lpViews = Math.min(scaled.clicks, Math.max(0, Math.round(ad.lpViews * f)));
+    scaled.checkouts = Math.min(scaled.lpViews, Math.max(0, Math.round(ad.checkouts * f)));
+    scaled.sales = Math.min(scaled.checkouts, Math.max(0, Math.round(ad.sales * f)));
+    scaled.impressions = Math.max(scaled.clicks, Math.round(ad.impressions * f));
+    scaled.spend = Math.round(ad.spend * f * 100) / 100;
+    scaled.revenue = Math.round(ad.revenue * f * 100) / 100;
+    return scaled;
+  });
+}
+
+function deriveMetrics(r){
+  const ctr = r.impressions > 0 ? r.clicks / r.impressions : null;
+  const cpc = r.clicks > 0 ? r.spend / r.clicks : null;
+  const lpRate = r.clicks > 0 ? r.lpViews / r.clicks : null;
+  const checkoutRate = r.lpViews > 0 ? r.checkouts / r.lpViews : null;
+  const saleRate = r.checkouts > 0 ? r.sales / r.checkouts : null;
+  const custoPorCheckout = r.checkouts > 0 ? r.spend / r.checkouts : null;
+  const cpa = r.sales > 0 ? r.spend / r.sales : null;
+  const roas = r.spend > 0 ? r.revenue / r.spend : null;
+  return Object.assign({}, r, { ctr, cpc, lpRate, checkoutRate, saleRate, custoPorCheckout, cpa, roas });
+}
+
+function aggregate(rows){
+  const sum = { impressions:0, clicks:0, lpViews:0, checkouts:0, sales:0, spend:0, revenue:0 };
+  rows.forEach(r => RAW_FIELDS.forEach(f => sum[f] += r[f]));
+  sum.spend = Math.round(sum.spend * 100) / 100;
+  sum.revenue = Math.round(sum.revenue * 100) / 100;
+  return deriveMetrics(sum);
+}
+
+function getHealth(m){
+  if(m.status === "PAUSED" || m.impressions === 0) return "paused";
+  if(m.checkouts < 8) return "new";
+  if(m.sales === 0 && m.spend >= 50) return "critical";
+  if(m.roas === null) return "new";
+  if(m.roas >= 3) return "good";
+  if(m.roas >= 1.5) return "attention";
+  return "critical";
+}
+
+const HEALTH_LABEL = { good:"Saudável", attention:"Atenção", critical:"Crítico", new:"Poucos dados", paused:"Pausado" };
+
+// deltas fixos de "período anterior" (razão sobre os totais do período
+// atual) — aplicados aos 3 valores-base (gasto, vendas, receita); CPA e
+// ROAS do período anterior são sempre recalculados a partir deles.
+const PREV_RATIOS = { spend:0.8897, sales:0.8182, revenue:0.8256 };
+
+/* ============================================================
+   2. FORMATADORES
+   ============================================================ */
+function fmtCurrency(v){
+  if(v === null || v === undefined) return "—";
+  return "R$ " + v.toLocaleString("pt-BR", { minimumFractionDigits:2, maximumFractionDigits:2 });
+}
+function fmtNumber(v){
+  if(v === null || v === undefined) return "—";
+  return Math.round(v).toLocaleString("pt-BR");
+}
+function fmtPercent(v, digits){
+  if(v === null || v === undefined) return "—";
+  return (v*100).toLocaleString("pt-BR", { minimumFractionDigits:digits||2, maximumFractionDigits:digits||2 }) + "%";
+}
+function fmtRoas(v){
+  if(v === null || v === undefined) return "—";
+  return v.toLocaleString("pt-BR", { minimumFractionDigits:2, maximumFractionDigits:2 }) + "x";
+}
+function shortName(ad){ return ad.ad_name.split("|")[0].trim(); }
+
+/* ============================================================
+   3. NAVEGAÇÃO
+   ============================================================ */
+const NAV_ITEMS = [
+  { id:"overview", label:"Visão Geral", icon:'<rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/>' },
+  { id:"campaigns", label:"Campanhas", icon:'<rect x="3" y="4" width="18" height="16" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="7" y1="13" x2="13" y2="13"/>' },
+  { id:"creatives", label:"Criativos", icon:'<rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="M21 15l-5-5-9 9"/>' },
+  { id:"funnel", label:"Funil", icon:'<path d="M4 4h16l-6 8v6l-4 2v-8L4 4z"/>' },
+  { id:"sales", label:"Vendas", icon:'<circle cx="9" cy="20" r="1.4"/><circle cx="18" cy="20" r="1.4"/><path d="M2 3h2l2.6 12.2a2 2 0 0 0 2 1.6h8.8a2 2 0 0 0 2-1.6L21 7H6"/>' },
+];
+
+let currentPage = "overview";
+let currentPeriod = "7d";
+let sortKey = "roas";
+let sortDir = "desc";
+
+const navList = document.getElementById("navList");
+NAV_ITEMS.forEach(item => {
+  const li = document.createElement("li");
+  const btn = document.createElement("button");
+  btn.className = "nav-item" + (item.id === currentPage ? " active" : "");
+  btn.dataset.page = item.id;
+  btn.innerHTML = '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">'+item.icon+'</svg><span>'+item.label+'</span>';
+  btn.addEventListener("click", () => setPage(item.id));
+  li.appendChild(btn);
+  navList.appendChild(li);
+});
+
+function setPage(pageId){
+  currentPage = pageId;
+  document.querySelectorAll(".nav-item").forEach(b => b.classList.toggle("active", b.dataset.page === pageId));
+  document.querySelectorAll(".page").forEach(p => p.classList.toggle("active", p.id === "page-" + pageId));
+  document.getElementById("sidebar").classList.remove("open");
+  document.getElementById("sidebarBackdrop").classList.remove("show");
+  if(pageId === "funnel") renderFunnelPage();
+}
+
+document.getElementById("sidebarToggle").addEventListener("click", () => {
+  document.getElementById("sidebar").classList.add("open");
+  document.getElementById("sidebarBackdrop").classList.add("show");
+});
+document.getElementById("sidebarBackdrop").addEventListener("click", () => {
+  document.getElementById("sidebar").classList.remove("open");
+  document.getElementById("sidebarBackdrop").classList.remove("show");
+});
+
+/* ============================================================
+   4. FILTRO DE PERÍODO
+   ============================================================ */
+const PERIOD_OPTIONS = [
+  { id:"hoje", label:"Hoje" },
+  { id:"ontem", label:"Ontem" },
+  { id:"7d", label:"7 dias" },
+  { id:"30d", label:"30 dias" },
+  { id:"personalizado", label:"Personalizado" },
+];
+const periodFilterEl = document.getElementById("periodFilter");
+PERIOD_OPTIONS.forEach(opt => {
+  const btn = document.createElement("button");
+  btn.className = "period-btn" + (opt.id === currentPeriod ? " active" : "");
+  btn.textContent = opt.label;
+  btn.dataset.period = opt.id;
+  btn.addEventListener("click", () => {
+    currentPeriod = opt.id;
+    document.querySelectorAll(".period-btn").forEach(b => b.classList.toggle("active", b.dataset.period === opt.id));
+    renderOverview();
+    if(currentPage === "funnel") renderFunnelPage();
+  });
+  periodFilterEl.appendChild(btn);
+});
+
+/* ============================================================
+   5. CARDS PRINCIPAIS + MÉTRICAS SECUNDÁRIAS
+   ============================================================ */
+function computePrevious(cur){
+  const prevSpend = cur.spend * PREV_RATIOS.spend;
+  const prevSales = Math.max(1, Math.round(cur.sales * PREV_RATIOS.sales));
+  const prevRevenue = cur.revenue * PREV_RATIOS.revenue;
+  const prevCpa = prevSpend / prevSales;
+  const prevRoas = prevSpend > 0 ? prevRevenue / prevSpend : null;
+  return { spend:prevSpend, sales:prevSales, revenue:prevRevenue, cpa:prevCpa, roas:prevRoas };
+}
+
+function delta(cur, prev){
+  if(prev === null || prev === undefined || prev === 0 || cur === null) return null;
+  return (cur - prev) / prev;
+}
+
+function deltaBadge(d, lowerIsBetter){
+  if(d === null) return '<span class="delta neutral">sem histórico</span>';
+  const isUp = d >= 0;
+  const good = lowerIsBetter ? !isUp : isUp;
+  const cls = (isUp ? "up" : "down") + " " + (good ? "good" : "bad");
+  const arrow = isUp
+    ? '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M6 15l6-6 6 6"/></svg>'
+    : '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M6 9l6 6 6-6"/></svg>';
+  return '<span class="delta '+cls+'">'+arrow+' '+fmtPercent(Math.abs(d),1)+'</span>';
+}
+
+function renderCards(agg){
+  const prev = computePrevious(agg);
+  const cards = [
+    { label:"Gasto", value:fmtCurrency(agg.spend), d:delta(agg.spend, prev.spend), lowerIsBetter:null },
+    { label:"Receita", value:fmtCurrency(agg.revenue), d:delta(agg.revenue, prev.revenue), lowerIsBetter:false },
+    { label:"ROAS", value:fmtRoas(agg.roas), d:delta(agg.roas, prev.roas), lowerIsBetter:false },
+    { label:"Vendas", value:fmtNumber(agg.sales), d:delta(agg.sales, prev.sales), lowerIsBetter:false },
+    { label:"CPA", value:fmtCurrency(agg.cpa), d:delta(agg.cpa, prev.cpa), lowerIsBetter:true },
+  ];
+  const grid = document.getElementById("cardsGrid");
+  grid.innerHTML = cards.map(c => {
+    const badge = c.lowerIsBetter === null ? '<span class="delta neutral">'+fmtPercent(Math.abs(c.d||0),1)+' vs. período anterior</span>' : deltaBadge(c.d, c.lowerIsBetter);
+    return '<div class="card"><p class="label">'+c.label+'</p><p class="value">'+c.value+'</p>'+badge+'</div>';
+  }).join("");
+}
+
+function renderSecondaryMetrics(agg){
+  const tiles = [
+    { label:"Impressões", value:fmtNumber(agg.impressions) },
+    { label:"Cliques", value:fmtNumber(agg.clicks) },
+    { label:"CTR", value:fmtPercent(agg.ctr,2) },
+    { label:"CPC", value:fmtCurrency(agg.cpc) },
+    { label:"LP Views", value:fmtNumber(agg.lpViews) },
+    { label:"Init. Checkout", value:fmtNumber(agg.checkouts) },
+    { label:"Custo / Checkout", value:fmtCurrency(agg.custoPorCheckout) },
+  ];
+  document.getElementById("metricsRow").innerHTML = tiles.map(t =>
+    '<div class="metric-tile"><p class="label">'+t.label+'</p><p class="value">'+t.value+'</p></div>'
+  ).join("");
+}
+
+/* ============================================================
+   6. TABELA DE CRIATIVOS (dinâmica, ordenável)
+   ============================================================ */
+const TABLE_COLUMNS = [
+  { key:"ad_name", label:"Criativo", sortable:false },
+  { key:"status", label:"Status", sortable:false },
+  { key:"spend", label:"Gasto", sortable:true, fmt:fmtCurrency },
+  { key:"impressions", label:"Impressões", sortable:true, fmt:fmtNumber },
+  { key:"ctr", label:"CTR", sortable:true, fmt:v=>fmtPercent(v,2) },
+  { key:"cpc", label:"CPC", sortable:true, fmt:fmtCurrency },
+  { key:"checkouts", label:"Checkouts", sortable:true, fmt:fmtNumber },
+  { key:"custoPorCheckout", label:"Custo/Checkout", sortable:true, fmt:fmtCurrency },
+  { key:"sales", label:"Vendas", sortable:true, fmt:fmtNumber },
+  { key:"revenue", label:"Receita", sortable:true, fmt:fmtCurrency },
+  { key:"cpa", label:"CPA", sortable:true, fmt:fmtCurrency },
+  { key:"roas", label:"ROAS", sortable:true, fmt:fmtRoas },
+];
+
+function renderTableHead(){
+  const row = document.getElementById("tableHeadRow");
+  row.innerHTML = TABLE_COLUMNS.map(col => {
+    const sorted = col.key === sortKey;
+    const arrow = sorted ? (sortDir === "asc" ? "▲" : "▼") : "▼";
+    const cls = "th-" + col.key + (col.sortable ? " sortable" : "") + (sorted ? " sorted" : "");
+    return '<th class="'+cls+'" data-key="'+col.key+'">'+col.label+(col.sortable ? ' <span class="arrow">'+arrow+'</span>' : '')+'</th>';
+  }).join("");
+  row.querySelectorAll("th.sortable").forEach(th => {
+    th.addEventListener("click", () => {
+      const key = th.dataset.key;
+      if(sortKey === key){ sortDir = sortDir === "asc" ? "desc" : "asc"; }
+      else { sortKey = key; sortDir = "desc"; }
+      renderTable();
+    });
+  });
+}
+
+function typeLabel(type){
+  return { video:"Vídeo", carousel:"Carrossel", image:"Estático" }[type] || type;
+}
+
+function renderTable(){
+  const ads = getPeriodAds(currentPeriod).map(deriveMetrics);
+  document.getElementById("tableCountHint").textContent = ads.length + " anúncio" + (ads.length !== 1 ? "s" : "") + " no período";
+
+  const sorted = ads.slice().sort((a,b) => {
+    let av = a[sortKey], bv = b[sortKey];
+    if(sortKey === "ad_name") { av = a.ad_name; bv = b.ad_name; }
+    // anúncios sem dado (null) sempre vão para o fim, nas duas direções —
+    // "sem dado" nunca deve aparecer como "melhor" em uma ordenação crescente.
+    if(av === null && bv === null) return 0;
+    if(av === null) return 1;
+    if(bv === null) return -1;
+    if(av < bv) return sortDir === "asc" ? -1 : 1;
+    if(av > bv) return sortDir === "asc" ? 1 : -1;
+    return 0;
+  });
+
+  document.getElementById("tableBody").innerHTML = sorted.map(ad => {
+    const health = getHealth(ad);
+    const statusBadge = ad.status === "ACTIVE"
+      ? '<span class="badge status-active">Ativo</span>'
+      : '<span class="badge status-paused">Pausado</span>';
+    const cells = TABLE_COLUMNS.slice(2).map(col => '<td class="num-cell">'+col.fmt(ad[col.key])+'</td>').join("");
+    return '<tr data-ad-id="'+ad.ad_id+'">'
+      + '<td><div class="creative-name-cell"><span class="health-dot '+health+'" title="'+HEALTH_LABEL[health]+'"></span>'
+        + '<div class="txt"><span class="name">'+ad.ad_name+'</span><span class="meta">ID '+ad.ad_id+' · '+typeLabel(ad.type)+'</span></div></div></td>'
+      + '<td>'+statusBadge+'</td>'
+      + cells
+      + '</tr>';
+  }).join("");
+}
+
+/* ============================================================
+   7. FUNIL
+   ============================================================ */
+function funnelSteps(agg){
+  return [
+    { key:"impressions", label:"Impressões", value:agg.impressions },
+    { key:"clicks", label:"Cliques", value:agg.clicks },
+    { key:"lpViews", label:"Landing Page", value:agg.lpViews },
+    { key:"checkouts", label:"Checkout", value:agg.checkouts },
+    { key:"sales", label:"Venda", value:agg.sales },
+  ];
+}
+
+function renderFunnel(agg, containerId){
+  const steps = funnelSteps(agg);
+  const max = steps[0].value || 1;
+  let html = "";
+  steps.forEach((step, i) => {
+    const pct = Math.max(4, Math.round((step.value / max) * 100));
+    html += '<div class="funnel-step">'
+      + '<span class="step-label">'+step.label+'</span>'
+      + '<div class="funnel-bar-track"><div class="funnel-bar-fill" style="width:'+pct+'%"></div></div>'
+      + '<span class="step-value">'+fmtNumber(step.value)+'</span>'
+      + '<span class="step-rate">'+(i===0 ? "base" : fmtPercent(step.value / steps[0].value, 1))+'</span>'
+      + '</div>';
+    if(i < steps.length - 1){
+      const rate = steps[i].value > 0 ? steps[i+1].value / steps[i].value : null;
+      html += '<div class="funnel-rate-between">'+step.label+' → '+steps[i+1].label+': '+fmtPercent(rate,1)+'</div>';
+    }
+  });
+  document.getElementById(containerId).innerHTML = html;
+}
+
+function renderFunnelPage(){
+  const ads = getPeriodAds(currentPeriod).map(deriveMetrics);
+  const agg = aggregate(getPeriodAds(currentPeriod));
+  renderFunnel(agg, "funnelDeep");
+  document.getElementById("funnelByCreativeBody").innerHTML = ads
+    .filter(a => a.status !== "PAUSED")
+    .sort((a,b) => (b.saleRate||0) - (a.saleRate||0))
+    .map(a => '<tr><td>'+a.ad_name+'</td><td class="num-cell">'+fmtNumber(a.checkouts)+'</td><td class="num-cell">'+fmtNumber(a.sales)+'</td><td class="num-cell">'+fmtPercent(a.saleRate,1)+'</td></tr>')
+    .join("");
+}
+
+/* ============================================================
+   8. ALERTAS DE PERFORMANCE (regras simples, sem IA)
+   ============================================================ */
+function generateAlerts(ads, agg){
+  const alerts = [];
+
+  ads.filter(a => a.status !== "PAUSED" && a.sales === 0 && a.spend >= 50).forEach(a => {
+    alerts.push({ level:"critical", text: shortName(a)+" gastou "+fmtCurrency(a.spend)+" sem gerar nenhuma venda." });
+  });
+
+  ads.forEach(a => {
+    if(a.previousCtr && a.ctr !== null && a.ctr < a.previousCtr){
+      const drop = (a.previousCtr - a.ctr) / a.previousCtr;
+      if(drop > 0.10){
+        alerts.push({ level:"attention", text:"CTR de "+shortName(a)+" caiu "+fmtPercent(drop,0)+" em relação ao período anterior." });
+      }
+    }
+  });
+
+  const topAd = ads.slice().sort((a,b) => b.sales - a.sales)[0];
+  if(topAd && agg.sales > 0){
+    const share = topAd.sales / agg.sales;
+    if(share >= 0.4){
+      alerts.push({ level:"positive", text: shortName(topAd)+" concentra "+fmtPercent(share,0)+" das vendas do período." });
+    }
+  }
+
+  const benchmarkCheckoutRate = 0.15;
+  if(agg.checkoutRate !== null && agg.checkoutRate < benchmarkCheckoutRate){
+    alerts.push({ level:"attention", text:"Taxa Landing Page → Checkout está em "+fmtPercent(agg.checkoutRate,1)+", abaixo do esperado ("+fmtPercent(benchmarkCheckoutRate,0)+")." });
+  }
+
+  if(agg.roas !== null){
+    alerts.push({ level:"info", text:"ROAS geral do período está em "+fmtRoas(agg.roas)+"." });
+  }
+
+  return alerts;
+}
+
+function renderAlerts(){
+  const ads = getPeriodAds(currentPeriod).map(deriveMetrics);
+  const agg = aggregate(getPeriodAds(currentPeriod));
+  const alerts = generateAlerts(ads, agg);
+  const LEVEL_LABEL = { critical:"Crítico", attention:"Atenção", positive:"Positivo", info:"Info" };
+  document.getElementById("alertsList").innerHTML = alerts.length
+    ? alerts.map(a => '<div class="alert-item level-'+a.level+'"><span class="dot"></span><span><span class="level-tag">'+LEVEL_LABEL[a.level]+'</span>'+a.text+'</span></div>').join("")
+    : '<p class="muted" style="font-size:12.5px;">Nenhum alerta para este período.</p>';
+}
+
+/* ============================================================
+   9. STATUS DAS FONTES (sidebar)
+   ============================================================ */
+const dataSourceStatus = [
+  { name:"Meta Ads", state:"mock", note:"Mock / aguardando integração" },
+  { name:"Supabase", state:"mock", note:"Mock / aguardando integração" },
+  { name:"Kiwify", state:"pending", note:"Aguardando validação de atribuição" },
+];
+document.getElementById("sourceStatusList").innerHTML = dataSourceStatus.map(s =>
+  '<div class="status-row"><span class="row-top"><span class="status-dot '+s.state+'"></span><span class="src-name">'+s.name+'</span></span><span class="note">'+s.note+'</span></div>'
+).join("");
+
+/* ============================================================
+   10. ESTADOS DE INTERFACE (página Vendas)
+   ============================================================ */
+const STATE_DEFS = {
+  empty: { icon:'<path d="M3 9l9-6 9 6-9 6-9-6z"/><path d="M3 9v6l9 6 9-6V9"/>', title:"Nenhum dado disponível para este período.", desc:"Assim que houver vendas atribuídas via Kiwify para o período selecionado, elas aparecerão aqui." , cls:""},
+  loading: { spinner:true, title:"Carregando dados...", desc:"Buscando as vendas mais recentes.", cls:"" },
+  error: { icon:'<circle cx="12" cy="12" r="9"/><line x1="12" y1="8" x2="12" y2="13"/><line x1="12" y1="16" x2="12.01" y2="16"/>', title:"Não foi possível atualizar os dados da Meta.", desc:"Tentaremos novamente automaticamente. Se o problema persistir, verifique a conexão com a conta de anúncios.", cls:"error" },
+  "no-attribution": { icon:'<circle cx="12" cy="12" r="9"/><path d="M9 9a3 3 0 1 1 4 2.8c-.6.3-1 .9-1 1.6"/><line x1="12" y1="17" x2="12.01" y2="17"/>', title:"Venda registrada sem origem de anúncio identificada.", desc:"O pedido chegou na Kiwify, mas não trouxe um attribution_id válido — não é possível ligá-lo a um anúncio específico.", cls:"" },
+  "pending-attribution": { icon:'<circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/>', title:"Atribuição pendente de validação.", desc:"O fluxo Landing Page → attribution_id → Kiwify (s1) → webhook → Supabase ainda não foi validado com uma venda real.", cls:"pending" },
+};
+
+function renderStateBox(state){
+  const s = STATE_DEFS[state];
+  const iconHtml = s.spinner
+    ? '<div class="spinner"></div>'
+    : '<div class="icon-wrap"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">'+s.icon+'</svg></div>';
+  document.getElementById("stateBox").innerHTML =
+    '<div class="state-box '+s.cls+'">'+iconHtml+'<p class="title">'+s.title+'</p><p class="desc">'+s.desc+'</p></div>';
+}
+
+document.getElementById("stateSelect").addEventListener("change", e => renderStateBox(e.target.value));
+
+const FUTURE_FIELDS = ["attribution_id","utm_source","utm_medium","utm_campaign","utm_content","ad_id","campaign_id","order_id"];
+document.getElementById("futureFields").innerHTML = FUTURE_FIELDS.map(f => '<div class="future-field">'+f+'</div>').join("");
+
+/* ============================================================
+   11. RENDER PRINCIPAL
+   ============================================================ */
+function renderOverview(){
+  const rawAds = getPeriodAds(currentPeriod);
+  const agg = aggregate(rawAds);
+  renderCards(agg);
+  renderSecondaryMetrics(agg);
+  renderTableHead();
+  renderTable();
+  renderFunnel(agg, "funnelOverview");
+  renderAlerts();
+}
+
+renderOverview();
+renderStateBox("empty");
+})();
+</script>
+</body>
+</html>
