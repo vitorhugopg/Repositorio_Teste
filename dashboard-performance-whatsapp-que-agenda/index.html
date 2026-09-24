@@ -300,10 +300,59 @@ table.creatives tbody tr:hover{background:var(--bg);}
 .placeholder-panel p{margin:0 auto;max-width:460px;color:var(--text-muted);font-size:13.5px;line-height:1.6;}
 .placeholder-panel .badge{margin-top:16px;}
 
-/* ---------- dev preview block (Vendas) ---------- */
+/* ---------- dev preview block (Vendas / Analista IA) ---------- */
 .dev-preview-block{border:1px dashed var(--line);box-shadow:none;background:var(--bg);}
 .dev-preview-block .panel-head{border-bottom:1px dashed var(--line);}
 .dev-preview-block .panel-head h2{font-size:12.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--text-muted);}
+
+/* ---------- página (cabeçalho secundário, Analista IA) ---------- */
+.page-header{margin:0 0 22px;}
+.page-header h2{margin:0;font-size:19px;font-weight:600;color:var(--ink-900);}
+.page-header .page-subtitle{margin:2px 0 0;font-size:13px;color:var(--text-muted);font-weight:600;}
+.page-header .page-note{margin:8px 0 0;font-size:11.5px;color:var(--text-muted);}
+
+/* ---------- Analista IA ---------- */
+.exec-summary-text{font-size:14px;line-height:1.7;color:var(--text);margin:0;}
+.exec-summary-text strong{color:var(--ink-900);}
+
+.diagnostics-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:24px;}
+.diagnostic-card{background:var(--paper);border:1px solid var(--line);border-radius:var(--radius);padding:16px 18px;box-shadow:var(--shadow);}
+.diagnostic-card .dtag{display:inline-flex;padding:3px 9px;border-radius:999px;font-size:10.5px;font-weight:700;letter-spacing:.02em;}
+.diagnostic-card .dtag.attention{background:var(--warn-bg);color:var(--warn);}
+.diagnostic-card .dtag.opportunity{background:var(--success-bg);color:var(--success);}
+.diagnostic-card .dtag.insufficient{background:var(--info-bg);color:var(--info);}
+.diagnostic-card h3{margin:9px 0 2px;font-size:13.5px;font-weight:700;color:var(--ink-900);}
+.diagnostic-card .dmeta{font-size:10.5px;color:var(--text-muted);margin:0 0 12px;}
+.diagnostic-card .dstats{display:flex;gap:16px;margin-bottom:12px;flex-wrap:wrap;}
+.diagnostic-card .dstat{font-size:10.5px;color:var(--text-muted);}
+.diagnostic-card .dstat .v{display:block;font-weight:700;color:var(--ink-900);font-size:13.5px;font-variant-numeric:tabular-nums;}
+.diagnostic-card .ddiag{font-size:12px;color:var(--text);line-height:1.55;margin:0 0 10px;}
+.diagnostic-card .dnext{font-size:11.5px;color:var(--text-muted);line-height:1.55;margin:0;padding-top:10px;border-top:1px solid var(--line);}
+.diagnostic-card .dnext strong{color:var(--gold-600);font-weight:700;}
+
+.ask-row{display:flex;gap:10px;align-items:stretch;margin-bottom:14px;}
+.analyst-textarea{
+  flex:1;border:1px solid var(--line);border-radius:var(--radius-sm);padding:12px 14px;
+  font-family:inherit;font-size:13px;resize:vertical;min-height:46px;color:var(--text);background:var(--paper);
+}
+.analyst-textarea:focus{outline:2px solid var(--ink-800);outline-offset:1px;}
+.btn-analyze{
+  background:var(--ink-900);color:#fff;border:none;border-radius:var(--radius-sm);
+  padding:0 22px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;
+}
+.btn-analyze:hover{background:var(--ink-800);}
+
+.chip-row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px;}
+.chip{
+  border:1px solid var(--line);background:var(--bg);border-radius:999px;
+  padding:7px 13px;font-size:11.5px;font-weight:600;color:var(--ink-900);cursor:pointer;
+}
+.chip:hover{background:var(--ink-100);}
+
+.analyst-answer{border:1px solid var(--line);border-radius:var(--radius);padding:16px 18px;background:var(--bg);}
+.analyst-answer.loading{text-align:center;padding:30px;}
+.analyst-answer .q{font-size:10.5px;text-transform:uppercase;letter-spacing:.04em;color:var(--text-muted);font-weight:700;margin:0 0 6px;}
+.analyst-answer .a{font-size:13px;line-height:1.65;color:var(--text);margin:0;}
 
 /* ---------- state demo (Vendas) ---------- */
 .state-demo-controls{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;}
@@ -347,6 +396,7 @@ table.creatives tbody tr:hover{background:var(--bg);}
   .metrics-row{grid-template-columns:repeat(4,1fr);}
   .two-col{grid-template-columns:1fr;}
   .future-fields{grid-template-columns:repeat(2,1fr);}
+  .diagnostics-grid{grid-template-columns:repeat(2,1fr);}
 }
 @media (max-width:820px){
   .sidebar{position:fixed;left:0;top:0;bottom:0;z-index:50;transform:translateX(-100%);transition:transform .2s ease;box-shadow:var(--shadow-lg);}
@@ -358,6 +408,9 @@ table.creatives tbody tr:hover{background:var(--bg);}
   .metrics-row{grid-template-columns:repeat(2,1fr);}
   .funnel-step{grid-template-columns:92px 1fr 64px;gap:8px;}
   .funnel-rate-between{padding-left:92px;}
+  .diagnostics-grid{grid-template-columns:1fr;}
+  .ask-row{flex-direction:column;}
+  .btn-analyze{padding:11px 20px;}
 }
 </style>
 </head>
@@ -530,6 +583,59 @@ table.creatives tbody tr:hover{background:var(--bg);}
                 <option value="error">Erro</option>
                 <option value="no-attribution">Sem atribuição</option>
                 <option value="pending-attribution">Atribuição pendente de validação</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ANALISTA IA -->
+      <section class="page" id="page-analyst">
+        <div class="page-header">
+          <h2>Analista de Performance</h2>
+          <p class="page-subtitle">Diagnóstico inteligente das suas campanhas</p>
+          <p class="page-note">Análises baseadas nos dados do período selecionado.</p>
+        </div>
+
+        <div class="panel">
+          <div class="panel-head"><h2>Resumo Executivo</h2></div>
+          <div class="panel-body" id="execSummaryBody">
+            <p class="exec-summary-text" id="execSummaryText"></p>
+          </div>
+        </div>
+
+        <p class="section-label">Diagnósticos e Oportunidades</p>
+        <div class="diagnostics-grid" id="diagnosticsGrid"></div>
+
+        <div class="panel">
+          <div class="panel-head"><h2>Pergunte ao seu Analista de Performance</h2></div>
+          <div class="panel-body">
+            <div class="ask-row">
+              <textarea class="analyst-textarea" id="analystInput" rows="2" placeholder="Ex.: Por que minhas vendas caíram esta semana?"></textarea>
+              <button class="btn-analyze" id="analystAskBtn">Analisar</button>
+            </div>
+            <div class="chip-row" id="suggestedChips"></div>
+            <div id="analystAnswer"></div>
+          </div>
+        </div>
+
+        <!-- Bloco de QA visual — mesma lógica da página Vendas: só para
+             validar layout dos estados de interface, não aparece na versão
+             final e não representa uma escolha do usuário final. -->
+        <div class="panel dev-preview-block" data-dev-only="true">
+          <div class="panel-head">
+            <h2>Modo de desenvolvimento — preview técnico</h2>
+            <span class="hint">Não aparece na versão final</span>
+          </div>
+          <div class="panel-body">
+            <p class="muted" style="font-size:12px;margin:0 0 10px;">Simula os estados de interface da análise (sem dados, dados insuficientes, analisando, erro futuro), para validar layout.</p>
+            <div class="state-demo-controls">
+              <select class="state-select" id="analystStateSelect">
+                <option value="normal">Normal (dados do período atual)</option>
+                <option value="empty">Sem dados</option>
+                <option value="insufficient">Dados insuficientes</option>
+                <option value="loading">Analisando</option>
+                <option value="error">Erro futuro</option>
               </select>
             </div>
           </div>
@@ -737,10 +843,18 @@ function aggregate(rows){
   return deriveMetrics(sum);
 }
 
+// Limiares compartilhados por getHealth, pelos alertas e pelo Analista IA —
+// um único lugar define "volume suficiente para confiar numa conclusão" e
+// "gasto relevante", para as três leituras nunca divergirem entre si.
+const MIN_CHECKOUTS_FOR_CONFIDENCE = 8;
+const RELEVANT_SPEND_THRESHOLD = 50;
+const CTR_DROP_THRESHOLD = 0.10;
+const BENCHMARK_CHECKOUT_RATE = 0.15;
+
 function getHealth(m){
   if(m.status === "PAUSED" || m.impressions === 0) return "paused";
-  if(m.checkouts < 8) return "new";
-  if(m.sales === 0 && m.spend >= 50) return "critical";
+  if(m.checkouts < MIN_CHECKOUTS_FOR_CONFIDENCE) return "new";
+  if(m.sales === 0 && m.spend >= RELEVANT_SPEND_THRESHOLD) return "critical";
   if(m.roas === null) return "new";
   if(m.roas >= 3) return "good";
   if(m.roas >= 1.5) return "attention";
@@ -872,6 +986,7 @@ const NAV_ITEMS = [
   { id:"creatives", label:"Criativos", icon:'<rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="M21 15l-5-5-9 9"/>' },
   { id:"funnel", label:"Funil", icon:'<path d="M4 4h16l-6 8v6l-4 2v-8L4 4z"/>' },
   { id:"sales", label:"Vendas", icon:'<circle cx="9" cy="20" r="1.4"/><circle cx="18" cy="20" r="1.4"/><path d="M2 3h2l2.6 12.2a2 2 0 0 0 2 1.6h8.8a2 2 0 0 0 2-1.6L21 7H6"/>' },
+  { id:"analyst", label:"Analista IA", icon:'<circle cx="10" cy="10" r="6.5"/><line x1="7.3" y1="12" x2="7.3" y2="8"/><line x1="10" y1="12" x2="10" y2="6.3"/><line x1="12.7" y1="12" x2="12.7" y2="9.5"/><line x1="15" y1="15" x2="20" y2="20"/>' },
 ];
 
 let currentPage = "overview";
@@ -898,6 +1013,7 @@ function setPage(pageId){
   if(pageId === "funnel") renderFunnelPage();
   if(pageId === "campaigns") renderCampaigns();
   if(pageId === "creatives") renderCreatives();
+  if(pageId === "analyst") renderAnalyst();
 }
 
 document.getElementById("sidebarToggle").addEventListener("click", () => {
@@ -932,6 +1048,7 @@ PERIOD_OPTIONS.forEach(opt => {
     if(currentPage === "funnel") renderFunnelPage();
     if(currentPage === "campaigns") renderCampaigns();
     if(currentPage === "creatives") renderCreatives();
+    if(currentPage === "analyst") renderAnalyst();
   });
   periodFilterEl.appendChild(btn);
 });
@@ -1210,14 +1327,14 @@ async function renderFunnelPage(){
 function generateAlerts(ads, agg){
   const alerts = [];
 
-  ads.filter(a => a.status !== "PAUSED" && a.sales === 0 && a.spend >= 50).forEach(a => {
+  ads.filter(a => a.status !== "PAUSED" && a.sales === 0 && a.spend >= RELEVANT_SPEND_THRESHOLD).forEach(a => {
     alerts.push({ level:"critical", text: shortName(a)+" gastou "+fmtCurrency(a.spend)+" sem gerar nenhuma venda." });
   });
 
   ads.forEach(a => {
     if(a.previousCtr && a.ctr !== null && a.ctr < a.previousCtr){
       const drop = (a.previousCtr - a.ctr) / a.previousCtr;
-      if(drop > 0.10){
+      if(drop > CTR_DROP_THRESHOLD){
         alerts.push({ level:"attention", text:"CTR de "+shortName(a)+" caiu "+fmtPercent(drop,0)+" em relação ao período anterior." });
       }
     }
@@ -1231,9 +1348,8 @@ function generateAlerts(ads, agg){
     }
   }
 
-  const benchmarkCheckoutRate = 0.15;
-  if(agg.checkoutRate !== null && agg.checkoutRate < benchmarkCheckoutRate){
-    alerts.push({ level:"attention", text:"Taxa Landing Page → Checkout está em "+fmtPercent(agg.checkoutRate,1)+", abaixo do esperado ("+fmtPercent(benchmarkCheckoutRate,0)+")." });
+  if(agg.checkoutRate !== null && agg.checkoutRate < BENCHMARK_CHECKOUT_RATE){
+    alerts.push({ level:"attention", text:"Taxa Landing Page → Checkout está em "+fmtPercent(agg.checkoutRate,1)+", abaixo do esperado ("+fmtPercent(BENCHMARK_CHECKOUT_RATE,0)+")." });
   }
 
   // Nível fixo em "info": sem uma referência de ROAS de equilíbrio / CPA
@@ -1306,7 +1422,271 @@ const FUTURE_FIELDS = ["attribution_id","utm_source","utm_medium","utm_campaign"
 document.getElementById("futureFields").innerHTML = FUTURE_FIELDS.map(f => '<div class="future-field">'+f+'</div>').join("");
 
 /* ============================================================
-   13. RENDER PRINCIPAL
+   13. ANALISTA IA — observar → diagnosticar → explicar → sugerir.
+   100% local nesta V1: nenhuma chamada a modelo de IA, nenhum token,
+   nenhuma ação sobre a Meta. As "respostas" são texto gerado por
+   regras JavaScript simples em cima da mesma camada de dados das
+   outras páginas (getDashboardSummary/getAdsPerformance/getFunnelData
+   — nunca lê os arrays mock diretamente). Nunca classifica ROAS como
+   bom/ruim sem uma meta de negócio configurada, e nunca sugere ação
+   automática — só interpretação e "próximo passo sugerido"; a decisão
+   fica sempre com quem usa. Arquitetura futura documentada em
+   docs/arquitetura-analista-ia.md.
+   ============================================================ */
+const MIN_SALES_FOR_OPPORTUNITY = 2;
+const PERIOD_PHRASE = { hoje:"Hoje", ontem:"Ontem", "7d":"Nos últimos 7 dias", "30d":"Nos últimos 30 dias", personalizado:"No período selecionado" };
+
+function generateDiagnostics(ads, summary){
+  const nonPaused = ads.filter(a => a.status !== "PAUSED");
+  const topAd = nonPaused.slice().sort((a,b) => b.sales - a.sales)[0];
+  const topShare = (topAd && summary.sales > 0) ? topAd.sales / summary.sales : 0;
+
+  return nonPaused.map(a => {
+    // Regra D: volume baixo demais para confiar em qualquer conclusão —
+    // checada ANTES de qualquer outra regra, para nunca classificar um
+    // criativo como ruim só por ter pouco volume.
+    if(a.checkouts < MIN_CHECKOUTS_FOR_CONFIDENCE){
+      return { level:"insufficient", ad:a, title:"Dados insuficientes",
+        diagnosis:"Dados ainda insuficientes para uma conclusão confiável.",
+        nextStep:"Aguarde mais volume de checkouts antes de tirar uma conclusão sobre este criativo." };
+    }
+    // Regra A + B: sem vendas mas com checkouts suficientes para confiar
+    // no número → gargalo entre checkout e venda, não "criativo ruim".
+    if(a.sales === 0){
+      return { level:"attention", ad:a, subtype:"gargalo-checkout", title:"Atenção",
+        diagnosis:"Este anúncio está conseguindo levar usuários até o checkout, mas não está convertendo em venda.",
+        nextStep:"Antes de trocar o criativo, verifique a qualidade do tráfego e possíveis gargalos entre checkout e pagamento." };
+    }
+    // Regra E: CTR caiu de forma relevante frente ao período anterior.
+    if(a.previousCtr && a.ctr !== null && a.ctr < a.previousCtr){
+      const drop = (a.previousCtr - a.ctr) / a.previousCtr;
+      if(drop > CTR_DROP_THRESHOLD){
+        return { level:"attention", ad:a, subtype:"fadiga-ctr", title:"Atenção",
+          diagnosis:"O CTR deste anúncio caiu "+fmtPercent(drop,0)+" em relação ao período anterior — possível sinal de fadiga de criativo.",
+          nextStep:"Vale acompanhar mais um período antes de decidir por uma troca de criativo." };
+      }
+    }
+    // Regra C: CPA abaixo da média da campanha, com volume mínimo para confiar.
+    if(summary.cpa !== null && a.cpa !== null && a.cpa < summary.cpa && a.sales >= MIN_SALES_FOR_OPPORTUNITY){
+      const isTop = topAd && a.ad_id === topAd.ad_id && topShare >= 0.4;
+      return { level:"opportunity", ad:a, title:"Oportunidade",
+        diagnosis:"Este anúncio apresenta CPA abaixo da média da campanha e "+(isTop ? "concentra uma parcela relevante das vendas do período." : "mantém volume de vendas consistente."),
+        nextStep:"Pode ser candidato a teste de escala, desde que mantenha estabilidade de CPA e volume." };
+    }
+    return null;
+  }).filter(Boolean);
+}
+
+function diagnosticCardHtml(d){
+  const a = d.ad;
+  const stats = d.level === "opportunity"
+    ? [["CPA", fmtCurrency(a.cpa)], ["ROAS", fmtRoas(a.roas)], ["Vendas", fmtNumber(a.sales)]]
+    : [["Gasto", fmtCurrency(a.spend)], ["Checkouts", fmtNumber(a.checkouts)], ["Vendas", fmtNumber(a.sales)]];
+  const statsHtml = stats.map(s => '<div class="dstat"><span class="v">'+s[1]+'</span>'+s[0]+'</div>').join("");
+  return '<div class="diagnostic-card">'
+    + '<span class="dtag '+d.level+'">'+d.title+'</span>'
+    + '<h3>'+a.ad_name+'</h3>'
+    + '<p class="dmeta">ID '+a.ad_id+'</p>'
+    + '<div class="dstats">'+statsHtml+'</div>'
+    + '<p class="ddiag">'+d.diagnosis+'</p>'
+    + '<p class="dnext"><strong>Próximo passo sugerido:</strong> '+d.nextStep+'</p>'
+    + '</div>';
+}
+
+function buildExecutiveSummary(ads, summary){
+  const nonPaused = ads.filter(a => a.status !== "PAUSED");
+  const topAd = nonPaused.slice().sort((a,b) => b.sales - a.sales)[0];
+  const topShare = (topAd && summary.sales > 0) ? topAd.sales / summary.sales : 0;
+  const concern = nonPaused.find(a => a.checkouts >= MIN_CHECKOUTS_FOR_CONFIDENCE && a.sales === 0);
+
+  // Nunca classifica o ROAS aqui (ver seção 8 do briefing) — só mostra o
+  // número. A comparação com uma meta de negócio fica para quando essa
+  // referência (CPA máximo / ROAS de equilíbrio) existir.
+  let text = PERIOD_PHRASE[currentPeriod] + ", a campanha investiu <strong>"+fmtCurrency(summary.spend)+"</strong> e gerou <strong>"+fmtNumber(summary.sales)+" vendas</strong>, com CPA médio de <strong>"+fmtCurrency(summary.cpa)+"</strong> e ROAS de <strong>"+fmtRoas(summary.roas)+"</strong>.";
+  if(topAd && topShare >= 0.4){
+    text += " O "+topAd.ad_name+" concentra a maior parte das vendas do período.";
+  }
+  if(concern){
+    text += " O "+concern.ad_name+" exige atenção por ter gerado checkouts sem nenhuma venda.";
+  }
+  return text;
+}
+
+function escapeHtml(s){
+  return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+}
+function normalizeText(s){
+  return s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+}
+
+function pickAttentionAd(diagnostics){
+  return diagnostics.find(d => d.level === "attention" && d.subtype === "gargalo-checkout")
+      || diagnostics.find(d => d.level === "attention");
+}
+function pickFatigueAd(diagnostics){
+  return diagnostics.find(d => d.level === "attention" && d.subtype === "fadiga-ctr");
+}
+function pickOpportunityAds(diagnostics){
+  return diagnostics.filter(d => d.level === "opportunity");
+}
+
+// Cada resposta usa só contexto + dados + interpretação + próximo passo —
+// nunca uma instrução de ação ("aumente o orçamento"), sempre linguagem de
+// hipótese ("pode ser candidato", "há indício", "vale acompanhar").
+function answerBestPerformer(ads){
+  const eligible = ads.filter(a => a.status !== "PAUSED" && a.checkouts >= MIN_CHECKOUTS_FOR_CONFIDENCE && a.roas !== null);
+  if(!eligible.length) return "Ainda não há anúncios com volume suficiente para apontar o melhor desempenho neste período.";
+  const best = eligible.slice().sort((a,b) => b.roas - a.roas)[0];
+  return "O "+best.ad_name+" é o que está performando melhor neste período: ROAS de "+fmtRoas(best.roas)+", CPA de "+fmtCurrency(best.cpa)+" e "+fmtNumber(best.sales)+" vendas.";
+}
+function answerBestCpa(ads){
+  const eligible = ads.filter(a => a.status !== "PAUSED" && a.checkouts >= MIN_CHECKOUTS_FOR_CONFIDENCE && a.cpa !== null);
+  if(!eligible.length) return "Ainda não há anúncios com volume suficiente para calcular um CPA confiável neste período.";
+  const best = eligible.slice().sort((a,b) => a.cpa - b.cpa)[0];
+  return "O "+best.ad_name+" tem o melhor CPA do período: "+fmtCurrency(best.cpa)+", com ROAS de "+fmtRoas(best.roas)+" e "+fmtNumber(best.sales)+" vendas.";
+}
+function answerAttentionAd(diagnostics){
+  const d = pickAttentionAd(diagnostics);
+  if(!d) return "Nenhum anúncio está em atenção neste período.";
+  const a = d.ad;
+  return "O "+a.ad_name+" merece atenção neste período. Ele investiu "+fmtCurrency(a.spend)+", gerou "+fmtNumber(a.checkouts)+" checkouts e "+fmtNumber(a.sales)+(a.sales === 1 ? " venda" : " vendas")+". "+d.diagnosis+" "+d.nextStep;
+}
+function answerFatigue(diagnostics){
+  const d = pickFatigueAd(diagnostics);
+  if(!d) return "Nenhum anúncio apresenta sinais claros de fadiga de CTR neste período.";
+  return "O "+d.ad.ad_name+" apresenta sinais de fadiga. "+d.diagnosis+" "+d.nextStep;
+}
+function answerScaleOpportunity(diagnostics){
+  const list = pickOpportunityAds(diagnostics);
+  if(!list.length) return "Nenhum anúncio atende aos critérios de oportunidade de escala neste período.";
+  const names = list.map(d => d.ad.ad_name).join(" e ");
+  return "Há indício de oportunidade de escala em "+names+": CPA abaixo da média da campanha, com volume de vendas consistente. "+list[0].nextStep;
+}
+function answerFunnel(funnel, summary){
+  // Comparar a taxa bruta de CADA etapa entre si não faz sentido: CTR
+  // (Impressões → Cliques) é estruturalmente a menor percentagem de
+  // qualquer funil de anúncio, sem isso ser um "gargalo". Por isso:
+  // 1) primeiro comparamos Landing Page → Checkout contra o mesmo
+  //    benchmark já usado no alerta da Visão Geral;
+  // 2) só na ausência desse sinal, comparamos as etapas pós-clique
+  //    entre si (Cliques → LP, LP → Checkout, Checkout → Venda).
+  if(summary && summary.checkoutRate !== null && summary.checkoutRate < BENCHMARK_CHECKOUT_RATE){
+    return "A maior perda do funil está entre Landing Page e Checkout, com taxa de conversão de "+fmtPercent(summary.checkoutRate,1)+" — abaixo do esperado ("+fmtPercent(BENCHMARK_CHECKOUT_RATE,0)+"). É o ponto que mais vale investigar primeiro.";
+  }
+  let worst = null;
+  for(let i = 1; i < funnel.length - 1; i++){
+    const rate = funnel[i].value > 0 ? funnel[i+1].value / funnel[i].value : null;
+    if(rate !== null && (worst === null || rate < worst.rate)){ worst = { from:funnel[i].label, to:funnel[i+1].label, rate }; }
+  }
+  if(!worst) return "O funil está com boa conversão em todas as etapas neste período.";
+  return "A etapa com maior perda do funil, entre as etapas pós-clique, é entre "+worst.from+" e "+worst.to+", com taxa de conversão de "+fmtPercent(worst.rate,1)+".";
+}
+function answerLowSales(diagnostics, funnel, summary){
+  let text = answerFunnel(funnel, summary);
+  const attentionD = pickAttentionAd(diagnostics);
+  if(attentionD){
+    text += " Além disso, o "+attentionD.ad.ad_name+" investiu "+fmtCurrency(attentionD.ad.spend)+" sem gerar venda neste período, o que também pesa no resultado total.";
+  }
+  return text;
+}
+function fallbackAnswer(){
+  return "Ainda não tenho uma resposta pronta para essa pergunta nesta versão de demonstração — por enquanto, sei responder sobre o criativo com melhor desempenho, melhor CPA, anúncios em atenção, fadiga de CTR, funil e oportunidades de escala. Tente uma das perguntas sugeridas abaixo.";
+}
+
+const QA_HANDLERS = [
+  { test:t => t.indexOf("cpa") !== -1 && t.indexOf("melhor") !== -1, run:ctx => answerBestCpa(ctx.ads) },
+  { test:t => t.indexOf("melhor") !== -1 && (t.indexOf("criativo") !== -1 || t.indexOf("anuncio") !== -1 || t.indexOf("performando") !== -1), run:ctx => answerBestPerformer(ctx.ads) },
+  { test:t => t.indexOf("atencao") !== -1 && (t.indexOf("anuncio") !== -1 || t.indexOf("criativo") !== -1), run:ctx => answerAttentionAd(ctx.diagnostics) },
+  { test:t => t.indexOf("gargalo") !== -1, run:ctx => answerFunnel(ctx.funnel, ctx.summary) },
+  { test:t => t.indexOf("funil") !== -1, run:ctx => answerFunnel(ctx.funnel, ctx.summary) },
+  { test:t => t.indexOf("fadiga") !== -1, run:ctx => answerFatigue(ctx.diagnostics) },
+  { test:t => t.indexOf("escala") !== -1 || t.indexOf("oportunidade") !== -1, run:ctx => answerScaleOpportunity(ctx.diagnostics) },
+  { test:t => t.indexOf("venda") !== -1 && (t.indexOf("caiu") !== -1 || t.indexOf("cairam") !== -1 || t.indexOf("baixa") !== -1 || t.indexOf("baixas") !== -1 || t.indexOf("queda") !== -1), run:ctx => answerLowSales(ctx.diagnostics, ctx.funnel, ctx.summary) },
+];
+
+async function runAnalystQuestion(question){
+  const answerEl = document.getElementById("analystAnswer");
+  const trimmed = (question || "").trim();
+  answerEl.innerHTML = '<div class="analyst-answer loading"><div class="spinner"></div><p class="a" style="margin-top:8px;">Analisando dados do período...</p></div>';
+
+  const [summary, ads, funnel] = await Promise.all([
+    getDashboardSummary(currentPeriod), getAdsPerformance(currentPeriod), getFunnelData(currentPeriod)
+  ]);
+  const diagnostics = generateDiagnostics(ads, summary);
+
+  await new Promise(resolve => setTimeout(resolve, 450)); // simula a latência de uma análise — sem chamada real a nenhum modelo
+
+  let answerText;
+  if(!trimmed){
+    answerText = "Digite uma pergunta ou escolha uma das sugestões abaixo.";
+  } else {
+    const normalized = normalizeText(trimmed);
+    const handler = QA_HANDLERS.find(h => h.test(normalized));
+    answerText = handler ? handler.run({ ads, summary, funnel, diagnostics }) : fallbackAnswer();
+  }
+
+  answerEl.innerHTML = '<div class="analyst-answer"><p class="q">Pergunta</p><p class="a" style="margin-bottom:12px;">'+escapeHtml(trimmed || "—")+'</p><p class="q">Resposta</p><p class="a">'+answerText+'</p></div>';
+}
+
+document.getElementById("analystAskBtn").addEventListener("click", () => {
+  runAnalystQuestion(document.getElementById("analystInput").value);
+});
+
+const SUGGESTED_QUESTIONS = [
+  "Qual anúncio merece atenção?",
+  "Onde está meu maior gargalo?",
+  "Qual criativo tem melhor CPA?",
+  "Como está meu funil?",
+  "Há oportunidade de escala?",
+];
+document.getElementById("suggestedChips").innerHTML = SUGGESTED_QUESTIONS.map((q,i) => '<button class="chip" data-i="'+i+'">'+q+'</button>').join("");
+document.getElementById("suggestedChips").querySelectorAll(".chip").forEach(chip => {
+  chip.addEventListener("click", () => {
+    const q = SUGGESTED_QUESTIONS[Number(chip.dataset.i)];
+    document.getElementById("analystInput").value = q;
+    runAnalystQuestion(q);
+  });
+});
+
+// Preview de estados (bloco "Modo de desenvolvimento") — nunca é uma
+// escolha do usuário final, só QA visual. "normal" volta a renderizar
+// os dados reais do período atual.
+const ANALYST_STATE_DEFS = {
+  empty: { icon:'<path d="M3 9l9-6 9 6-9 6-9-6z"/><path d="M3 9v6l9 6 9-6V9"/>', title:"Não há dados suficientes para análise neste período.", desc:"Ajuste o filtro de período ou aguarde novos dados.", cls:"" },
+  insufficient: { icon:'<circle cx="12" cy="12" r="9"/><path d="M12 8v5"/><line x1="12" y1="16" x2="12.01" y2="16"/>', title:"Ainda não existe volume suficiente para uma conclusão confiável.", desc:"Aguarde mais dados do período antes de tirar conclusões.", cls:"pending" },
+  loading: { spinner:true, title:"Analisando dados do período...", desc:"", cls:"" },
+  error: { icon:'<circle cx="12" cy="12" r="9"/><line x1="12" y1="8" x2="12" y2="13"/><line x1="12" y1="16" x2="12.01" y2="16"/>', title:"Não foi possível gerar a análise neste momento.", desc:"Tente novamente em instantes.", cls:"error" },
+};
+
+function renderAnalystStatePreview(state){
+  if(state === "normal"){ renderAnalyst(); return; }
+  const s = ANALYST_STATE_DEFS[state];
+  const iconHtml = s.spinner
+    ? '<div class="spinner"></div>'
+    : '<div class="icon-wrap"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">'+s.icon+'</svg></div>';
+  document.getElementById("execSummaryBody").innerHTML =
+    '<div class="state-box '+s.cls+'">'+iconHtml+'<p class="title">'+s.title+'</p>'+(s.desc ? '<p class="desc">'+s.desc+'</p>' : '')+'</div>';
+}
+document.getElementById("analystStateSelect").addEventListener("change", e => renderAnalystStatePreview(e.target.value));
+
+async function renderAnalyst(){
+  const [summary, ads] = await Promise.all([getDashboardSummary(currentPeriod), getAdsPerformance(currentPeriod)]);
+  const noData = summary.impressions === 0;
+  const diagnostics = noData ? [] : generateDiagnostics(ads, summary);
+
+  document.getElementById("execSummaryBody").innerHTML = '<p class="exec-summary-text" id="execSummaryText">'
+    + (noData ? "Não há dados suficientes para análise neste período." : buildExecutiveSummary(ads, summary))
+    + '</p>';
+
+  document.getElementById("diagnosticsGrid").innerHTML = noData
+    ? '<p class="muted" style="font-size:12.5px;">Não há dados suficientes para análise neste período.</p>'
+    : (diagnostics.length ? diagnostics.map(diagnosticCardHtml).join("") : '<p class="muted" style="font-size:12.5px;">Nenhum diagnóstico relevante para este período.</p>');
+
+  document.getElementById("analystAnswer").innerHTML = "";
+}
+
+/* ============================================================
+   14. RENDER PRINCIPAL
    ============================================================ */
 async function renderOverview(){
   const summary = await getDashboardSummary(currentPeriod);
