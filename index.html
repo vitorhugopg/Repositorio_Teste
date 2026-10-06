@@ -297,12 +297,27 @@ tr.clickable:hover{background:var(--ink-100);}
 /* ===== V2.1 — cabeçalho fixo da tabela de Pacientes ("congelar 1ª linha") ===== */
 .pacientes-scroll{max-height:calc(100vh - 250px);overflow-y:auto;overflow-x:auto;}
 .pacientes-scroll thead th{position:sticky;top:0;background:var(--paper);z-index:2;box-shadow:0 1px 0 var(--line);}
+
+/* ===== [Supabase] tela de login / gate pré-CRM (só aparece em modo Supabase) ===== */
+.login-shell{min-height:100vh;display:flex;align-items:center;justify-content:center;background:linear-gradient(180deg,var(--ink-950),var(--ink-900));padding:16px;}
+.login-card{width:100%;max-width:360px;background:var(--paper);border-radius:var(--radius);box-shadow:var(--shadow-lg);padding:28px 24px;}
+.login-card .field{display:block;margin-top:14px;font-size:13px;font-weight:700;color:var(--text-muted);}
+.login-card .field input{display:block;width:100%;margin-top:6px;padding:10px 12px;border-radius:var(--radius-sm);border:1px solid var(--line);background:var(--paper);color:var(--text);font-family:inherit;font-size:14px;}
+.login-erro{margin-top:12px;padding:10px 12px;border-radius:var(--radius-sm);background:var(--danger-bg);color:var(--danger);font-size:13px;}
 </style>
 </head>
 <body>
 <div id="app-shell"></div>
 <div id="modal-root"></div>
 <div id="toast-root"></div>
+
+<!-- [Supabase] Integração opcional (ver supabase/README.md e
+     SUPABASE_FRONTEND_INTEGRATION.md). Sem a Publishable Key configurada
+     (supabase-local-config.js ausente), estas tags não têm efeito algum
+     e o CRM continua 100% em localStorage, como hoje. -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="supabase-local-config.js"></script>
+<script src="supabase-client.js"></script>
 
 <script>
 /* ============================================================
@@ -1999,6 +2014,11 @@ function loadState(){
   }
 }
 function saveState(){
+  // [Supabase] Nesta etapa (somente leitura de pacientes), uma sessão
+  // autenticada no Supabase nunca grava em localStorage — nem os dados
+  // vindos do banco, nem edições feitas em tela (que ficam só na memória
+  // da sessão atual). Ver MODO_SUPABASE mais abaixo.
+  if(typeof MODO_SUPABASE !== 'undefined' && MODO_SUPABASE) return;
   try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(DB)); }
   catch(e){ console.error('Falha ao salvar estado (localStorage cheio ou indisponível).', e); toast('Não foi possível salvar automaticamente. Faça um backup (Configurações → Backup).'); }
 }
@@ -3715,12 +3735,238 @@ function bindRouteEvents(){
   if(ROUTE==='config') bindConfigEvents();
 }
 
-loadState();
-render();
-// [V2 — CORREÇÃO] Avisa uma única vez, no boot, se um estado salvo nesta
-// chave foi descartado por não ser deste CRM (ver loadState()).
-if(AVISO_ESTADO_IGNORADO){
-  toast('Um estado salvo neste navegador não era desta clínica (Mori) e foi ignorado com segurança — nada foi apagado.');
+/* ============================================================
+   13) INTEGRAÇÃO SUPABASE (opcional, progressiva e reversível)
+   ------------------------------------------------------------
+   MODO_SUPABASE só fica true se window.moriSupabase existir — e isso só
+   acontece quando a Publishable Key foi configurada (ver
+   supabase-client.js e supabase/README.md). Sem ela, nada neste bloco
+   roda e o CRM continua 100% como hoje (localStorage, seeds/demo).
+
+   Escopo desta rodada: autenticação + leitura de pacientes (passos 1–6
+   do plano em SUPABASE_FRONTEND_INTEGRATION.md). Indicações, follow-ups,
+   ações comerciais e CRUD definitivo ficam para rodadas seguintes — ver
+   relatório de entrega.
+   ============================================================ */
+const MODO_SUPABASE = !!(window.moriSupabase);
+
+function telaLogin(mensagemErro, carregando){
+  return `
+  <div class="login-shell">
+    <div class="login-card">
+      <div class="brand-badge" style="margin:0 auto 12px;">CC</div>
+      <h1 style="text-align:center;font-size:18px;">Mori Ortodontia</h1>
+      <div class="sub" style="text-align:center;margin-bottom:20px;">Entrar no CRM</div>
+      <form id="form-login">
+        <label class="field">
+          <span>E-mail</span>
+          <input type="email" name="email" required autocomplete="username" ${carregando?'disabled':''}>
+        </label>
+        <label class="field">
+          <span>Senha</span>
+          <input type="password" name="senha" required autocomplete="current-password" ${carregando?'disabled':''}>
+        </label>
+        ${mensagemErro? `<div class="login-erro">${escapeHtml(mensagemErro)}</div>` : ''}
+        <button class="btn primary" type="submit" style="width:100%;margin-top:14px;" ${carregando?'disabled':''}>
+          ${carregando? 'Entrando…' : 'Entrar'}
+        </button>
+      </form>
+    </div>
+  </div>`;
+}
+
+function telaSemPerfil(identificacao){
+  return `
+  <div class="login-shell">
+    <div class="login-card">
+      <h1 style="text-align:center;font-size:18px;">Acesso não liberado</h1>
+      <p class="sub" style="text-align:center;">
+        O usuário ${escapeHtml(identificacao||'')} está autenticado, mas não há um perfil ativo
+        vinculado a nenhuma clínica neste CRM. Fale com o administrador.
+      </p>
+      <button class="btn ghost" id="btn-sair-sem-perfil" style="width:100%;margin-top:12px;">Sair</button>
+    </div>
+  </div>`;
+}
+
+function renderGateSupabase(estado){
+  const shell = document.getElementById('app-shell');
+  if(estado.tipo==='login'){
+    shell.innerHTML = telaLogin(estado.erro, estado.carregando);
+    const form = document.getElementById('form-login');
+    if(form) form.addEventListener('submit', async (e)=>{
+      e.preventDefault();
+      const dados = new FormData(form);
+      await autenticarSupabase(dados.get('email'), dados.get('senha'));
+    });
+  } else if(estado.tipo==='sem-perfil'){
+    shell.innerHTML = telaSemPerfil(estado.identificacao);
+    const btn = document.getElementById('btn-sair-sem-perfil');
+    if(btn) btn.addEventListener('click', async ()=>{
+      await window.moriSupabase.auth.signOut();
+      iniciarSupabase();
+    });
+  }
+}
+
+async function autenticarSupabase(email, senha){
+  renderGateSupabase({tipo:'login', carregando:true});
+  const { error } = await window.moriSupabase.auth.signInWithPassword({ email, password: senha });
+  if(error){
+    renderGateSupabase({tipo:'login', erro:'E-mail ou senha inválidos.', carregando:false});
+    return;
+  }
+  await carregarAposLogin();
+}
+
+// [Supabase] Única função de conversão linha-do-banco → objeto de paciente
+// no formato camelCase que as telas do CRM já esperam (mesmo formato de
+// SEED_PACIENTES). Nenhuma tela faz esse mapeamento por conta própria.
+function mapPacienteSupabaseParaCRM(row, refs){
+  const nomeOrigem = row.origem_id ? (refs.origensPorId[row.origem_id]||'') : '';
+  const nomeResponsavel = row.responsavel_id ? (refs.profilesPorId[row.responsavel_id]||'') : '';
+  const nomeMotivoPerda = row.motivo_perda_id ? (refs.motivosPorId[row.motivo_perda_id]||'') : '';
+  const procedimentos = refs.procedimentosPorPaciente[row.id] || [];
+  return {
+    id: row.id,
+    legacyId: row.legacy_id || null,
+    nome: row.nome || '',
+    telefone: row.telefone_original || '',
+    email: row.email || '',
+    origem: nomeOrigem,
+    procedimentos,
+    procedimentoOriginal: row.procedimento_original || '',
+    responsavel: nomeResponsavel,
+    dataContato: row.data_contato || '',
+    marcouConsulta: row.marcou_consulta || '',
+    dataConsulta: row.data_consulta || '',
+    compareceu: row.compareceu || '',
+    fezRadiografia: row.fez_radiografia || '',
+    planoTratamento: row.plano_tratamento || '',
+    dataEnvioPlano: row.data_envio_plano || '',
+    valorOrcamento: row.valor_orcamento ?? null,
+    fechouTratamento: row.fechou_tratamento || '',
+    valorFechado: row.valor_fechado ?? null,
+    dataFechamento: row.data_fechamento || '',
+    dataPerda: row.data_perda || '',
+    motivoPerda: nomeMotivoPerda,
+    observacoes: row.observacoes || '',
+    // Status calculado pelo banco (pacientes_com_status / calc_status()) —
+    // mantido só para conferência; as telas continuam usando calcStatus(p)
+    // local, que aplica exatamente a mesma fórmula sobre os campos acima.
+    statusBanco: row.status || '',
+  };
+}
+
+async function carregarAposLogin(){
+  const { data: sessao } = await window.moriSupabase.auth.getSession();
+  const usuario = sessao && sessao.session ? sessao.session.user : null;
+  if(!usuario){
+    renderGateSupabase({tipo:'login', erro:null, carregando:false});
+    return;
+  }
+  const { data: perfil, error: erroPerfil } = await window.moriSupabase
+    .from('profiles')
+    .select('id, clinica_id, nome, cargo, role, ativo')
+    .eq('auth_user_id', usuario.id)
+    .eq('ativo', true)
+    .maybeSingle();
+
+  if(erroPerfil || !perfil){
+    renderGateSupabase({tipo:'sem-perfil', identificacao: usuario.email});
+    return;
+  }
+
+  try{
+    await carregarDadosSupabase(perfil);
+  }catch(e){
+    console.error('Falha ao carregar dados do Supabase.', e);
+    renderGateSupabase({tipo:'login', erro:'Não foi possível carregar os dados da clínica. Tente novamente.', carregando:false});
+  }
+}
+
+async function carregarDadosSupabase(perfil){
+  const sb = window.moriSupabase;
+  // [Supabase] Nenhuma consulta abaixo filtra por clinica_id manualmente —
+  // o isolamento por clínica é feito inteiramente pela RLS do banco.
+  const [
+    { data: pacientesRows, error: errPac },
+    { data: ppRows, error: errPP },
+    { data: procRows, error: errProc },
+    { data: origensRows, error: errOrig },
+    { data: motivosRows, error: errMot },
+    { data: profilesRows, error: errProf },
+  ] = await Promise.all([
+    sb.from('pacientes_com_status').select('*'),
+    sb.from('paciente_procedimentos').select('paciente_id, procedimento_id'),
+    sb.from('procedimentos').select('id, nome'),
+    sb.from('origens_lead').select('id, nome'),
+    sb.from('motivos_perda').select('id, nome'),
+    sb.from('profiles').select('id, nome'),
+  ]);
+
+  const erro = errPac || errPP || errProc || errOrig || errMot || errProf;
+  if(erro) throw erro;
+
+  const procedimentosPorId = {};
+  (procRows||[]).forEach(p=>{ procedimentosPorId[p.id] = p.nome; });
+  const origensPorId = {};
+  (origensRows||[]).forEach(o=>{ origensPorId[o.id] = o.nome; });
+  const motivosPorId = {};
+  (motivosRows||[]).forEach(m=>{ motivosPorId[m.id] = m.nome; });
+  const profilesPorId = {};
+  (profilesRows||[]).forEach(p=>{ profilesPorId[p.id] = p.nome; });
+  const procedimentosPorPaciente = {};
+  (ppRows||[]).forEach(v=>{
+    const nome = procedimentosPorId[v.procedimento_id];
+    if(!nome) return;
+    if(!procedimentosPorPaciente[v.paciente_id]) procedimentosPorPaciente[v.paciente_id] = [];
+    procedimentosPorPaciente[v.paciente_id].push(nome);
+  });
+
+  const refs = { origensPorId, motivosPorId, profilesPorId, procedimentosPorPaciente };
+  const pacientesMapeados = (pacientesRows||[]).map(row=>mapPacienteSupabaseParaCRM(row, refs));
+
+  // [Supabase] Monta o DB da sessão a partir do estado padrão local — mantém
+  // funcionários/WhatsApp/Pós-Vendas/Indicações/tema exatamente como já
+  // funcionam hoje (fora do escopo desta rodada) — e substitui SOMENTE a
+  // lista de pacientes pelos dados reais vindos do banco, já filtrados
+  // pela RLS da clínica do usuário autenticado.
+  DB = buildInitialState();
+  DB.usuarioAtual = { nome: perfil.nome, cargo: perfil.cargo || '' };
+  DB.pacientes = pacientesMapeados;
+  // Indicações não são carregadas do Supabase nesta rodada (fora do escopo
+  // definido para esta etapa) — mantidas vazias para não exibir dado
+  // desatualizado como se fosse real.
+  DB.indicacoes = [];
+
+  render();
+  bindRouteEvents();
+  toast(`Conectado ao Supabase — ${pacientesMapeados.length} pacientes carregados da clínica.`);
+}
+
+async function iniciarSupabase(){
+  const { data } = await window.moriSupabase.auth.getSession();
+  if(data && data.session){
+    await carregarAposLogin();
+  } else {
+    renderGateSupabase({tipo:'login', erro:null, carregando:false});
+  }
+}
+
+if(MODO_SUPABASE){
+  iniciarSupabase().catch(e=>{
+    console.error('Falha ao iniciar sessão Supabase.', e);
+    renderGateSupabase({tipo:'login', erro:'Não foi possível conectar ao Supabase. Tente novamente.', carregando:false});
+  });
+} else {
+  loadState();
+  render();
+  // [V2 — CORREÇÃO] Avisa uma única vez, no boot, se um estado salvo nesta
+  // chave foi descartado por não ser deste CRM (ver loadState()).
+  if(AVISO_ESTADO_IGNORADO){
+    toast('Um estado salvo neste navegador não era desta clínica (Mori) e foi ignorado com segurança — nada foi apagado.');
+  }
 }
 </script>
 </body>
