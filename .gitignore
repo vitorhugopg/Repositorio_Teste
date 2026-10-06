@@ -1,0 +1,6 @@
+# Segredos locais — nunca versionar credenciais do Supabase
+.env
+.env.local
+.env.*.local
+supabase/.env
+supabase/.temp/
