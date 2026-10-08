@@ -2097,42 +2097,48 @@ function renderBarListHorizontal(items){
 }
 
 /* ============================================================
-   LÓGICA TEMPORÁRIA DE PROTÓTIPO (V2) — deriva data_perda/data_envio_plano
-   a partir de outros campos em vez de ler o valor real.
+   DATA REAL COM FALLBACK LEGADO — data_perda / data_envio_plano
    ------------------------------------------------------------
-   [PENDÊNCIA TÉCNICA — registrada na limpeza pré-CRUD, não resolvida aqui
-   de propósito, para não misturar limpeza visual/demo com mudança de
-   regra comercial] As colunas reais `pacientes.data_perda` e
-   `pacientes.data_envio_plano` JÁ EXISTEM no Supabase e já chegam no
-   frontend em modo Supabase (ver mapPacienteSupabaseParaCRM — campos
-   `dataPerda`/`dataEnvioPlano`), mas as funções abaixo ainda ignoram esses
-   valores reais e continuam calculando por aproximação a partir de
-   dataFechamento/dataConsulta/dataContato, inclusive em modo Supabase.
-   Trocar para ler o campo real é uma mudança de regra comercial (pode
-   alterar quando um resgate/follow-up fica elegível) e deve ser decidida
-   e testada separadamente, não dentro desta limpeza.
+   [Auditoria de derivações, confirmada por consulta ao Supabase]
+   As colunas `pacientes.data_perda` e `pacientes.data_envio_plano`
+   existem e já chegam mapeadas (`p.dataPerda`/`p.dataEnvioPlano`), mas
+   NENHUM dos 79 pacientes migrados tem essas colunas preenchidas (9
+   perdidos, 0 com data_perda; 49 com plano, 0 com data_envio_plano) —
+   não houve backfill retroativo, por decisão explícita (não gravar data
+   aproximada como se fosse fato histórico).
+   Estratégia de transição: o campo real do Supabase é SEMPRE a fonte de
+   verdade quando preenchido; a derivação antiga (a partir de
+   dataFechamento/dataConsulta/dataContato) só roda como FALLBACK LEGADO
+   para registros sem o campo real — nunca sobrepõe um valor real
+   existente. Os critérios comerciais (30 dias para resgate, 1 dia para
+   follow-up de plano) não mudam nesta correção.
    ============================================================ */
-// Deriva uma "data da perda" a partir da última data conhecida do paciente,
-// SEM alterar nenhum dado real — é só uma leitura calculada.
-function derivarDataPerdaDemo(p){
+// Data real de perda (fonte de verdade) — só cai para a aproximação
+// legada quando o Supabase ainda não tem data_perda registrada.
+function obterDataPerdaComFallbackLegado(p){
+  if(p.dataPerda) return p.dataPerda;
   return p.dataFechamento || p.dataConsulta || p.dataContato || null;
 }
 function infoResgate(p){
-  const dataPerda = derivarDataPerdaDemo(p);
+  const dataPerda = obterDataPerdaComFallbackLegado(p);
   const dias = diasEntre(dataPerda, hojeISO());
   return { dataPerda, dias, elegivel: dias!==null && dias>=30 };
 }
-// Deriva o estado de "envio do plano de tratamento" a partir dos campos
-// já existentes (usa a data da consulta como proxy de "quando o plano foi
-// apresentado"), já que `data_envio_plano` ainda não existe no modelo.
+// Data real de envio do plano (fonte de verdade) — só cai para a
+// aproximação legada (data da consulta/contato) quando o Supabase ainda
+// não tem data_envio_plano registrada.
+function obterDataEnvioPlanoComFallbackLegado(p){
+  if(p.dataEnvioPlano) return p.dataEnvioPlano;
+  return p.dataConsulta || p.dataContato || null;
+}
 function estadoPlanoTratamentoDemo(p){
   if(p.planoTratamento !== 'Sim') return { estado:'nao_enviado', label:'Não enviado' };
   const resolvido = isVendido(p) || p.fechouTratamento==='Não' || p.fechouTratamento==='Não precisa no momento';
   if(resolvido) return { estado:'enviado', label:'Enviado' };
   const concluido = acaoComercialConcluida('followup_plano', p.id);
   if(concluido) return { estado:'followup_feito', label:'Follow-up realizado', dataHora:concluido.dataHora };
-  const dataEnvioDerivada = p.dataConsulta || p.dataContato;
-  const dias = diasEntre(dataEnvioDerivada, hojeISO());
+  const dataEnvio = obterDataEnvioPlanoComFallbackLegado(p);
+  const dias = diasEntre(dataEnvio, hojeISO());
   if(dias!==null && dias>=1) return { estado:'followup', label:'Follow-up necessário' };
   return { estado:'enviado', label:'Enviado' };
 }
@@ -2639,7 +2645,8 @@ function renderKanban(){
         <div class="kanban-col-body">
           ${items.length? items.map(p=>{
             // [V2] resgate de perdidos — regra: data_perda + 30 dias = elegível.
-            // `data_perda` ainda não existe no modelo real; ver infoResgate().
+            // data_perda vem do Supabase quando preenchida; ver infoResgate()
+            // e obterDataPerdaComFallbackLegado() para o fallback histórico.
             const resgate = et.nome==='Perdido' ? infoResgate(p) : null;
             // [V2.1] resgate realizado — abrir o WhatsApp sozinho NÃO conclui;
             // precisa da confirmação explícita da secretária.
