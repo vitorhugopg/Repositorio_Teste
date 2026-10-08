@@ -3789,6 +3789,26 @@ function telaSemPerfil(identificacao){
   </div>`;
 }
 
+// [Correção] erroPerfil (falha técnica na consulta, ex: erro do Postgres)
+// é um caso diferente de "perfil realmente não encontrado" — nunca deve
+// ser mostrado como "Acesso não liberado", que é uma mensagem de
+// permissão, não de erro técnico.
+function telaErroConsultaPerfil(detalhe){
+  return `
+  <div class="login-shell">
+    <div class="login-card">
+      <h1 style="text-align:center;font-size:18px;">Erro ao carregar seu acesso</h1>
+      <p class="sub" style="text-align:center;">
+        Houve um problema técnico ao consultar seu perfil no banco de dados.
+        Isso não significa que seu acesso foi negado — tente novamente;
+        se persistir, avise o administrador com o detalhe abaixo.
+      </p>
+      <div class="login-erro">${escapeHtml(detalhe||'Erro desconhecido.')}</div>
+      <button class="btn primary" id="btn-tentar-novamente-erro-perfil" style="width:100%;margin-top:12px;">Tentar novamente</button>
+    </div>
+  </div>`;
+}
+
 function renderGateSupabase(estado){
   const shell = document.getElementById('app-shell');
   if(estado.tipo==='login'){
@@ -3805,6 +3825,15 @@ function renderGateSupabase(estado){
     if(btn) btn.addEventListener('click', async ()=>{
       await window.moriSupabase.auth.signOut();
       iniciarSupabase();
+    });
+  } else if(estado.tipo==='erro-perfil'){
+    shell.innerHTML = telaErroConsultaPerfil(estado.detalhe);
+    const btn = document.getElementById('btn-tentar-novamente-erro-perfil');
+    if(btn) btn.addEventListener('click', ()=>{
+      iniciarSupabase().catch(e=>{
+        console.error('Falha ao tentar novamente.', e);
+        renderGateSupabase({tipo:'erro-perfil', detalhe: e.message || 'Erro desconhecido.'});
+      });
     });
   }
 }
@@ -3872,7 +3901,17 @@ async function carregarAposLogin(){
     .eq('ativo', true)
     .maybeSingle();
 
-  if(erroPerfil || !perfil){
+  // [Correção] erroPerfil é uma FALHA TÉCNICA na consulta (ex: erro do
+  // Postgres, rede) — um caso bem diferente de "não existe perfil
+  // ativo". Tratar os dois como a mesma coisa escondia problemas reais
+  // (como a recursão de RLS encontrada em homologação) atrás da mensagem
+  // genérica de "Acesso não liberado". Agora cada um tem sua própria tela.
+  if(erroPerfil){
+    console.error('Erro ao consultar profile no Supabase.', erroPerfil);
+    renderGateSupabase({tipo:'erro-perfil', detalhe: erroPerfil.message || erroPerfil.code || 'Erro desconhecido.'});
+    return;
+  }
+  if(!perfil){
     renderGateSupabase({tipo:'sem-perfil', identificacao: usuario.email});
     return;
   }
