@@ -1,0 +1,4 @@
+{
+  "buildCommand": "node -e \"require('fs').writeFileSync('supabase-local-config.js', 'window.MORI_SUPABASE_PUBLISHABLE_KEY = ' + JSON.stringify(process.env.MORI_SUPABASE_PUBLISHABLE_KEY || '') + ';')\"",
+  "outputDirectory": "."
+}
