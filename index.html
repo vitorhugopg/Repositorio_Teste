@@ -1897,7 +1897,10 @@ function buildInitialState(){
     theme: 'system',
     // [V2] conversas de WhatsApp — geradas a partir de DADOS_DEMO_V2.whatsappSeed,
     // com horários relativos ao momento desta primeira carga (ver comentário acima).
-    whatsappConversas: seedWhatsappConversas(),
+    // [Limpeza Supabase] em modo Supabase não semeia nenhuma conversa fictícia —
+    // os ids dos pacientes reais são UUIDs do banco, nunca batem com o seed local,
+    // e misturar os dois violaria a regra de não mostrar dado fictício com dado real.
+    whatsappConversas: (typeof MODO_SUPABASE !== 'undefined' && MODO_SUPABASE) ? [] : seedWhatsappConversas(),
     // [V2] ids (pacientes reais ou demo) já marcados como "pós-venda realizado".
     // Estrutura temporária em localStorage — candidata a virar tabela `followups`
     // (ou equivalente) quando o banco real existir.
@@ -1910,7 +1913,9 @@ function buildInitialState(){
     acoesComerciaisConcluidas: [],
     // [V2.1] contato de WhatsApp fictício pendente de "processamento" —
     // ver DADOS_DEMO_V2.novoContatoWhatsappSeed.
-    novoContatoWhatsappDemo: { ...DADOS_DEMO_V2.novoContatoWhatsappSeed, processado:false },
+    // [Limpeza Supabase] null em modo Supabase — nunca aparece o banner
+    // "Novo contato (Demonstração)" junto dos dados reais da Mori.
+    novoContatoWhatsappDemo: (typeof MODO_SUPABASE !== 'undefined' && MODO_SUPABASE) ? null : { ...DADOS_DEMO_V2.novoContatoWhatsappSeed, processado:false },
   };
 }
 
@@ -2092,10 +2097,20 @@ function renderBarListHorizontal(items){
 }
 
 /* ============================================================
-   LÓGICA TEMPORÁRIA DE PROTÓTIPO (V2) — campos que ainda não existem
-   no modelo de dados real. Isoladas aqui de propósito: quando os campos
-   verdadeiros (`data_perda`, `data_envio_plano`) existirem no banco,
-   estas funções devem ser substituídas por leitura direta do campo.
+   LÓGICA TEMPORÁRIA DE PROTÓTIPO (V2) — deriva data_perda/data_envio_plano
+   a partir de outros campos em vez de ler o valor real.
+   ------------------------------------------------------------
+   [PENDÊNCIA TÉCNICA — registrada na limpeza pré-CRUD, não resolvida aqui
+   de propósito, para não misturar limpeza visual/demo com mudança de
+   regra comercial] As colunas reais `pacientes.data_perda` e
+   `pacientes.data_envio_plano` JÁ EXISTEM no Supabase e já chegam no
+   frontend em modo Supabase (ver mapPacienteSupabaseParaCRM — campos
+   `dataPerda`/`dataEnvioPlano`), mas as funções abaixo ainda ignoram esses
+   valores reais e continuam calculando por aproximação a partir de
+   dataFechamento/dataConsulta/dataContato, inclusive em modo Supabase.
+   Trocar para ler o campo real é uma mudança de regra comercial (pode
+   alterar quando um resgate/follow-up fica elegível) e deve ser decidida
+   e testada separadamente, não dentro desta limpeza.
    ============================================================ */
 // Deriva uma "data da perda" a partir da última data conhecida do paciente,
 // SEM alterar nenhum dado real — é só uma leitura calculada.
@@ -2204,7 +2219,7 @@ function render(){
       </nav>
       <div class="sidebar-foot">
         ${escapeHtml(DB.usuarioAtual.nome)} · ${escapeHtml(DB.usuarioAtual.cargo)}<br>
-        Dados salvos localmente neste navegador.
+        ${MODO_SUPABASE ? 'Conectado ao Supabase.' : 'Dados salvos localmente neste navegador.'}
       </div>
     </aside>
     <div class="main">
@@ -3199,8 +3214,11 @@ let whatsappConversaSelecionadaId = null;
 function resolverContatoWhatsapp(pacienteId){
   const p = DB.pacientes.find(x=>x.id===pacienteId);
   if(p) return { nome:p.nome, telefone:p.telefone };
-  const demo = DADOS_DEMO_V2.posVendaDemoPacientes.find(x=>x.id===pacienteId);
-  if(demo) return { nome:demo.nome, telefone:demo.telefone };
+  // [Limpeza Supabase] fallback fictício só existe em modo local/dev.
+  if(!MODO_SUPABASE){
+    const demo = DADOS_DEMO_V2.posVendaDemoPacientes.find(x=>x.id===pacienteId);
+    if(demo) return { nome:demo.nome, telefone:demo.telefone };
+  }
   return { nome:'Contato', telefone:'' };
 }
 
@@ -3356,7 +3374,7 @@ function renderWhatsapp(){
         <div><span class="muted small">Aguardando resposta:</span> <b>${aguardando}</b></div>
         <div><span class="muted small">Aguardando +2h:</span> <b style="color:${atrasadas>0?'var(--danger)':'inherit'};">${atrasadas}</b></div>
       </div>
-      <button class="btn ghost sm" data-action="wa-simular-contato" title="Ferramenta de teste: simula uma mensagem chegando de um número qualquer">🧪 Simular contato manual</button>
+      ${MODO_SUPABASE ? '' : `<button class="btn ghost sm" data-action="wa-simular-contato" title="Ferramenta de teste: simula uma mensagem chegando de um número qualquer">🧪 Simular contato manual</button>`}
     </div>
   </div>
   <div class="wa-layout">
@@ -3466,6 +3484,9 @@ function filaPosVenda(){
     .filter(p=> p.compareceu==='Sim' && p.dataConsulta===ontem && !DB.posVendasConcluidos.includes(p.id))
     .map(p=>({ id:p.id, nome:p.nome, telefone:p.telefone, procedimentos:p.procedimentos, demo:false }));
   if(reais.length) return reais;
+  // [Limpeza Supabase] nunca completa a fila com pacientes fictícios quando
+  // conectado ao banco real — lista vazia é o resultado real e correto.
+  if(MODO_SUPABASE) return reais;
   return DADOS_DEMO_V2.posVendaDemoPacientes
     .filter(d=>!DB.posVendasConcluidos.includes(d.id))
     .map(d=>({ id:d.id, nome:d.nome, telefone:d.telefone, procedimentos:d.procedimentos, demo:true }));
@@ -3517,7 +3538,70 @@ function bindPosVendasEvents(){
 /* ============================================================
    11) CONFIGURAÇÕES
    ============================================================ */
+// [Limpeza Supabase] Em modo Supabase, Configurações é somente leitura e
+// mostra dado real (equipe/procedimentos/origens/motivos vindos do banco),
+// sem nenhuma informação de briefing/hipótese de cargo nem controle que
+// pareça gravar algo que hoje não é persistido em lugar nenhum.
+function renderConfigSupabase(){
+  const equipe = (DB.equipeSupabase||[]).slice().sort((a,b)=>(a.nome||'').localeCompare(b.nome||''));
+  return `
+  <div class="grid cols-2">
+    <div class="card">
+      <h3>Clínica</h3>
+      <label class="field"><span class="lbl">Nome</span><input value="${escapeHtml(DB.clinica.nome)}" disabled></label>
+      <label class="field"><span class="lbl">Cidade</span><input value="${escapeHtml(DB.clinica.cidade)}" disabled></label>
+    </div>
+
+    <div class="card">
+      <h3>Equipe</h3>
+      <div class="table-wrap">
+      <table>
+        <thead><tr><th>Nome</th><th>Cargo</th><th>Perfil</th><th>Status</th></tr></thead>
+        <tbody>
+        ${equipe.length? equipe.map(p=>`
+          <tr>
+            <td>${escapeHtml(p.nome)}</td>
+            <td>${escapeHtml(p.cargo||'—')}</td>
+            <td>${escapeHtml(p.role||'—')}</td>
+            <td>${p.ativo? `<span class="badge-status" style="background:var(--success-bg);color:var(--success);">Ativo</span>` : `<span class="badge-status" style="background:var(--danger-bg);color:var(--danger);">Inativo</span>`}</td>
+          </tr>`).join('') : `<tr><td class="empty" colspan="4">Nenhum profile encontrado.</td></tr>`}
+        </tbody>
+      </table>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>Procedimentos</h3>
+      <div class="table-wrap">
+      <table>
+        <thead><tr><th>Nome</th><th>Valor médio</th></tr></thead>
+        <tbody>
+        ${DB.procedimentos.length? DB.procedimentos.map(p=>`<tr><td>${escapeHtml(p.nome)}</td><td>${fmtMoeda(p.valorMedio)}</td></tr>`).join('') : `<tr><td class="empty" colspan="2">Nenhum procedimento cadastrado.</td></tr>`}
+        </tbody>
+      </table>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>Origens de Lead</h3>
+      ${DB.origens.length? `<ul style="margin:0;padding-left:18px;">${DB.origens.map(o=>`<li>${escapeHtml(o)}</li>`).join('')}</ul>` : `<div class="empty">Nenhuma origem cadastrada.</div>`}
+    </div>
+
+    <div class="card">
+      <h3>Motivos de Perda</h3>
+      ${DB.motivosPerda.length? `<ul style="margin:0;padding-left:18px;">${DB.motivosPerda.map(m=>`<li>${escapeHtml(m)}</li>`).join('')}</ul>` : `<div class="empty">Nenhum motivo cadastrado.</div>`}
+    </div>
+
+    <div class="card">
+      <h3>Exportação</h3>
+      <p class="muted small">Exporta os pacientes reais já carregados nesta sessão.</p>
+      <button class="btn sm" data-action="export-csv">⬇️ Exportar pacientes (CSV)</button>
+    </div>
+  </div>`;
+}
+
 function renderConfig(){
+  if(MODO_SUPABASE) return renderConfigSupabase();
   return `
   <div class="grid cols-2">
     <div class="card">
@@ -3938,10 +4022,10 @@ async function carregarDadosSupabase(perfil){
   ] = await Promise.all([
     sb.from('pacientes_com_status').select('*'),
     sb.from('paciente_procedimentos').select('paciente_id, procedimento_id'),
-    sb.from('procedimentos').select('id, nome'),
+    sb.from('procedimentos').select('id, nome, valor_medio'),
     sb.from('origens_lead').select('id, nome'),
     sb.from('motivos_perda').select('id, nome'),
-    sb.from('profiles').select('id, nome'),
+    sb.from('profiles').select('id, nome, cargo, role, ativo'),
   ]);
 
   const erro = errPac || errPP || errProc || errOrig || errMot || errProf;
@@ -3978,6 +4062,19 @@ async function carregarDadosSupabase(perfil){
   // definido para esta etapa) — mantidas vazias para não exibir dado
   // desatualizado como se fosse real.
   DB.indicacoes = [];
+  // [Limpeza Supabase] Origens/motivos/responsáveis/procedimentos passam a
+  // vir do banco real — usados tanto pelos filtros/modal de Pacientes
+  // quanto pela tela de Configurações. Substitui as listas de exemplo
+  // (SEED_ORIGENS, SEED_MOTIVOS_PERDA, ['Mariana','Natalia','Julia'],
+  // SEED_PROCEDIMENTOS) que o buildInitialState() acima usou como padrão.
+  DB.origens = (origensRows||[]).map(o=>o.nome);
+  DB.motivosPerda = (motivosRows||[]).map(m=>m.nome);
+  DB.responsaveis = (profilesRows||[]).map(p=>p.nome);
+  DB.procedimentos = (procRows||[]).map(p=>({ id:p.id, nome:p.nome, valorMedio:p.valor_medio ?? 0 }));
+  // Lista completa de profiles (com cargo/role/ativo) só para a tela de
+  // Configurações — DB.responsaveis acima guarda só os nomes, que é o que
+  // os filtros/modal de Pacientes precisam.
+  DB.equipeSupabase = profilesRows || [];
 
   render();
   bindRouteEvents();
