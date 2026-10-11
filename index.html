@@ -2050,6 +2050,14 @@ function diasEntre(isoA,isoB){
 function escapeHtml(s){
   return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
+// [Supabase CRUD] string vazia (inclusive só espaço) vira null — usado ao
+// montar o payload das RPCs de paciente, nunca manda '' para uma coluna
+// com CHECK (que rejeitaria) ou para um campo date.
+function nuloSeVazio(v){
+  if(v===null||v===undefined) return null;
+  const s = String(v).trim();
+  return s===''? null : v;
+}
 function monthKey(iso){ return iso ? iso.slice(0,7) : ''; }
 function monthLabel(key){
   const [y,m]=key.split('-');
@@ -2551,9 +2559,9 @@ function openPacienteModal(paciente){
           <div class="pill" style="background:${etapaCor(calcStatus(p))}22;color:${etapaCor(calcStatus(p))}">Status calculado automaticamente: será recalculado ao salvar</div>
         </div>
         <div class="modal-foot">
-          ${!isNew?`<button type="button" class="btn danger" data-del="${p.id}">Excluir</button>`:''}
+          ${(!isNew && !MODO_SUPABASE)?`<button type="button" class="btn danger" data-del="${p.id}">Excluir</button>`:''}
           <button type="button" class="btn ghost" data-close>Cancelar</button>
-          <button type="submit" class="btn primary">Salvar Paciente</button>
+          <button type="submit" class="btn primary" data-btn-salvar>Salvar Paciente</button>
         </div>
       </form>
     </div>
@@ -2587,6 +2595,16 @@ function openPacienteModal(paciente){
     e.preventDefault();
     const fd = new FormData(e.target);
     const procedimentos = fd.getAll('procedimentos');
+
+    // [Supabase CRUD] Modo Supabase: escrita real via RPC, nunca em
+    // localStorage/DB em memória direto. Fluxo local abaixo continua
+    // inalterado — as duas rotas são propositalmente separadas (ver
+    // requisito "compatibilidade localStorage").
+    if(typeof MODO_SUPABASE !== 'undefined' && MODO_SUPABASE){
+      salvarPacienteSupabase(e.target, fd, procedimentos, p, isNew);
+      return;
+    }
+
     const novo = {
       ...p,
       nome: fd.get('nome').trim(),
@@ -2624,6 +2642,153 @@ function openPacienteModal(paciente){
   });
 }
 function closeModal(){ document.getElementById('modal-root').innerHTML=''; }
+
+/* ============================================================
+   [Supabase CRUD] Cadastro/Edição real de paciente via RPC
+   ------------------------------------------------------------
+   Toda escrita passa exclusivamente por criar_paciente_com_procedimentos
+   / atualizar_paciente_com_procedimentos (homologadas no banco real,
+   migration 20261010000000_rpc_paciente_atomico.sql). Nenhum INSERT/
+   UPDATE/DELETE direto em `pacientes` ou `paciente_procedimentos` a
+   partir daqui. clinica_id/created_by/updated_by/status/data_perda/
+   data_envio_plano são sempre derivados/calculados no servidor — o
+   frontend nunca os inventa nem envia.
+   ============================================================ */
+
+// [Requisito 4] Consulta SEMPRE fresca ao Supabase (nunca só DB.pacientes
+// em memória, que pode estar desatualizado com outra sessão simultânea).
+async function verificarTelefoneDuplicadoSupabase(telefoneE164, pacienteIdAtual){
+  let query = window.moriSupabase
+    .from('pacientes_com_status')
+    .select('id, nome')
+    .eq('telefone_e164', telefoneE164)
+    .limit(1);
+  if(pacienteIdAtual) query = query.neq('id', pacienteIdAtual);
+  const { data, error } = await query;
+  if(error){
+    console.error('Falha ao verificar telefone duplicado.', error);
+    return null; // falha nesta checagem de UX não deve travar o salvamento
+  }
+  return (data && data[0]) || null;
+}
+
+// Mini-modal sobreposto ao modal de paciente já aberto (não o substitui).
+// Resolve com 'abrir' | 'cadastrar' | 'cancelar'.
+function mostrarConfirmacaoTelefoneDuplicado(pacienteEncontrado){
+  return new Promise(resolve=>{
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-backdrop';
+    overlay.innerHTML = `
+      <div class="modal" style="max-width:420px;">
+        <div class="modal-head"><h3>Telefone já cadastrado</h3></div>
+        <div class="modal-body">
+          <p>Já existe um paciente com este telefone: <b>${escapeHtml(pacienteEncontrado.nome)}</b></p>
+        </div>
+        <div class="modal-foot">
+          <button type="button" class="btn ghost" data-dup="cancelar">Cancelar</button>
+          <button type="button" class="btn gold" data-dup="abrir">Abrir Paciente Existente</button>
+          <button type="button" class="btn primary" data-dup="cadastrar">Cadastrar Mesmo Assim</button>
+        </div>
+      </div>`;
+    document.body.appendChild(overlay);
+    const finalizar = (escolha)=>{ overlay.remove(); resolve(escolha); };
+    overlay.addEventListener('click', (e)=>{ if(e.target===overlay) finalizar('cancelar'); });
+    overlay.querySelectorAll('[data-dup]').forEach(btn=>{
+      btn.addEventListener('click', ()=>finalizar(btn.getAttribute('data-dup')));
+    });
+  });
+}
+
+async function salvarPacienteSupabase(form, fd, procedimentosSelecionados, p, isNew){
+  const refsBase = DB._refsSupabase;
+  const nome = (fd.get('nome')||'').trim();
+  if(!nome){ toast('Informe o nome do paciente.'); return; }
+
+  const telefoneOriginal = nuloSeVazio((fd.get('telefone')||'').trim());
+  const telefoneE164 = normalizarTelefoneE164BR(telefoneOriginal);
+
+  // [Requisito 4] Só verifica duplicidade com telefone_e164 válido.
+  if(telefoneE164){
+    const encontrado = await verificarTelefoneDuplicadoSupabase(telefoneE164, isNew? null : p.id);
+    if(encontrado){
+      const escolha = await mostrarConfirmacaoTelefoneDuplicado(encontrado);
+      if(escolha==='abrir'){
+        closeModal();
+        const existente = DB.pacientes.find(x=>x.id===encontrado.id);
+        if(existente) openPacienteModal(existente);
+        else toast('Paciente encontrado, mas não está na lista carregada. Atualize a página.');
+        return;
+      }
+      if(escolha==='cancelar') return; // mantém o modal atual aberto, nada é enviado
+      // escolha === 'cadastrar' -> segue o fluxo normal abaixo, sem merge
+    }
+  }
+
+  const origemNome = fd.get('origem') || '';
+  const responsavelNome = fd.get('responsavel') || '';
+  const motivoNome = fd.get('motivoPerda') || '';
+  const procedimentoIds = procedimentosSelecionados
+    .map(nomeSel => (DB.procedimentos.find(x=>x.nome===nomeSel) || {}).id)
+    .filter(Boolean);
+
+  const payload = {
+    p_nome: nome,
+    p_telefone_original: telefoneOriginal,
+    p_telefone_e164: telefoneE164,
+    p_email: nuloSeVazio((fd.get('email')||'').trim()),
+    p_origem_id: refsBase.origensPorNome[origemNome] || null,
+    // Campo legado sem input próprio no formulário — preserva o valor já
+    // existente (a RPC faz UPDATE de todas as colunas, não parcial).
+    p_procedimento_original: p.procedimentoOriginal || null,
+    p_responsavel_id: refsBase.responsaveisPorNome[responsavelNome] || null,
+    p_data_contato: nuloSeVazio(fd.get('dataContato')),
+    p_marcou_consulta: nuloSeVazio(fd.get('marcouConsulta')),
+    p_data_consulta: nuloSeVazio(fd.get('dataConsulta')),
+    p_compareceu: nuloSeVazio(fd.get('compareceu')),
+    p_fez_radiografia: nuloSeVazio(fd.get('fezRadiografia')),
+    p_plano_tratamento: nuloSeVazio(fd.get('planoTratamento')),
+    p_valor_orcamento: fd.get('valorOrcamento')? parseFloat(fd.get('valorOrcamento')) : null,
+    p_fechou_tratamento: nuloSeVazio(fd.get('fechouTratamento')),
+    p_valor_fechado: fd.get('valorFechado')? parseFloat(fd.get('valorFechado')) : null,
+    p_data_fechamento: nuloSeVazio(fd.get('dataFechamento')),
+    p_motivo_perda_id: refsBase.motivosPorNome[motivoNome] || null,
+    p_observacoes: nuloSeVazio((fd.get('observacoes')||'').trim()),
+    p_procedimento_ids: procedimentoIds,
+  };
+  // Nunca enviados: clinica_id, created_by, updated_by, status, data_perda,
+  // data_envio_plano, indicadoPor — derivados/calculados no servidor ou
+  // fora do escopo desta rodada (indicações ficam para outra etapa).
+  if(!isNew) payload.p_paciente_id = p.id;
+
+  const btnSalvar = form.querySelector('[data-btn-salvar]');
+  const textoOriginalBtn = btnSalvar ? btnSalvar.textContent : '';
+  if(btnSalvar){ btnSalvar.disabled = true; btnSalvar.textContent = 'Salvando…'; }
+
+  const nomeFuncao = isNew ? 'criar_paciente_com_procedimentos' : 'atualizar_paciente_com_procedimentos';
+  const { data, error } = await window.moriSupabase.rpc(nomeFuncao, payload);
+
+  if(error){
+    console.error(`Falha ao chamar ${nomeFuncao}.`, error);
+    toast('Não foi possível salvar o paciente. Tente novamente.');
+    if(btnSalvar){ btnSalvar.disabled = false; btnSalvar.textContent = textoOriginalBtn; }
+    return;
+  }
+
+  // [Requisito 7] Mesmo mapeamento Supabase → CRM do carregamento inicial —
+  // só sobrepõe procedimentosPorPaciente deste paciente com o que acabou de
+  // ser enviado à RPC (a view pacientes_com_status não traz os vínculos).
+  const refsComProcedimentos = {
+    ...refsBase,
+    procedimentosPorPaciente: { ...refsBase.procedimentosPorPaciente, [data.id]: procedimentosSelecionados },
+  };
+  const pacienteAtualizado = mapPacienteSupabaseParaCRM(data, refsComProcedimentos);
+  const idx = DB.pacientes.findIndex(x=>x.id===pacienteAtualizado.id);
+  if(idx>=0) DB.pacientes[idx] = pacienteAtualizado; else DB.pacientes.push(pacienteAtualizado);
+
+  closeModal();
+  render();
+  toast(isNew ? 'Paciente cadastrado.' : 'Paciente atualizado.');
+}
 
 /* ============================================================
    6) KANBAN
@@ -3277,6 +3442,27 @@ function normalizarTelefone(tel){
   d = d.replace(/^0+/,'');
   if(d.length>11 && d.startsWith('55')) d = d.slice(2);
   return d;
+}
+// [Supabase CRUD] Normalização conservadora de telefone brasileiro para
+// E.164 — usada só na gravação real (criar/atualizar paciente via RPC).
+// Separada de normalizarTelefone() acima, que continua servindo só à
+// demonstração de WhatsApp (busca solta por dígitos, não é E.164).
+// Nunca inventa DDD nem completa número incompleto: formato ambíguo ou
+// insuficiente -> null (nunca lança exceção, nunca assume um valor).
+function normalizarTelefoneE164BR(telefoneOriginal){
+  if(!telefoneOriginal) return null;
+  let d = String(telefoneOriginal).replace(/\D/g,'');
+  if(!d) return null;
+  d = d.replace(/^0+/, '');
+  if(!d) return null;
+  if(d.startsWith('55') && (d.length===12 || d.length===13)){
+    // já vem com DDI 55 e tamanho compatível com DDD+fixo(8) ou DDD+celular(9)
+  } else if(d.length===10 || d.length===11){
+    d = '55'+d;
+  } else {
+    return null;
+  }
+  return '+'+d;
 }
 function buscarPacientePorTelefone(telefoneOriginalOuNormalizado){
   const alvo = normalizarTelefone(telefoneOriginalOuNormalizado);
@@ -3952,8 +4138,14 @@ function mapPacienteSupabaseParaCRM(row, refs){
     legacyId: row.legacy_id || null,
     nome: row.nome || '',
     telefone: row.telefone_original || '',
+    telefoneE164: row.telefone_e164 || null,
     email: row.email || '',
     origem: nomeOrigem,
+    // [CRUD] Ids reais preservados ao lado do nome — a gravação (RPC) usa
+    // estes ids; a interface continua mostrando só os nomes acima.
+    origemId: row.origem_id || null,
+    responsavelId: row.responsavel_id || null,
+    motivoPerdaId: row.motivo_perda_id || null,
     procedimentos,
     procedimentoOriginal: row.procedimento_original || '',
     responsavel: nomeResponsavel,
@@ -4057,14 +4249,34 @@ async function carregarDadosSupabase(perfil){
   const refs = { origensPorId, motivosPorId, profilesPorId, procedimentosPorPaciente };
   const pacientesMapeados = (pacientesRows||[]).map(row=>mapPacienteSupabaseParaCRM(row, refs));
 
+  // [CRUD] Mapas nome->id, derivados dos mesmos id->nome acima (nenhuma
+  // consulta nova ao Supabase). Usados só na hora de montar o payload das
+  // RPCs de paciente — a interface continua mostrando/filtrando por nome.
+  const origensPorNome = {};
+  Object.entries(origensPorId).forEach(([id,nome])=>{ origensPorNome[nome]=id; });
+  const motivosPorNome = {};
+  Object.entries(motivosPorId).forEach(([id,nome])=>{ motivosPorNome[nome]=id; });
+  const responsaveisPorNome = {};
+  Object.entries(profilesPorId).forEach(([id,nome])=>{ responsaveisPorNome[nome]=id; });
+
   // [Supabase] Monta o DB da sessão a partir do estado padrão local — mantém
   // funcionários/WhatsApp/Pós-Vendas/Indicações/tema exatamente como já
   // funcionam hoje (fora do escopo desta rodada) — e substitui SOMENTE a
   // lista de pacientes pelos dados reais vindos do banco, já filtrados
   // pela RLS da clínica do usuário autenticado.
   DB = buildInitialState();
-  DB.usuarioAtual = { nome: perfil.nome, cargo: perfil.cargo || '' };
+  // [CRUD] id/clinica_id/role do profile autenticado (nunca hardcoded —
+  // vêm sempre da consulta real feita em carregarAposLogin). Usados pelas
+  // RPCs apenas indiretamente: o próprio banco deriva clinica_id/created_by/
+  // updated_by de auth.uid(), mas o frontend precisa saber "quem sou eu"
+  // para decisões de interface (ex: visibilidade por role, no futuro).
+  DB.usuarioAtual = { id: perfil.id, clinicaId: perfil.clinica_id, role: perfil.role || null, nome: perfil.nome, cargo: perfil.cargo || '' };
   DB.pacientes = pacientesMapeados;
+  // [CRUD] Guarda os mapas id<->nome da carga inicial para reuso no
+  // salvamento (cadastro/edição) sem precisar resolver por nome contra o
+  // Supabase de novo — e para reaproveitar o mesmo mapPacienteSupabaseParaCRM
+  // no retorno das RPCs (ver salvarPacienteSupabase).
+  DB._refsSupabase = { ...refs, origensPorNome, motivosPorNome, responsaveisPorNome };
   // Indicações não são carregadas do Supabase nesta rodada (fora do escopo
   // definido para esta etapa) — mantidas vazias para não exibir dado
   // desatualizado como se fosse real.
