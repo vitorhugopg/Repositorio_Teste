@@ -2488,6 +2488,17 @@ function openPacienteModal(paciente){
     planoTratamento:'',valorOrcamento:null,fechouTratamento:'',valorFechado:null,dataFechamento:'',
     motivoPerda:'',observacoes:'',indicadoPor:'',
   };
+  // [Config admin] Procedimentos/origens/motivos inativos não aparecem
+  // como opção nova, mas um paciente que já os possui continua mostrando
+  // o valor atual (não "some" nem fica em branco). Em modo local (sem
+  // Supabase) DB.procedimentosTodos/origensTodas/motivosPerdaTodas não
+  // existem — cai no comportamento de sempre (todas as opções).
+  const procedimentosDisponiveis = (DB.procedimentosTodos||DB.procedimentos).filter(proc =>
+    proc.ativo !== false || (p.procedimentos||[]).includes(proc.nome)
+  );
+  const origensDisponiveis = (p.origem && !DB.origens.includes(p.origem)) ? [...DB.origens, p.origem] : DB.origens;
+  const motivosDisponiveis = (p.motivoPerda && !DB.motivosPerda.includes(p.motivoPerda)) ? [...DB.motivosPerda, p.motivoPerda] : DB.motivosPerda;
+
   const modalRoot = document.getElementById('modal-root');
   modalRoot.innerHTML = `
   <div class="modal-backdrop" data-close-backdrop>
@@ -2508,13 +2519,13 @@ function openPacienteModal(paciente){
             <label class="field"><span class="lbl">Origem do Lead</span>
               <select name="origem">
                 <option value="">—</option>
-                ${DB.origens.map(o=>`<option ${p.origem===o?'selected':''}>${escapeHtml(o)}</option>`).join('')}
+                ${origensDisponiveis.map(o=>`<option ${p.origem===o?'selected':''}>${escapeHtml(o)}</option>`).join('')}
               </select>
             </label>
           </div>
           <label class="field"><span class="lbl">Procedimento(s) de Interesse</span>
             <div class="chips-check">
-            ${DB.procedimentos.map(proc=>`
+            ${procedimentosDisponiveis.map(proc=>`
               <label class="chip-check ${(p.procedimentos||[]).includes(proc.nome)?'on':''}">
                 <input type="checkbox" name="procedimentos" value="${escapeHtml(proc.nome)}" ${(p.procedimentos||[]).includes(proc.nome)?'checked':''}>
                 ${escapeHtml(proc.nome)}
@@ -2547,7 +2558,7 @@ function openPacienteModal(paciente){
             <label class="field"><span class="lbl">Data Fechamento</span><input type="date" name="dataFechamento" value="${p.dataFechamento||''}"></label>
           </div>
           <label class="field"><span class="lbl">Motivo da Perda <span class="muted" style="text-transform:none;font-weight:500;">(quando Fechou Tratamento = Não)</span></span>
-            <select name="motivoPerda"><option value="">—</option>${DB.motivosPerda.map(m=>`<option ${p.motivoPerda===m?'selected':''}>${escapeHtml(m)}</option>`).join('')}</select>
+            <select name="motivoPerda"><option value="">—</option>${motivosDisponiveis.map(m=>`<option ${p.motivoPerda===m?'selected':''}>${escapeHtml(m)}</option>`).join('')}</select>
           </label>
           <label class="field"><span class="lbl">Observações <span class="muted" style="text-transform:none;font-weight:500;">(contexto de Pendente / Não Precisa no Momento aparece no card do Kanban)</span></span>
             <textarea name="observacoes" rows="3">${escapeHtml(p.observacoes)}</textarea>
@@ -2728,7 +2739,7 @@ async function salvarPacienteSupabase(form, fd, procedimentosSelecionados, p, is
   const responsavelNome = fd.get('responsavel') || '';
   const motivoNome = fd.get('motivoPerda') || '';
   const procedimentoIds = procedimentosSelecionados
-    .map(nomeSel => (DB.procedimentos.find(x=>x.nome===nomeSel) || {}).id)
+    .map(nomeSel => ((DB.procedimentosTodos||DB.procedimentos).find(x=>x.nome===nomeSel) || {}).id)
     .filter(Boolean);
 
   const payload = {
@@ -3735,8 +3746,43 @@ function bindPosVendasEvents(){
 // mostra dado real (equipe/procedimentos/origens/motivos vindos do banco),
 // sem nenhuma informação de briefing/hipótese de cargo nem controle que
 // pareça gravar algo que hoje não é persistido em lugar nenhum.
+// [Config admin] Modelo de acesso: "pessoa da clínica" (profiles) e
+// "usuário com acesso ao CRM" são conceitos diferentes. `ativo` sozinho
+// NÃO significa acesso — só auth_user_id presente é login real. Mesma
+// regra de negócio já homologada no banco (Fase 0 / role nullable).
+function situacaoAcessoPessoa(pessoa){
+  if(pessoa.auth_user_id) return pessoa.ativo ? 'ativo' : 'desativado';
+  if(pessoa.role && pessoa.ativo) return 'pendente';
+  return 'sem_acesso';
+}
+function rotuloSituacaoAcesso(situacao){
+  return { ativo:'Ativo', pendente:'Acesso pendente', desativado:'Acesso desativado', sem_acesso:'Sem acesso' }[situacao] || 'Sem acesso';
+}
+function badgeSituacaoAcesso(situacao){
+  const estilos = {
+    ativo: 'background:var(--success-bg);color:var(--success);',
+    pendente: 'background:var(--warn-bg);color:var(--warn);',
+    desativado: 'background:var(--danger-bg);color:var(--danger);',
+    sem_acesso: 'background:var(--ink-100);color:var(--text-muted);',
+  };
+  return `<span class="badge-status" style="${estilos[situacao]||estilos.sem_acesso}">${rotuloSituacaoAcesso(situacao)}</span>`;
+}
+function rotuloPermissao(role){
+  return { admin:'Administrador', dentista:'Dentista', secretaria:'Secretária' }[role] || '—';
+}
+function badgeAtivo(ativo){
+  return ativo
+    ? `<span class="badge-status" style="background:var(--success-bg);color:var(--success);">Ativo</span>`
+    : `<span class="badge-status" style="background:var(--ink-100);color:var(--text-muted);">Inativo</span>`;
+}
+
 function renderConfigSupabase(){
+  const isAdmin = DB.usuarioAtual.role === 'admin';
   const equipe = (DB.equipeSupabase||[]).slice().sort((a,b)=>(a.nome||'').localeCompare(b.nome||''));
+  const procedimentosTodos = (DB.procedimentosTodos||[]).slice().sort((a,b)=>(a.nome||'').localeCompare(b.nome||''));
+  const origensTodas = (DB.origensTodas||[]).slice().sort((a,b)=>(a.nome||'').localeCompare(b.nome||''));
+  const motivosTodos = (DB.motivosPerdaTodas||[]).slice().sort((a,b)=>(a.nome||'').localeCompare(b.nome||''));
+
   return `
   <div class="grid cols-2">
     <div class="card">
@@ -3746,43 +3792,101 @@ function renderConfigSupabase(){
     </div>
 
     <div class="card">
-      <h3>Equipe</h3>
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <h3>Equipe</h3>
+        ${isAdmin? `<button class="btn sm gold" data-cfg-add="pessoa">+ Adicionar pessoa</button>` : ''}
+      </div>
       <div class="table-wrap">
       <table>
-        <thead><tr><th>Nome</th><th>Cargo</th><th>Perfil</th><th>Status</th></tr></thead>
+        <thead><tr><th>Nome</th><th>Cargo</th><th>Permissão</th><th>Situação de acesso</th>${isAdmin?'<th>Ações</th>':''}</tr></thead>
         <tbody>
-        ${equipe.length? equipe.map(p=>`
+        ${equipe.length? equipe.map(p=>{
+          const situacao = situacaoAcessoPessoa(p);
+          return `
           <tr>
             <td>${escapeHtml(p.nome)}</td>
             <td>${escapeHtml(p.cargo||'—')}</td>
-            <td>${escapeHtml(p.role||'—')}</td>
-            <td>${p.ativo? `<span class="badge-status" style="background:var(--success-bg);color:var(--success);">Ativo</span>` : `<span class="badge-status" style="background:var(--danger-bg);color:var(--danger);">Inativo</span>`}</td>
-          </tr>`).join('') : `<tr><td class="empty" colspan="4">Nenhum profile encontrado.</td></tr>`}
+            <td>${rotuloPermissao(p.role)}</td>
+            <td>${badgeSituacaoAcesso(situacao)}</td>
+            ${isAdmin? `<td style="white-space:nowrap;display:flex;gap:6px;">
+              <button class="btn sm ghost" data-cfg-edit="pessoa" data-id="${p.id}">Editar</button>
+              ${situacao!=='ativo'? `<button class="btn sm" disabled title="Disponível na próxima etapa">Convidar para acessar</button>` : ''}
+            </td>` : ''}
+          </tr>`;
+        }).join('') : `<tr><td class="empty" colspan="${isAdmin?5:4}">Nenhum profile encontrado.</td></tr>`}
         </tbody>
       </table>
       </div>
     </div>
 
     <div class="card">
-      <h3>Procedimentos</h3>
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <h3>Procedimentos</h3>
+        ${isAdmin? `<button class="btn sm gold" data-cfg-add="procedimento">+ Adicionar</button>` : ''}
+      </div>
       <div class="table-wrap">
       <table>
-        <thead><tr><th>Nome</th><th>Valor médio</th></tr></thead>
+        <thead><tr><th>Nome</th><th>Valor médio</th><th>Situação</th>${isAdmin?'<th>Ações</th>':''}</tr></thead>
         <tbody>
-        ${DB.procedimentos.length? DB.procedimentos.map(p=>`<tr><td>${escapeHtml(p.nome)}</td><td>${fmtMoeda(p.valorMedio)}</td></tr>`).join('') : `<tr><td class="empty" colspan="2">Nenhum procedimento cadastrado.</td></tr>`}
+        ${procedimentosTodos.length? procedimentosTodos.map(p=>`
+          <tr>
+            <td>${escapeHtml(p.nome)}</td>
+            <td>${fmtMoeda(p.valorMedio)}</td>
+            <td>${badgeAtivo(p.ativo)}</td>
+            ${isAdmin? `<td style="white-space:nowrap;display:flex;gap:6px;">
+              <button class="btn sm ghost" data-cfg-edit="procedimento" data-id="${p.id}">Editar</button>
+              <button class="btn sm ${p.ativo?'danger':'gold'}" data-cfg-toggle="procedimento" data-id="${p.id}" data-ativo="${p.ativo}">${p.ativo?'Desativar':'Reativar'}</button>
+            </td>` : ''}
+          </tr>`).join('') : `<tr><td class="empty" colspan="${isAdmin?4:3}">Nenhum procedimento cadastrado.</td></tr>`}
         </tbody>
       </table>
       </div>
     </div>
 
     <div class="card">
-      <h3>Origens de Lead</h3>
-      ${DB.origens.length? `<ul style="margin:0;padding-left:18px;">${DB.origens.map(o=>`<li>${escapeHtml(o)}</li>`).join('')}</ul>` : `<div class="empty">Nenhuma origem cadastrada.</div>`}
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <h3>Origens de Lead</h3>
+        ${isAdmin? `<button class="btn sm gold" data-cfg-add="origem">+ Adicionar</button>` : ''}
+      </div>
+      <div class="table-wrap">
+      <table>
+        <thead><tr><th>Nome</th><th>Situação</th>${isAdmin?'<th>Ações</th>':''}</tr></thead>
+        <tbody>
+        ${origensTodas.length? origensTodas.map(o=>`
+          <tr>
+            <td>${escapeHtml(o.nome)}</td>
+            <td>${badgeAtivo(o.ativo)}</td>
+            ${isAdmin? `<td style="white-space:nowrap;display:flex;gap:6px;">
+              <button class="btn sm ghost" data-cfg-edit="origem" data-id="${o.id}">Editar</button>
+              <button class="btn sm ${o.ativo?'danger':'gold'}" data-cfg-toggle="origem" data-id="${o.id}" data-ativo="${o.ativo}">${o.ativo?'Desativar':'Reativar'}</button>
+            </td>` : ''}
+          </tr>`).join('') : `<tr><td class="empty" colspan="${isAdmin?3:2}">Nenhuma origem cadastrada.</td></tr>`}
+        </tbody>
+      </table>
+      </div>
     </div>
 
     <div class="card">
-      <h3>Motivos de Perda</h3>
-      ${DB.motivosPerda.length? `<ul style="margin:0;padding-left:18px;">${DB.motivosPerda.map(m=>`<li>${escapeHtml(m)}</li>`).join('')}</ul>` : `<div class="empty">Nenhum motivo cadastrado.</div>`}
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <h3>Motivos de Perda</h3>
+        ${isAdmin? `<button class="btn sm gold" data-cfg-add="motivo">+ Adicionar</button>` : ''}
+      </div>
+      <div class="table-wrap">
+      <table>
+        <thead><tr><th>Nome</th><th>Situação</th>${isAdmin?'<th>Ações</th>':''}</tr></thead>
+        <tbody>
+        ${motivosTodos.length? motivosTodos.map(m=>`
+          <tr>
+            <td>${escapeHtml(m.nome)}</td>
+            <td>${badgeAtivo(m.ativo)}</td>
+            ${isAdmin? `<td style="white-space:nowrap;display:flex;gap:6px;">
+              <button class="btn sm ghost" data-cfg-edit="motivo" data-id="${m.id}">Editar</button>
+              <button class="btn sm ${m.ativo?'danger':'gold'}" data-cfg-toggle="motivo" data-id="${m.id}" data-ativo="${m.ativo}">${m.ativo?'Desativar':'Reativar'}</button>
+            </td>` : ''}
+          </tr>`).join('') : `<tr><td class="empty" colspan="${isAdmin?3:2}">Nenhum motivo cadastrado.</td></tr>`}
+        </tbody>
+      </table>
+      </div>
     </div>
 
     <div class="card">
@@ -3896,7 +4000,185 @@ function listEditorHtml(arr, key){
       <button class="btn sm danger" data-del-list="${key}" data-idx="${i}">✕</button>
     </div>`).join('');
 }
+/* ============================================================
+   [Config admin] Equipe / Procedimentos / Origens / Motivos — CRUD real
+   ------------------------------------------------------------
+   Toda escrita é direta no Supabase (insert/update), nunca DELETE físico.
+   A segurança real é a RLS (gerenciar_*_admin / gerenciar_perfis_admin,
+   já admin-only via sou_admin_da_clinica()) — a checagem de role aqui no
+   frontend é só para não oferecer botões que dariam erro de permissão.
+   ============================================================ */
+
+// Mini-modal genérico de formulário (nome + campos extras). Resolve com os
+// valores digitados, ou null se cancelado. Reaproveitado por Pessoa,
+// Procedimento, Origem e Motivo — evita duplicar o mesmo modal 4x.
+function abrirModalFormulario(titulo, campos, valoresIniciais){
+  return new Promise(resolve=>{
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-backdrop';
+    overlay.innerHTML = `
+      <div class="modal" style="max-width:420px;">
+        <div class="modal-head">
+          <h3>${escapeHtml(titulo)}</h3>
+          <button type="button" class="modal-close" data-cfg-form-close>✕</button>
+        </div>
+        <form id="form-cfg-generico">
+          <div class="modal-body">
+            ${campos.map(c=>`
+              <label class="field"><span class="lbl">${escapeHtml(c.label)}</span>
+                <input name="${c.name}" type="${c.type||'text'}" ${c.step?`step="${c.step}"`:''} value="${escapeHtml(valoresIniciais&&valoresIniciais[c.name]!=null?valoresIniciais[c.name]:'')}" ${c.required?'required':''}>
+              </label>`).join('')}
+          </div>
+          <div class="modal-foot">
+            <button type="button" class="btn ghost" data-cfg-form-close>Cancelar</button>
+            <button type="submit" class="btn primary">Salvar</button>
+          </div>
+        </form>
+      </div>`;
+    document.body.appendChild(overlay);
+    const finalizar = (valor)=>{ overlay.remove(); resolve(valor); };
+    overlay.addEventListener('click', (e)=>{ if(e.target===overlay) finalizar(null); });
+    overlay.querySelectorAll('[data-cfg-form-close]').forEach(el=>el.addEventListener('click', ()=>finalizar(null)));
+    overlay.querySelector('#form-cfg-generico').addEventListener('submit', (e)=>{
+      e.preventDefault();
+      const fd = new FormData(e.target);
+      const valores = {};
+      campos.forEach(c=>{ valores[c.name] = fd.get(c.name); });
+      finalizar(valores);
+    });
+  });
+}
+
+async function adicionarPessoaSupabase(){
+  const valores = await abrirModalFormulario('Adicionar Pessoa', [
+    { name:'nome', label:'Nome', required:true },
+    { name:'cargo', label:'Cargo' },
+  ]);
+  if(!valores) return;
+  if(!valores.nome || !valores.nome.trim()){ toast('Informe o nome da pessoa.'); return; }
+  const { error } = await window.moriSupabase.from('profiles').insert({
+    clinica_id: DB.usuarioAtual.clinicaId,
+    nome: valores.nome.trim(),
+    cargo: (valores.cargo||'').trim() || null,
+    // [Regra de negócio já aprovada] pessoa recém-criada é só "pessoa da
+    // clínica" — sem acesso ao CRM até o convite (etapa futura).
+    auth_user_id: null,
+    role: null,
+    ativo: false,
+  });
+  if(error){ console.error('Falha ao adicionar pessoa.', error); toast('Não foi possível adicionar a pessoa. Tente novamente.'); return; }
+  await recarregarListasConfigSupabase();
+  render();
+  toast('Pessoa adicionada.');
+}
+async function editarPessoaSupabase(id){
+  const pessoa = (DB.equipeSupabase||[]).find(p=>p.id===id);
+  if(!pessoa) return;
+  const valores = await abrirModalFormulario('Editar Pessoa', [
+    { name:'nome', label:'Nome', required:true },
+    { name:'cargo', label:'Cargo' },
+  ], { nome: pessoa.nome, cargo: pessoa.cargo });
+  if(!valores) return;
+  if(!valores.nome || !valores.nome.trim()){ toast('Informe o nome da pessoa.'); return; }
+  const { error } = await window.moriSupabase.from('profiles')
+    .update({ nome: valores.nome.trim(), cargo: (valores.cargo||'').trim() || null })
+    .eq('id', id);
+  if(error){ console.error('Falha ao editar pessoa.', error); toast('Não foi possível salvar. Tente novamente.'); return; }
+  await recarregarListasConfigSupabase();
+  render();
+  toast('Pessoa atualizada.');
+}
+
+// Fábrica de CRUD para procedimentos/origens/motivos — as 3 tabelas têm a
+// mesma forma (clinica_id, nome, ativo), só procedimentos tem valor_medio
+// a mais. Evita escrever a mesma função 3 vezes.
+function criarCrudTabelaConfig(tabela, { comValor } = {}){
+  const campos = [{ name:'nome', label:'Nome', required:true }];
+  if(comValor) campos.push({ name:'valorMedio', label:'Valor médio (R$)', type:'number', step:'0.01' });
+
+  return {
+    async adicionar(){
+      const valores = await abrirModalFormulario(`Adicionar`, campos);
+      if(!valores) return;
+      if(!valores.nome || !valores.nome.trim()){ toast('Informe o nome.'); return; }
+      const payload = { clinica_id: DB.usuarioAtual.clinicaId, nome: valores.nome.trim(), ativo: true };
+      if(comValor) payload.valor_medio = valores.valorMedio? parseFloat(valores.valorMedio) : 0;
+      const { error } = await window.moriSupabase.from(tabela).insert(payload);
+      if(error){ console.error(`Falha ao adicionar em ${tabela}.`, error); toast('Não foi possível adicionar. Tente novamente.'); return; }
+      await recarregarListasConfigSupabase();
+      render();
+      toast('Adicionado com sucesso.');
+    },
+    async editar(id, atual){
+      const valores = await abrirModalFormulario(`Editar`, campos, { nome: atual.nome, valorMedio: atual.valorMedio });
+      if(!valores) return;
+      if(!valores.nome || !valores.nome.trim()){ toast('Informe o nome.'); return; }
+      const payload = { nome: valores.nome.trim() };
+      if(comValor) payload.valor_medio = valores.valorMedio? parseFloat(valores.valorMedio) : 0;
+      const { error } = await window.moriSupabase.from(tabela).update(payload).eq('id', id);
+      if(error){ console.error(`Falha ao editar em ${tabela}.`, error); toast('Não foi possível salvar. Tente novamente.'); return; }
+      await recarregarListasConfigSupabase();
+      render();
+      toast('Atualizado com sucesso.');
+    },
+    async alternarAtivo(id, ativoAtual, nome){
+      if(ativoAtual && !confirm(`Desativar "${nome}"? Deixa de aparecer como opção em novos cadastros, mas pacientes que já o possuem continuam mostrando normalmente.`)) return;
+      const { error } = await window.moriSupabase.from(tabela).update({ ativo: !ativoAtual }).eq('id', id);
+      if(error){ console.error(`Falha ao atualizar ativo em ${tabela}.`, error); toast('Não foi possível salvar. Tente novamente.'); return; }
+      await recarregarListasConfigSupabase();
+      render();
+      toast(ativoAtual? 'Desativado com sucesso.' : 'Reativado com sucesso.');
+    },
+  };
+}
+const crudProcedimentos = criarCrudTabelaConfig('procedimentos', { comValor:true });
+const crudOrigens = criarCrudTabelaConfig('origens_lead');
+const crudMotivos = criarCrudTabelaConfig('motivos_perda');
+
+function bindConfigEventsSupabase(){
+  // Exportação é visível/permitida para qualquer usuário autenticado (não é
+  // ação administrativa) — liga sempre, admin ou não.
+  const expCsv = document.querySelector('[data-action="export-csv"]');
+  if(expCsv) expCsv.addEventListener('click', exportPacientesCSV);
+
+  const isAdmin = DB.usuarioAtual.role === 'admin';
+  if(!isAdmin) return; // sem botões administrativos renderizados -> nada mais para ligar
+
+  document.querySelectorAll('[data-cfg-add]').forEach(el=>{
+    el.addEventListener('click', ()=>{
+      const tipo = el.dataset.cfgAdd;
+      if(tipo==='pessoa') adicionarPessoaSupabase();
+      if(tipo==='procedimento') crudProcedimentos.adicionar();
+      if(tipo==='origem') crudOrigens.adicionar();
+      if(tipo==='motivo') crudMotivos.adicionar();
+    });
+  });
+  document.querySelectorAll('[data-cfg-edit]').forEach(el=>{
+    el.addEventListener('click', ()=>{
+      const tipo = el.dataset.cfgEdit;
+      const id = el.dataset.id;
+      if(tipo==='pessoa') return editarPessoaSupabase(id);
+      if(tipo==='procedimento'){ const atual = (DB.procedimentosTodos||[]).find(x=>x.id===id); if(atual) crudProcedimentos.editar(id, atual); }
+      if(tipo==='origem'){ const atual = (DB.origensTodas||[]).find(x=>x.id===id); if(atual) crudOrigens.editar(id, atual); }
+      if(tipo==='motivo'){ const atual = (DB.motivosPerdaTodas||[]).find(x=>x.id===id); if(atual) crudMotivos.editar(id, atual); }
+    });
+  });
+  document.querySelectorAll('[data-cfg-toggle]').forEach(el=>{
+    el.addEventListener('click', ()=>{
+      const tipo = el.dataset.cfgToggle;
+      const id = el.dataset.id;
+      const ativoAtual = el.dataset.ativo === 'true';
+      if(tipo==='procedimento'){ const atual = (DB.procedimentosTodos||[]).find(x=>x.id===id); if(atual) crudProcedimentos.alternarAtivo(id, ativoAtual, atual.nome); }
+      if(tipo==='origem'){ const atual = (DB.origensTodas||[]).find(x=>x.id===id); if(atual) crudOrigens.alternarAtivo(id, ativoAtual, atual.nome); }
+      if(tipo==='motivo'){ const atual = (DB.motivosPerdaTodas||[]).find(x=>x.id===id); if(atual) crudMotivos.alternarAtivo(id, ativoAtual, atual.nome); }
+    });
+  });
+}
+
 function bindConfigEvents(){
+  // [Config admin] Modo Supabase tem sua própria tela/lógica (CRUD real,
+  // gated por role); o fluxo local abaixo continua 100% como estava.
+  if(typeof MODO_SUPABASE !== 'undefined' && MODO_SUPABASE){ bindConfigEventsSupabase(); return; }
   const saveClinica = document.querySelector('[data-action="save-clinica"]');
   if(saveClinica) saveClinica.addEventListener('click', ()=>{
     DB.clinica.nome = document.getElementById('cfg-nome').value.trim();
@@ -4207,6 +4489,78 @@ async function carregarAposLogin(){
   }
 }
 
+// [Config admin] Constrói todas as listas derivadas (procedimentos,
+// origens, motivos, equipe/responsáveis) a partir das linhas cruas das 4
+// tabelas auxiliares — usada tanto na carga inicial (carregarDadosSupabase)
+// quanto depois de qualquer ação administrativa em Configurações
+// (recarregarListasConfigSupabase), sem duplicar a lógica nos dois lugares.
+// Preserva DB.procedimentos/DB.origens/DB.motivosPerda no MESMO FORMATO que
+// já existia antes desta etapa (procedimentos com {id,nome,valorMedio};
+// origens/motivos como string[] de nomes) — só que agora só com os ATIVOS,
+// para não oferecê-los em novos cadastros. As versões completas (ativos +
+// inativos, com id) ficam em DB.procedimentosTodos/origensTodas/motivosPerdaTodas,
+// usadas pela tela de Configurações e pela injeção do valor histórico do
+// paciente no modal (ver openPacienteModal).
+function aplicarListasAuxiliaresConfig(procRows, origensRows, motivosRows, profilesRows){
+  DB.procedimentosTodos = (procRows||[]).map(p=>({ id:p.id, nome:p.nome, valorMedio:p.valor_medio ?? 0, ativo: p.ativo !== false }));
+  DB.procedimentos = DB.procedimentosTodos.filter(p=>p.ativo);
+  DB.origensTodas = (origensRows||[]).map(o=>({ id:o.id, nome:o.nome, ativo: o.ativo !== false }));
+  DB.origens = DB.origensTodas.filter(o=>o.ativo).map(o=>o.nome);
+  DB.motivosPerdaTodas = (motivosRows||[]).map(m=>({ id:m.id, nome:m.nome, ativo: m.ativo !== false }));
+  DB.motivosPerda = DB.motivosPerdaTodas.filter(m=>m.ativo).map(m=>m.nome);
+  DB.responsaveis = (profilesRows||[]).map(p=>p.nome);
+  // Lista completa de profiles (com cargo/role/ativo/auth_user_id) para a
+  // tela de Configurações (Equipe) — DB.responsaveis acima guarda só os
+  // nomes, que é o que os filtros/modal de Pacientes precisam.
+  DB.equipeSupabase = profilesRows || [];
+
+  // [CRUD] Mapas nome->id, derivados dos mesmos id->nome (nenhuma consulta
+  // nova ao Supabase). Usados só na hora de montar o payload das RPCs de
+  // paciente — a interface continua mostrando/filtrando por nome. Usa a
+  // lista COMPLETA (ativos+inativos) para que um paciente histórico cujo
+  // registro foi desativado continue resolvendo corretamente o id.
+  const origensPorId = {}; DB.origensTodas.forEach(o=>{ origensPorId[o.id] = o.nome; });
+  const motivosPorId = {}; DB.motivosPerdaTodas.forEach(m=>{ motivosPorId[m.id] = m.nome; });
+  const profilesPorId = {}; (profilesRows||[]).forEach(p=>{ profilesPorId[p.id] = p.nome; });
+  const origensPorNome = {}; Object.entries(origensPorId).forEach(([id,nome])=>{ origensPorNome[nome]=id; });
+  const motivosPorNome = {}; Object.entries(motivosPorId).forEach(([id,nome])=>{ motivosPorNome[nome]=id; });
+  const responsaveisPorNome = {}; Object.entries(profilesPorId).forEach(([id,nome])=>{ responsaveisPorNome[nome]=id; });
+
+  // Preserva procedimentosPorPaciente (não muda numa atualização só de
+  // configurações) e sobrescreve só os mapas desta função.
+  DB._refsSupabase = {
+    ...(DB._refsSupabase||{}),
+    origensPorId, motivosPorId, profilesPorId,
+    origensPorNome, motivosPorNome, responsaveisPorNome,
+  };
+}
+
+// [Config admin] Reconsulta só as 4 tabelas auxiliares (sem tocar em
+// pacientes) depois de uma ação administrativa em Configurações — evita um
+// reload completo da página e mantém os dados em memória sincronizados com
+// o banco. Erros aqui não derrubam a tela: ficam só no console + um toast.
+async function recarregarListasConfigSupabase(){
+  const sb = window.moriSupabase;
+  const [
+    { data: procRows, error: errProc },
+    { data: origensRows, error: errOrig },
+    { data: motivosRows, error: errMot },
+    { data: profilesRows, error: errProf },
+  ] = await Promise.all([
+    sb.from('procedimentos').select('id, nome, valor_medio, ativo'),
+    sb.from('origens_lead').select('id, nome, ativo'),
+    sb.from('motivos_perda').select('id, nome, ativo'),
+    sb.from('profiles').select('id, nome, cargo, role, ativo, auth_user_id'),
+  ]);
+  const erro = errProc || errOrig || errMot || errProf;
+  if(erro){
+    console.error('Falha ao recarregar listas de Configurações.', erro);
+    toast('Não foi possível atualizar as listas agora. Tente recarregar a página.');
+    return;
+  }
+  aplicarListasAuxiliaresConfig(procRows, origensRows, motivosRows, profilesRows);
+}
+
 async function carregarDadosSupabase(perfil){
   const sb = window.moriSupabase;
   // [Supabase] Nenhuma consulta abaixo filtra por clinica_id manualmente —
@@ -4221,43 +4575,14 @@ async function carregarDadosSupabase(perfil){
   ] = await Promise.all([
     sb.from('pacientes_com_status').select('*'),
     sb.from('paciente_procedimentos').select('paciente_id, procedimento_id'),
-    sb.from('procedimentos').select('id, nome, valor_medio'),
-    sb.from('origens_lead').select('id, nome'),
-    sb.from('motivos_perda').select('id, nome'),
-    sb.from('profiles').select('id, nome, cargo, role, ativo'),
+    sb.from('procedimentos').select('id, nome, valor_medio, ativo'),
+    sb.from('origens_lead').select('id, nome, ativo'),
+    sb.from('motivos_perda').select('id, nome, ativo'),
+    sb.from('profiles').select('id, nome, cargo, role, ativo, auth_user_id'),
   ]);
 
   const erro = errPac || errPP || errProc || errOrig || errMot || errProf;
   if(erro) throw erro;
-
-  const procedimentosPorId = {};
-  (procRows||[]).forEach(p=>{ procedimentosPorId[p.id] = p.nome; });
-  const origensPorId = {};
-  (origensRows||[]).forEach(o=>{ origensPorId[o.id] = o.nome; });
-  const motivosPorId = {};
-  (motivosRows||[]).forEach(m=>{ motivosPorId[m.id] = m.nome; });
-  const profilesPorId = {};
-  (profilesRows||[]).forEach(p=>{ profilesPorId[p.id] = p.nome; });
-  const procedimentosPorPaciente = {};
-  (ppRows||[]).forEach(v=>{
-    const nome = procedimentosPorId[v.procedimento_id];
-    if(!nome) return;
-    if(!procedimentosPorPaciente[v.paciente_id]) procedimentosPorPaciente[v.paciente_id] = [];
-    procedimentosPorPaciente[v.paciente_id].push(nome);
-  });
-
-  const refs = { origensPorId, motivosPorId, profilesPorId, procedimentosPorPaciente };
-  const pacientesMapeados = (pacientesRows||[]).map(row=>mapPacienteSupabaseParaCRM(row, refs));
-
-  // [CRUD] Mapas nome->id, derivados dos mesmos id->nome acima (nenhuma
-  // consulta nova ao Supabase). Usados só na hora de montar o payload das
-  // RPCs de paciente — a interface continua mostrando/filtrando por nome.
-  const origensPorNome = {};
-  Object.entries(origensPorId).forEach(([id,nome])=>{ origensPorNome[nome]=id; });
-  const motivosPorNome = {};
-  Object.entries(motivosPorId).forEach(([id,nome])=>{ motivosPorNome[nome]=id; });
-  const responsaveisPorNome = {};
-  Object.entries(profilesPorId).forEach(([id,nome])=>{ responsaveisPorNome[nome]=id; });
 
   // [Supabase] Monta o DB da sessão a partir do estado padrão local — mantém
   // funcionários/WhatsApp/Pós-Vendas/Indicações/tema exatamente como já
@@ -4269,31 +4594,38 @@ async function carregarDadosSupabase(perfil){
   // vêm sempre da consulta real feita em carregarAposLogin). Usados pelas
   // RPCs apenas indiretamente: o próprio banco deriva clinica_id/created_by/
   // updated_by de auth.uid(), mas o frontend precisa saber "quem sou eu"
-  // para decisões de interface (ex: visibilidade por role, no futuro).
+  // para decisões de interface (ex: visibilidade por role, botões de
+  // Configurações).
   DB.usuarioAtual = { id: perfil.id, clinicaId: perfil.clinica_id, role: perfil.role || null, nome: perfil.nome, cargo: perfil.cargo || '' };
-  DB.pacientes = pacientesMapeados;
+  DB._refsSupabase = {};
+
+  // [Limpeza Supabase] Origens/motivos/responsáveis/procedimentos/equipe
+  // passam a vir do banco real — substitui as listas de exemplo
+  // (SEED_ORIGENS, SEED_MOTIVOS_PERDA, ['Mariana','Natalia','Julia'],
+  // SEED_PROCEDIMENTOS) que o buildInitialState() acima usou como padrão.
+  aplicarListasAuxiliaresConfig(procRows, origensRows, motivosRows, profilesRows);
+
+  const procedimentosPorId = {};
+  (procRows||[]).forEach(p=>{ procedimentosPorId[p.id] = p.nome; });
+  const procedimentosPorPaciente = {};
+  (ppRows||[]).forEach(v=>{
+    const nome = procedimentosPorId[v.procedimento_id];
+    if(!nome) return;
+    if(!procedimentosPorPaciente[v.paciente_id]) procedimentosPorPaciente[v.paciente_id] = [];
+    procedimentosPorPaciente[v.paciente_id].push(nome);
+  });
   // [CRUD] Guarda os mapas id<->nome da carga inicial para reuso no
   // salvamento (cadastro/edição) sem precisar resolver por nome contra o
   // Supabase de novo — e para reaproveitar o mesmo mapPacienteSupabaseParaCRM
   // no retorno das RPCs (ver salvarPacienteSupabase).
-  DB._refsSupabase = { ...refs, origensPorNome, motivosPorNome, responsaveisPorNome };
+  DB._refsSupabase.procedimentosPorPaciente = procedimentosPorPaciente;
+
+  const pacientesMapeados = (pacientesRows||[]).map(row=>mapPacienteSupabaseParaCRM(row, DB._refsSupabase));
+  DB.pacientes = pacientesMapeados;
   // Indicações não são carregadas do Supabase nesta rodada (fora do escopo
   // definido para esta etapa) — mantidas vazias para não exibir dado
   // desatualizado como se fosse real.
   DB.indicacoes = [];
-  // [Limpeza Supabase] Origens/motivos/responsáveis/procedimentos passam a
-  // vir do banco real — usados tanto pelos filtros/modal de Pacientes
-  // quanto pela tela de Configurações. Substitui as listas de exemplo
-  // (SEED_ORIGENS, SEED_MOTIVOS_PERDA, ['Mariana','Natalia','Julia'],
-  // SEED_PROCEDIMENTOS) que o buildInitialState() acima usou como padrão.
-  DB.origens = (origensRows||[]).map(o=>o.nome);
-  DB.motivosPerda = (motivosRows||[]).map(m=>m.nome);
-  DB.responsaveis = (profilesRows||[]).map(p=>p.nome);
-  DB.procedimentos = (procRows||[]).map(p=>({ id:p.id, nome:p.nome, valorMedio:p.valor_medio ?? 0 }));
-  // Lista completa de profiles (com cargo/role/ativo) só para a tela de
-  // Configurações — DB.responsaveis acima guarda só os nomes, que é o que
-  // os filtros/modal de Pacientes precisam.
-  DB.equipeSupabase = profilesRows || [];
 
   render();
   bindRouteEvents();
