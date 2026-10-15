@@ -2157,6 +2157,9 @@ function estadoPlanoTratamentoDemo(p){
 // acima — mesma fonte de verdade da RPC concluir_acao_comercial() (que
 // replica este cálculo em SQL), senão o "já concluído?" calculado aqui no
 // JS nunca bateria com o data_elegivel gravado de verdade no Supabase.
+// O fallback é só compatibilidade com pacientes HISTÓRICOS migrados antes
+// de data_perda/data_envio_plano existirem no fluxo — nunca justificativa
+// para paciente novo deixar de preencher o campo real.
 function addDiasISO(iso, dias){
   const d = new Date(iso+'T00:00:00');
   d.setDate(d.getDate()+dias);

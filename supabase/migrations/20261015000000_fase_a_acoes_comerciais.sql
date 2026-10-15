@@ -6,19 +6,20 @@
 -- Editor do projeto Supabase da Mori Ortodontia (rynlzkdqxbzwcznufnpn).
 -- Esta sessão não tem credenciais de banco para aplicar automaticamente.
 --
--- Nenhuma alteração destrutiva: o rename abaixo primeiro faz UPDATE dos
--- dados existentes (se houver) e só depois troca a constraint — nenhuma
--- linha é apagada, nenhum paciente é tocado.
+-- Nenhuma alteração destrutiva: tudo roda dentro da mesma transação —
+-- nenhuma linha é apagada, nenhum paciente é tocado.
 -- ============================================================
 
 begin;
 
 -- 1) Rename do valor do enum: pos_venda -> pos_consulta, sem perda.
---    Primeiro atualiza eventuais linhas existentes, depois troca a
---    constraint de CHECK. O nome real da constraint é descoberto
---    dinamicamente (nunca assumido às cegas).
-update public.acoes_comerciais set tipo = 'pos_consulta' where tipo = 'pos_venda';
-
+--    Ordem corrigida (a constraint antiga ainda não aceita 'pos_consulta',
+--    então o UPDATE para esse valor só pode acontecer DEPOIS dela cair):
+--      1. localizar a CHECK constraint atual de `tipo` (nome nunca
+--         assumido às cegas — descoberto dinamicamente via pg_constraint);
+--      2. remover essa constraint;
+--      3. só então atualizar eventuais linhas pos_venda -> pos_consulta;
+--      4. criar a nova CHECK constraint (pos_consulta/followup_plano/resgate).
 do $$
 declare
   v_nome_constraint text;
@@ -33,6 +34,8 @@ begin
   end if;
 end $$;
 
+update public.acoes_comerciais set tipo = 'pos_consulta' where tipo = 'pos_venda';
+
 alter table public.acoes_comerciais
   add constraint acoes_comerciais_tipo_check
   check (tipo in ('pos_consulta', 'followup_plano', 'resgate'));
@@ -46,16 +49,24 @@ alter table public.acoes_comerciais
 --
 --    data_elegivel = "primeira data em que a ação está elegível"
 --    (data-âncora + N dias), NUNCA a data-âncora em si:
---      resgate        -> data_perda (ou fallback legado) + 30 dias
---      followup_plano -> data_envio_plano (ou fallback legado) + 1 dia
---      pos_consulta   -> data_consulta + 1 dia
---    O fallback legado (quando o campo real ainda não existe, caso dos
---    79 pacientes migrados e de pacientes de teste criados antes da Fase
---    C introduzir o campo real de data_envio_plano) replica EXATAMENTE
---    obterDataPerdaComFallbackLegado()/obterDataEnvioPlanoComFallbackLegado()
---    do index.html — as duas implementações (SQL aqui, JS lá) precisam
---    ficar em sincronia, senão o "já concluído?" calculado no frontend
---    nunca bateria com o data_elegivel gravado de verdade aqui.
+--      resgate        -> data_perda (real; fallback só se ausente) + 30 dias
+--      followup_plano -> data_envio_plano (real; fallback só se ausente) + 1 dia
+--      pos_consulta   -> data_consulta + 1 dia (sem fallback — este campo
+--                        sempre existe quando compareceu = 'Sim')
+--    Registros novos devem usar sempre os campos reais (data_perda/
+--    data_envio_plano) — é o que a RPC homologada de paciente já garante
+--    (entra em Perdido -> grava data_perda; Fase C vai garantir o mesmo
+--    para data_envio_plano). O fallback (data_fechamento/data_consulta/
+--    data_contato) existe EXCLUSIVAMENTE como compatibilidade com
+--    pacientes HISTÓRICOS migrados antes de esses campos existirem no
+--    fluxo operacional (os 79 originais) — nunca é usado como
+--    justificativa para deixar de preencher o campo real em paciente
+--    novo, e esta migration não altera nenhum dado histórico. Replica
+--    EXATAMENTE obterDataPerdaComFallbackLegado()/
+--    obterDataEnvioPlanoComFallbackLegado() do index.html — as duas
+--    implementações (SQL aqui, JS lá) precisam ficar em sincronia, senão
+--    o "já concluído?" calculado no frontend nunca bateria com o
+--    data_elegivel gravado de verdade aqui.
 --    Idempotência: ON CONFLICT DO NOTHING na unique constraint já
 --    existente (clinica_id, paciente_id, tipo, data_elegivel) — um
 --    segundo clique/chamada repetida só devolve a linha já gravada, sem
