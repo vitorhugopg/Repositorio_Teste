@@ -3755,26 +3755,45 @@ function bindWhatsappEvents(){
 /* ============================================================
    10c) PÓS-CONSULTA (ex-"Pós-Vendas", V2 / renomeado na Fase A)
    ------------------------------------------------------------
-   Regra (inalterada): paciente compareceu ONTEM e ainda não teve a
-   pós-consulta marcada como realizada — não depende de ter fechado
-   tratamento. Se não houver nenhum paciente real nessa condição (ex: ao
-   testar em outro dia), usa os fictícios de DADOS_DEMO_V2 para a tela
-   nunca ficar vazia na demonstração — nunca mistura os dois ao mesmo
-   tempo, e os fictícios são sempre visivelmente rotulados.
-   [Fase A] Em modo Supabase, "já concluído?" passa a consultar
-   acoes_comerciais (via acaoComercialConcluida) em vez de
-   DB.posVendasConcluidos — ver posConsultaConcluida() abaixo. Modo local
-   continua exatamente como estava.
+   [Correção pós-homologação Fase A] A regra NÃO é mais uma janela de um
+   único dia ("compareceu ontem"). D+1 é a data de ELEGIBILIDADE, não uma
+   janela — uma vez elegível, o paciente permanece pendente até existir
+   conclusão real em acoes_comerciais (tipo='pos_consulta'), não importa
+   há quantos dias. Critério: compareceu='Sim' E hoje >= data_consulta+1
+   E ainda não concluído. Usa dataElegivelAcaoComercial('pos_consulta', p)
+   — a MESMA função que calcula data_elegivel para a RPC — então a fila
+   aqui segue exatamente a mesma semântica que o backend já usa para
+   aceitar a conclusão (nenhuma mudança na RPC foi necessária).
+   Não depende de ter fechado tratamento. Se não houver nenhum paciente
+   real nessa condição (ex: ao testar em outro dia), usa os fictícios de
+   DADOS_DEMO_V2 para a tela nunca ficar vazia na demonstração — nunca
+   mistura os dois ao mesmo tempo, e os fictícios são sempre visivelmente
+   rotulados (esses continuam simulando "consulta exatamente ontem").
+   [Fase A] Em modo Supabase, "já concluído?" consulta acoes_comerciais
+   (via acaoComercialConcluida) em vez de DB.posVendasConcluidos — ver
+   posConsultaConcluida() abaixo. Modo local continua exatamente como
+   estava.
    ============================================================ */
 function posConsultaConcluida(pacienteId){
   if(typeof MODO_SUPABASE !== 'undefined' && MODO_SUPABASE) return !!acaoComercialConcluida('pos_consulta', pacienteId);
   return DB.posVendasConcluidos.includes(pacienteId);
 }
+// Dias de atraso desde que a pós-consulta ficou elegível (D+1), não desde
+// a consulta em si. No próprio dia em que fica elegível, retorna 0.
+function diasAtrasoPosConsulta(dataConsulta){
+  const dataElegivel = addDiasISO(dataConsulta, 1);
+  const dias = diasEntre(dataElegivel, hojeISO());
+  return dias!==null && dias>0 ? dias : 0;
+}
 function filaPosVenda(){
-  const ontem = ontemISO();
+  const hoje = hojeISO();
   const reais = DB.pacientes
-    .filter(p=> p.compareceu==='Sim' && p.dataConsulta===ontem && !posConsultaConcluida(p.id))
-    .map(p=>({ id:p.id, nome:p.nome, telefone:p.telefone, procedimentos:p.procedimentos, demo:false }));
+    .filter(p=>{
+      if(p.compareceu!=='Sim') return false;
+      const dataElegivel = dataElegivelAcaoComercial('pos_consulta', p);
+      return dataElegivel!==null && hoje>=dataElegivel && !posConsultaConcluida(p.id);
+    })
+    .map(p=>({ id:p.id, nome:p.nome, telefone:p.telefone, procedimentos:p.procedimentos, dataConsulta:p.dataConsulta, demo:false }));
   if(reais.length) return reais;
   // [Limpeza Supabase] nunca completa a fila com pacientes fictícios quando
   // conectado ao banco real — lista vazia é o resultado real e correto.
@@ -3799,7 +3818,7 @@ function renderPosVendas(){
   return `
   <div class="card">
     <div class="section-title">
-      <h2 style="font-size:16px;margin:0;">Pós-consulta de hoje</h2>
+      <h2 style="font-size:16px;margin:0;">Pós-consulta pendente</h2>
       <span class="muted small">${fila.length} paciente${fila.length!==1?'s':''} precisa${fila.length!==1?'m':''} de contato</span>
     </div>
     ${fila.length===0? `<div class="empty">Nenhuma pós-consulta pendente no momento.</div>` : `
@@ -3809,7 +3828,10 @@ function renderPosVendas(){
           ${item.demo? `<span class="pill" style="background:var(--warn-bg);color:var(--warn);margin-bottom:6px;">🧪 Demonstração</span>`:''}
           <div style="font-weight:800;">${escapeHtml(item.nome)}</div>
           <div class="muted small">${escapeHtml(item.telefone||'sem telefone')}</div>
-          <div class="small" style="margin-top:6px;">Consulta: ontem</div>
+          ${item.demo? `
+          <div class="small" style="margin-top:6px;">Consulta: ontem</div>` : `
+          <div class="small" style="margin-top:6px;">Consulta: ${fmtData(item.dataConsulta)}</div>
+          <div class="small muted">${(()=>{ const d=diasAtrasoPosConsulta(item.dataConsulta); return d>0? `Pós-consulta pendente há ${d} dia${d>1?'s':''}` : 'Pós-consulta pendente'; })()}</div>`}
           <div class="small">${(item.procedimentos||[]).join(', ')||'Procedimento n/d'}</div>
           <div style="display:flex;gap:8px;margin-top:10px;">
             <button class="btn sm gold" data-wa-paciente="${item.id}" data-wa-contexto="pos_consulta">WhatsApp</button>
