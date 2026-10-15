@@ -2151,25 +2151,81 @@ function estadoPlanoTratamentoDemo(p){
   return { estado:'enviado', label:'Enviado' };
 }
 
+// [Fase A] data_elegivel = "primeira data em que a ação está elegível"
+// (data-âncora + N dias), NUNCA a data-âncora em si. Usa o MESMO fallback
+// legado de obterDataPerdaComFallbackLegado()/obterDataEnvioPlanoComFallbackLegado()
+// acima — mesma fonte de verdade da RPC concluir_acao_comercial() (que
+// replica este cálculo em SQL), senão o "já concluído?" calculado aqui no
+// JS nunca bateria com o data_elegivel gravado de verdade no Supabase.
+function addDiasISO(iso, dias){
+  const d = new Date(iso+'T00:00:00');
+  d.setDate(d.getDate()+dias);
+  return d.toISOString().slice(0,10);
+}
+function dataElegivelAcaoComercial(tipo, p){
+  if(tipo==='resgate'){
+    const base = obterDataPerdaComFallbackLegado(p);
+    return base ? addDiasISO(base, 30) : null;
+  }
+  if(tipo==='followup_plano'){
+    const base = obterDataEnvioPlanoComFallbackLegado(p);
+    return base ? addDiasISO(base, 1) : null;
+  }
+  if(tipo==='pos_consulta'){
+    return p.dataConsulta ? addDiasISO(p.dataConsulta, 1) : null;
+  }
+  return null;
+}
+
 /* ============================================================
-   [V2.1] AÇÕES COMERCIAIS — estrutura comum enxuta
+   [V2.1 → Fase A] AÇÕES COMERCIAIS — estrutura comum enxuta
    ------------------------------------------------------------
-   Resgate (Kanban → Perdidos) e Follow-up de Plano (Pacientes) precisam
-   do mesmo comportamento: "isso ficou pendente, a secretária fez o
-   contato, agora precisa CONFIRMAR que a ação foi realizada" — abrir o
-   WhatsApp sozinho não conclui nada. Em vez de duas estruturas
-   independentes, as duas usam esta única lista com um campo `tipo`.
-   O Pós-Vendas já tinha seu próprio mecanismo aprovado antes desta
-   rodada (`DB.posVendasConcluidos`) e não foi alterado — ver relatório
-   sobre unificação completa (as três) no Supabase.
+   Resgate, Follow-up de Plano e (a partir da Fase A) Pós-Consulta usam a
+   mesma ideia: "isso ficou pendente, a secretária fez o contato, agora
+   precisa CONFIRMAR que a ação foi realizada" — abrir o WhatsApp sozinho
+   não conclui nada.
+   Em modo Supabase, a fonte de verdade passa a ser 100% `public.acoes_comerciais`
+   (via RPC `concluir_acao_comercial`, que deriva clinica_id/usuario_id/
+   data_elegivel no servidor — nunca aceitos do navegador) — nenhuma
+   gravação local. `DB._acoesComerciaisSupabase` é um cache em memória
+   (recarregado após cada conclusão, ver recarregarAcoesComerciaisSupabase())
+   só para as leituras síncronas que o render() precisa fazer.
+   Em modo local (sem Supabase), o comportamento antigo (`DB.acoesComerciaisConcluidas`)
+   continua exatamente como estava — nada quebra.
    ============================================================ */
-function concluirAcaoComercial(tipo, pacienteId){
+async function concluirAcaoComercial(tipo, pacienteId){
+  if(typeof MODO_SUPABASE !== 'undefined' && MODO_SUPABASE){
+    const { error } = await window.moriSupabase.rpc('concluir_acao_comercial', {
+      p_paciente_id: pacienteId, p_tipo: tipo,
+    });
+    if(error){
+      console.error(`Falha ao concluir ação comercial (${tipo}).`, error);
+      toast('Não foi possível registrar. Tente novamente.');
+      return false;
+    }
+    await recarregarAcoesComerciaisSupabase();
+    return true;
+  }
   if(!acaoComercialConcluida(tipo, pacienteId)){
     DB.acoesComerciaisConcluidas.push({ tipo, pacienteId, dataHora:new Date().toISOString() });
     saveState();
   }
+  return true;
 }
 function acaoComercialConcluida(tipo, pacienteId){
+  if(typeof MODO_SUPABASE !== 'undefined' && MODO_SUPABASE){
+    const p = DB.pacientes.find(x=>x.id===pacienteId);
+    if(!p) return null;
+    const dataElegivel = dataElegivelAcaoComercial(tipo, p);
+    if(!dataElegivel) return null;
+    const achado = (DB._acoesComerciaisSupabase||[]).find(a=>
+      a.paciente_id===pacienteId && a.tipo===tipo && a.data_elegivel===dataElegivel
+    );
+    // Mantém o mesmo formato {tipo, pacienteId, dataHora} que todo o
+    // código existente (Kanban, Pacientes, WhatsApp) já espera — nenhum
+    // outro ponto de leitura precisou ser alterado por causa disso.
+    return achado ? { tipo, pacienteId, dataHora: achado.data_conclusao } : null;
+  }
   return DB.acoesComerciaisConcluidas.find(a=>a.tipo===tipo && a.pacienteId===pacienteId) || null;
 }
 
@@ -2181,7 +2237,7 @@ const ROUTES = [
   {id:'pacientes', label:'Pacientes', ic:'🧑‍⚕️'},
   {id:'kanban', label:'Kanban', ic:'🗂️'},
   {id:'whatsapp', label:'WhatsApp', ic:'📱'},          // [V2]
-  {id:'posvendas', label:'Pós-Vendas', ic:'📞'},        // [V2]
+  {id:'posvendas', label:'Pós-Consulta', ic:'📞'},        // [V2] rota/função internas mantêm o nome antigo, só o texto visível muda (Fase A)
   {id:'indicacoes', label:'Indicações', ic:'🔗'},
   {id:'dashboard', label:'Dashboard', ic:'📊'},
   {id:'agenda', label:'Agenda', ic:'🗓️'},
@@ -2318,36 +2374,51 @@ function bindGlobalEvents(){
 
   // [V2.1] Conclusão explícita de ações comerciais — nunca automática só
   // por abrir o WhatsApp (ver seção "AÇÕES COMERCIAIS" no código).
+  // [Fase A] concluirAcaoComercial() agora é assíncrona em modo Supabase
+  // (chama a RPC) — o botão fica desabilitado durante o envio (trata
+  // duplo clique) e só re-habilita sozinho se der erro (sucesso já troca
+  // o DOM inteiro via render()).
   document.querySelectorAll('[data-resgate-realizado]').forEach(el=>{
-    el.addEventListener('click', (e)=>{
+    el.addEventListener('click', async (e)=>{
       e.stopPropagation();
-      concluirAcaoComercial('resgate', el.dataset.resgateRealizado);
-      render();
-      toast('Resgate marcado como realizado.');
+      if(el.disabled) return;
+      el.disabled = true;
+      const ok = await concluirAcaoComercial('resgate', el.dataset.resgateRealizado);
+      if(ok){ render(); toast('Resgate marcado como realizado.'); }
+      else { el.disabled = false; }
     });
   });
   document.querySelectorAll('[data-followup-realizado]').forEach(el=>{
-    el.addEventListener('click', (e)=>{
+    el.addEventListener('click', async (e)=>{
       e.stopPropagation();
-      concluirAcaoComercial('followup_plano', el.dataset.followupRealizado);
-      render();
-      toast('Follow-up marcado como realizado.');
+      if(el.disabled) return;
+      el.disabled = true;
+      const ok = await concluirAcaoComercial('followup_plano', el.dataset.followupRealizado);
+      if(ok){ render(); toast('Follow-up marcado como realizado.'); }
+      else { el.disabled = false; }
     });
   });
   // Atalho de conclusão direto de dentro da conversa de WhatsApp (item 10).
   document.querySelectorAll('[data-wa-concluir-acao]').forEach(el=>{
-    el.addEventListener('click', ()=>{
+    el.addEventListener('click', async (e)=>{
+      if(el.disabled) return;
       const tipo = el.dataset.waConcluirAcao;
       const conversa = DB.whatsappConversas.find(c=>c.id===whatsappConversaSelecionadaId);
       if(!conversa) return;
-      if(tipo==='pos_venda'){
+      el.disabled = true;
+      // [Fase A] pos_consulta (ex-pos_venda) passa a usar a mesma RPC em modo
+      // Supabase. Em modo local, mantém o mecanismo antigo intacto
+      // (DB.posVendasConcluidos) — não precisa quebrar o que já funciona.
+      if(tipo==='pos_consulta' && !(typeof MODO_SUPABASE !== 'undefined' && MODO_SUPABASE)){
         if(!DB.posVendasConcluidos.includes(conversa.pacienteId)) DB.posVendasConcluidos.push(conversa.pacienteId);
         saveState();
-      } else {
-        concluirAcaoComercial(tipo, conversa.pacienteId);
+        render();
+        toast('Ação marcada como realizada.');
+        return;
       }
-      render();
-      toast('Ação marcada como realizada.');
+      const ok = await concluirAcaoComercial(tipo, conversa.pacienteId);
+      if(ok){ render(); toast('Ação marcada como realizada.'); }
+      else { el.disabled = false; }
     });
   });
 
@@ -3522,8 +3593,13 @@ function acaoPendenteInfo(conversa){
   if(tipo==='followup_plano' && !acaoComercialConcluida('followup_plano', pacienteId)){
     return { label:'Ação pendente: Follow-up de Plano', tipoAttr:'followup_plano' };
   }
-  if(tipo==='pos_venda' && !DB.posVendasConcluidos.includes(pacienteId)){
-    return { label:'Ação pendente: Pós-Venda', tipoAttr:'pos_venda' };
+  if(tipo==='pos_consulta'){
+    // [Fase A] modo Supabase lê de acoes_comerciais (via acaoComercialConcluida);
+    // modo local continua lendo DB.posVendasConcluidos, sem alteração.
+    const concluida = (typeof MODO_SUPABASE !== 'undefined' && MODO_SUPABASE)
+      ? !!acaoComercialConcluida('pos_consulta', pacienteId)
+      : DB.posVendasConcluidos.includes(pacienteId);
+    if(!concluida) return { label:'Ação pendente: Pós-Consulta', tipoAttr:'pos_consulta' };
   }
   return null;
 }
@@ -3674,18 +3750,27 @@ function bindWhatsappEvents(){
 }
 
 /* ============================================================
-   10c) PÓS-VENDAS (V2)
+   10c) PÓS-CONSULTA (ex-"Pós-Vendas", V2 / renomeado na Fase A)
    ------------------------------------------------------------
-   Regra: paciente compareceu ONTEM e ainda não teve o pós-venda marcado
-   como realizado. Se não houver nenhum paciente real nessa condição
-   (ex: ao testar em outro dia), usa os fictícios de DADOS_DEMO_V2 para a
-   tela nunca ficar vazia na demonstração — nunca mistura os dois ao
-   mesmo tempo, e os fictícios são sempre visivelmente rotulados.
+   Regra (inalterada): paciente compareceu ONTEM e ainda não teve a
+   pós-consulta marcada como realizada — não depende de ter fechado
+   tratamento. Se não houver nenhum paciente real nessa condição (ex: ao
+   testar em outro dia), usa os fictícios de DADOS_DEMO_V2 para a tela
+   nunca ficar vazia na demonstração — nunca mistura os dois ao mesmo
+   tempo, e os fictícios são sempre visivelmente rotulados.
+   [Fase A] Em modo Supabase, "já concluído?" passa a consultar
+   acoes_comerciais (via acaoComercialConcluida) em vez de
+   DB.posVendasConcluidos — ver posConsultaConcluida() abaixo. Modo local
+   continua exatamente como estava.
    ============================================================ */
+function posConsultaConcluida(pacienteId){
+  if(typeof MODO_SUPABASE !== 'undefined' && MODO_SUPABASE) return !!acaoComercialConcluida('pos_consulta', pacienteId);
+  return DB.posVendasConcluidos.includes(pacienteId);
+}
 function filaPosVenda(){
   const ontem = ontemISO();
   const reais = DB.pacientes
-    .filter(p=> p.compareceu==='Sim' && p.dataConsulta===ontem && !DB.posVendasConcluidos.includes(p.id))
+    .filter(p=> p.compareceu==='Sim' && p.dataConsulta===ontem && !posConsultaConcluida(p.id))
     .map(p=>({ id:p.id, nome:p.nome, telefone:p.telefone, procedimentos:p.procedimentos, demo:false }));
   if(reais.length) return reais;
   // [Limpeza Supabase] nunca completa a fila com pacientes fictícios quando
@@ -3698,14 +3783,23 @@ function filaPosVenda(){
 
 function renderPosVendas(){
   const fila = filaPosVenda();
-  const concluidos = DB.posVendasConcluidos.slice(-10);
+  // [Fase A] "concluídos recentemente" também passa a vir de
+  // acoes_comerciais em modo Supabase (DB.posVendasConcluidos nunca é
+  // populado nesse modo, então ficaria sempre vazio se não trocasse).
+  const concluidosSupabase = (typeof MODO_SUPABASE !== 'undefined' && MODO_SUPABASE)
+    ? (DB._acoesComerciaisSupabase||[])
+        .filter(a=>a.tipo==='pos_consulta')
+        .sort((a,b)=> (a.data_conclusao<b.data_conclusao? 1 : -1))
+        .slice(0,10)
+        .map(a=>a.paciente_id)
+    : DB.posVendasConcluidos.slice(-10);
   return `
   <div class="card">
     <div class="section-title">
-      <h2 style="font-size:16px;margin:0;">Pós-vendas de hoje</h2>
+      <h2 style="font-size:16px;margin:0;">Pós-consulta de hoje</h2>
       <span class="muted small">${fila.length} paciente${fila.length!==1?'s':''} precisa${fila.length!==1?'m':''} de contato</span>
     </div>
-    ${fila.length===0? `<div class="empty">Nenhum pós-venda pendente no momento.</div>` : `
+    ${fila.length===0? `<div class="empty">Nenhuma pós-consulta pendente no momento.</div>` : `
     <div class="grid cols-3">
       ${fila.map(item=>`
         <div class="card" style="box-shadow:none;">
@@ -3715,26 +3809,34 @@ function renderPosVendas(){
           <div class="small" style="margin-top:6px;">Consulta: ontem</div>
           <div class="small">${(item.procedimentos||[]).join(', ')||'Procedimento n/d'}</div>
           <div style="display:flex;gap:8px;margin-top:10px;">
-            <button class="btn sm gold" data-wa-paciente="${item.id}" data-wa-contexto="pos_venda">WhatsApp</button>
-            <button class="btn sm primary" data-pv-realizado="${item.id}">Marcar como realizado</button>
+            <button class="btn sm gold" data-wa-paciente="${item.id}" data-wa-contexto="pos_consulta">WhatsApp</button>
+            <button class="btn sm primary" data-pv-realizado="${item.id}">Marcar pós-consulta realizado</button>
           </div>
         </div>`).join('')}
     </div>`}
   </div>
-  ${concluidos.length? `
+  ${concluidosSupabase.length? `
   <div class="card" style="margin-top:16px;">
     <h3 style="font-size:14px;">Concluídos recentemente</h3>
-    ${concluidos.map(id=>`<div class="small muted">✓ ${escapeHtml(resolverContatoWhatsapp(id).nome)} — pós-venda realizado</div>`).join('')}
+    ${concluidosSupabase.map(id=>`<div class="small muted">✓ ${escapeHtml(resolverContatoWhatsapp(id).nome)} — pós-consulta realizada</div>`).join('')}
   </div>`:''}
   `;
 }
 function bindPosVendasEvents(){
   document.querySelectorAll('[data-pv-realizado]').forEach(el=>{
-    el.addEventListener('click', ()=>{
+    el.addEventListener('click', async ()=>{
+      if(el.disabled) return;
       const id = el.dataset.pvRealizado;
+      if(typeof MODO_SUPABASE !== 'undefined' && MODO_SUPABASE){
+        el.disabled = true;
+        const ok = await concluirAcaoComercial('pos_consulta', id);
+        if(ok){ render(); toast('Pós-consulta marcado como realizado.'); }
+        else { el.disabled = false; }
+        return;
+      }
       if(!DB.posVendasConcluidos.includes(id)) DB.posVendasConcluidos.push(id);
       saveState(); render();
-      toast('Pós-venda marcado como realizado.');
+      toast('Pós-consulta marcado como realizado.');
     });
   });
 }
@@ -4572,6 +4674,7 @@ async function carregarDadosSupabase(perfil){
     { data: origensRows, error: errOrig },
     { data: motivosRows, error: errMot },
     { data: profilesRows, error: errProf },
+    { data: acoesRows, error: errAcoes },
   ] = await Promise.all([
     sb.from('pacientes_com_status').select('*'),
     sb.from('paciente_procedimentos').select('paciente_id, procedimento_id'),
@@ -4579,9 +4682,11 @@ async function carregarDadosSupabase(perfil){
     sb.from('origens_lead').select('id, nome, ativo'),
     sb.from('motivos_perda').select('id, nome, ativo'),
     sb.from('profiles').select('id, nome, cargo, role, ativo, auth_user_id'),
+    // [Fase A] cache de ações comerciais já concluídas — ver acaoComercialConcluida().
+    sb.from('acoes_comerciais').select('paciente_id, tipo, data_elegivel, data_conclusao, observacao'),
   ]);
 
-  const erro = errPac || errPP || errProc || errOrig || errMot || errProf;
+  const erro = errPac || errPP || errProc || errOrig || errMot || errProf || errAcoes;
   if(erro) throw erro;
 
   // [Supabase] Monta o DB da sessão a partir do estado padrão local — mantém
@@ -4626,10 +4731,28 @@ async function carregarDadosSupabase(perfil){
   // definido para esta etapa) — mantidas vazias para não exibir dado
   // desatualizado como se fosse real.
   DB.indicacoes = [];
+  // [Fase A] cache de ações comerciais concluídas (Resgate/Follow-up/
+  // Pós-Consulta) — ver acaoComercialConcluida()/recarregarAcoesComerciaisSupabase().
+  DB._acoesComerciaisSupabase = acoesRows || [];
 
   render();
   bindRouteEvents();
   toast(`Conectado ao Supabase — ${pacientesMapeados.length} pacientes carregados da clínica.`);
+}
+
+// [Fase A] Reconsulta só acoes_comerciais depois de concluir uma ação
+// (Resgate/Follow-up/Pós-Consulta) — evita recarregar os 79 pacientes só
+// para atualizar esse cache. Chamada por concluirAcaoComercial() após a
+// RPC ter sucesso.
+async function recarregarAcoesComerciaisSupabase(){
+  const { data, error } = await window.moriSupabase
+    .from('acoes_comerciais')
+    .select('paciente_id, tipo, data_elegivel, data_conclusao, observacao');
+  if(error){
+    console.error('Falha ao recarregar ações comerciais.', error);
+    return;
+  }
+  DB._acoesComerciaisSupabase = data || [];
 }
 
 async function iniciarSupabase(){
