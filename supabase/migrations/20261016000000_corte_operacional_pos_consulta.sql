@@ -41,7 +41,7 @@ comment on column public.clinicas.data_inicio_acoes_comerciais is
 -- 2) Valor inicial da Mori Ortodontia (única clínica existente hoje).
 update public.clinicas
   set data_inicio_acoes_comerciais = '2026-10-15'
-  where nome = 'Mori Ortodontia';
+  where id = '4f1d0862-3455-49c6-997b-c8e8f8d165ee'::uuid;
 
 -- 3) Recria concluir_acao_comercial() — mesma assinatura (grants
 --    preservados automaticamente pelo CREATE OR REPLACE), único trecho
