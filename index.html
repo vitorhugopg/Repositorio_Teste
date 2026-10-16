@@ -215,6 +215,8 @@ tr.clickable:hover{background:var(--ink-100);}
 .kcard .meta{font-size:11.5px;color:var(--text-muted);display:flex;flex-wrap:wrap;gap:5px;margin-top:6px;}
 .kcard .obs{margin-top:7px;font-size:11.6px;background:var(--warn-bg);color:#6b4d0f;padding:6px 8px;border-radius:8px;}
 :root[data-theme="dark"] .kcard .obs, @media(prefers-color-scheme:dark){.kcard .obs{color:#f0d99a;}}
+.kcard-valor{font-size:13px;font-weight:700;color:var(--text);margin-top:4px;}
+.kcard-acoes{margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;}
 
 /* modal */
 .modal-backdrop{position:fixed;inset:0;background:rgba(8,20,24,.55);display:flex;align-items:flex-start;justify-content:center;padding:30px 16px;overflow-y:auto;z-index:50;}
@@ -2707,7 +2709,7 @@ function openPacienteModal(paciente){
               <div><h4 class="form-secao-titulo">Observações</h4></div>
             </header>
             <div class="form-secao-body">
-              <label class="field"><span class="lbl">Observações <span class="muted" style="text-transform:none;font-weight:500;">(contexto de Pendente / Não Precisa no Momento aparece no card do Kanban)</span></span>
+              <label class="field"><span class="lbl">Observações</span>
                 <textarea name="observacoes" rows="3">${escapeHtml(p.observacoes)}</textarea>
               </label>
             </div>
@@ -2821,12 +2823,26 @@ function aplicarCondicionaisPacienteModal(modalRoot){
   const selFechou = form.querySelector('[data-gate="fechouTratamento"]');
   const grpSucesso = form.querySelector('[data-grupo-fechamento="sucesso"]');
   const grpPerda = form.querySelector('[data-grupo-fechamento="perda"]');
+  // [Correção] "Perdido" tem DOIS caminhos em calcStatus(): fechouTratamento
+  // === 'Não' OU marcouConsulta === 'Não' (lead que nunca marcou consulta).
+  // Usar só o select de Fechamento deixava o grupo (Motivo/Data da Perda)
+  // escondido para o segundo caminho, mesmo com data_perda real existindo
+  // — reaproveita calcStatus() (só leitura, função não alterada) para
+  // cobrir os dois casos corretamente.
   const atualizarFechamento = ()=>{
     const v = selFechou.value;
+    const statusAtual = calcStatus({
+      nome: form.querySelector('[name="nome"]').value,
+      fechouTratamento: v,
+      planoTratamento: selPlano ? selPlano.value : '',
+      compareceu: (form.querySelector('[name="compareceu"]')||{}).value || '',
+      marcouConsulta: selMarcou ? selMarcou.value : '',
+    });
     if(grpSucesso) grpSucesso.hidden = !(v==='Sim' || v==='Parcial');
-    if(grpPerda) grpPerda.hidden = v!=='Não';
+    if(grpPerda) grpPerda.hidden = statusAtual !== 'Perdido';
   };
   if(selFechou){ selFechou.addEventListener('change', atualizarFechamento); atualizarFechamento(); }
+  if(selMarcou){ selMarcou.addEventListener('change', atualizarFechamento); }
 }
 function closeModal(){ document.getElementById('modal-root').innerHTML=''; }
 
@@ -3003,33 +3019,28 @@ function renderKanban(){
             // [V2.1] resgate realizado — abrir o WhatsApp sozinho NÃO conclui;
             // precisa da confirmação explícita da secretária.
             const resgateFeito = et.nome==='Perdido' ? acaoComercialConcluida('resgate', p.id) : null;
+            // [Simplificação visual] mesma regra de valor de sempre, só que
+            // agora omitida quando não há nenhum valor real — antes sempre
+            // aparecia "💰 —", um dos itens de peso visual sem informação.
+            const valor = p.fechouTratamento ? (p.valorFechado ?? p.valorOrcamento) : p.valorOrcamento;
+            const respProc = [p.responsavel, (p.procedimentos||[]).join(', ')].filter(Boolean).join(' · ');
             return `
             <div class="kcard" data-open="${p.id}">
               <div class="nm">${escapeHtml(p.nome)}</div>
-              <div class="meta">
-                <span>${escapeHtml(p.responsavel||'sem resp.')}</span>
-                <span>·</span>
-                <span>${(p.procedimentos||[]).join(', ')||'proced. n/d'}</span>
-              </div>
-              <div class="meta">
-                <span>💰 ${fmtMoeda(p.fechouTratamento?p.valorFechado ?? p.valorOrcamento : p.valorOrcamento)}</span>
-              </div>
+              ${respProc? `<div class="meta">${escapeHtml(respProc)}</div>` : ''}
+              ${(valor!==null && valor!==undefined)? `<div class="kcard-valor">${fmtMoeda(valor)}</div>` : ''}
               ${resgate? `
-                <div class="meta">
-                  <span>Perda: ${fmtData(resgate.dataPerda)}</span>
-                  <span>·</span>
-                  <span>${resgate.dias!==null? resgate.dias+' dias perdido' : 'data indisponível'}</span>
-                </div>
+                <div class="meta">${resgate.dias!==null? `Perdido há ${resgate.dias} dia${resgate.dias===1?'':'s'}` : 'Tempo de perda indisponível'}</div>
+                ${p.motivoPerda? `<div class="meta">${escapeHtml(p.motivoPerda)}</div>` : ''}
                 ${resgateFeito
                   ? `<div class="obs" style="background:var(--ink-100);color:var(--text-muted);">✓ Resgate realizado em ${fmtData(resgateFeito.dataHora.slice(0,10))}</div>`
-                  : (resgate.elegivel? `<div class="obs" style="background:var(--success-bg);color:var(--success);font-weight:800;">🔁 Resgate disponível</div>`:'')}
+                  : (resgate.elegivel? `<div class="obs" style="background:var(--success-bg);color:var(--success);font-weight:800;">Resgate disponível</div>`:'')}
               `:''}
               ${(et.nome==='Pendente'||et.nome==='Não Precisa no Momento') && p.observacoes? `<div class="obs">${escapeHtml(p.observacoes)}</div>`:''}
-              ${et.nome==='Perdido' && p.motivoPerda? `<div class="obs">Motivo: ${escapeHtml(p.motivoPerda)}</div>`:''}
               ${et.nome==='Perdido'? `
-                <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;">
-                  <button class="btn sm gold" data-wa-paciente="${p.id}" data-wa-contexto="resgate">WhatsApp</button>
+                <div class="kcard-acoes">
                   ${resgate.elegivel && !resgateFeito? `<button class="btn sm primary" data-resgate-realizado="${p.id}">Marcar resgate realizado</button>`:''}
+                  <button class="btn sm ghost" data-wa-paciente="${p.id}" data-wa-contexto="resgate">WhatsApp</button>
                 </div>`:''}
             </div>`;
           }).join('') : `<div class="empty small">vazio</div>`}
