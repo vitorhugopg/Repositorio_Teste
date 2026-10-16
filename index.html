@@ -1886,6 +1886,10 @@ function buildInitialState(){
       especialidades: ['Ortodontia','Pediatria','Dentística','Prótese'],
     },
     usuarioAtual:{ nome:'Mariana', cargo:'Sócia / Ortodontista' },
+    // [Corte operacional] clinicas.data_inicio_acoes_comerciais (Supabase) —
+    // null em modo local, sempre (não existe o conceito ali). Ver
+    // filaPosVenda() e a RPC concluir_acao_comercial() no banco.
+    dataInicioAcoesComerciais: null,
     funcionarios: SEED_FUNCIONARIOS.map(f=>({id:uid('func'), ...f})),
     procedimentos: SEED_PROCEDIMENTOS.map(p=>({id:uid('proc'), ...p})),
     origens: [...SEED_ORIGENS],
@@ -3790,6 +3794,13 @@ function filaPosVenda(){
   const reais = DB.pacientes
     .filter(p=>{
       if(p.compareceu!=='Sim') return false;
+      // [Corte operacional] a data que importa é a do EVENTO (data_consulta),
+      // nunca a data de hoje — uma consulta de antes do corte não vira
+      // tarefa nova só porque já estamos depois da data de implantação.
+      // DB.dataInicioAcoesComerciais é null em modo local (sem corte, igual
+      // ao comportamento anterior) e também quando a clínica Supabase
+      // ainda não tiver essa configuração preenchida.
+      if(DB.dataInicioAcoesComerciais && p.dataConsulta && p.dataConsulta < DB.dataInicioAcoesComerciais) return false;
       const dataElegivel = dataElegivelAcaoComercial('pos_consulta', p);
       return dataElegivel!==null && hoje>=dataElegivel && !posConsultaConcluida(p.id);
     })
@@ -4700,6 +4711,7 @@ async function carregarDadosSupabase(perfil){
     { data: motivosRows, error: errMot },
     { data: profilesRows, error: errProf },
     { data: acoesRows, error: errAcoes },
+    { data: clinicaRows, error: errClinica },
   ] = await Promise.all([
     sb.from('pacientes_com_status').select('*'),
     sb.from('paciente_procedimentos').select('paciente_id, procedimento_id'),
@@ -4709,9 +4721,13 @@ async function carregarDadosSupabase(perfil){
     sb.from('profiles').select('id, nome, cargo, role, ativo, auth_user_id'),
     // [Fase A] cache de ações comerciais já concluídas — ver acaoComercialConcluida().
     sb.from('acoes_comerciais').select('paciente_id, tipo, data_elegivel, data_conclusao, observacao'),
+    // [Corte operacional] data a partir da qual a clínica gera novas
+    // pendências de Pós-Consulta — ver filaPosVenda(). RLS já restringe à
+    // própria clínica (ver_minha_clinica), por isso sempre 0 ou 1 linha.
+    sb.from('clinicas').select('id, data_inicio_acoes_comerciais'),
   ]);
 
-  const erro = errPac || errPP || errProc || errOrig || errMot || errProf || errAcoes;
+  const erro = errPac || errPP || errProc || errOrig || errMot || errProf || errAcoes || errClinica;
   if(erro) throw erro;
 
   // [Supabase] Monta o DB da sessão a partir do estado padrão local — mantém
@@ -4759,6 +4775,9 @@ async function carregarDadosSupabase(perfil){
   // [Fase A] cache de ações comerciais concluídas (Resgate/Follow-up/
   // Pós-Consulta) — ver acaoComercialConcluida()/recarregarAcoesComerciaisSupabase().
   DB._acoesComerciaisSupabase = acoesRows || [];
+  // [Corte operacional] null = clínica ainda sem corte configurado (sem
+  // alteração de comportamento — mesma coisa que antes desta correção).
+  DB.dataInicioAcoesComerciais = (clinicaRows && clinicaRows[0] && clinicaRows[0].data_inicio_acoes_comerciais) || null;
 
   render();
   bindRouteEvents();
