@@ -223,6 +223,17 @@ tr.clickable:hover{background:var(--ink-100);}
 .modal-body{padding:20px 22px;max-height:70vh;overflow-y:auto;}
 .modal-foot{padding:16px 22px;border-top:1px solid var(--line);display:flex;justify-content:flex-end;gap:10px;}
 .modal-close{cursor:pointer;font-size:20px;color:var(--text-muted);border:none;background:none;}
+/* [UX Paciente] Blocos numerados do modal de Novo/Editar Paciente — um
+   único formulário, sem abas/wizard: só hierarquia visual mais clara. */
+.form-secao{padding:16px 0;}
+.form-secao:first-child{padding-top:0;}
+.form-secao + .form-secao{border-top:1px solid var(--line);}
+.form-secao-head{display:flex;align-items:baseline;gap:10px;margin-bottom:14px;}
+.form-secao-num{font-family:"Fraunces",serif;font-size:13px;font-weight:700;color:var(--gold-500);flex-shrink:0;}
+.form-secao-titulo{font-size:13px;letter-spacing:.04em;text-transform:uppercase;}
+.form-secao-sub{margin:2px 0 0;font-size:12px;color:var(--text-muted);}
+.form-secao-body{display:flex;flex-direction:column;gap:14px;}
+[data-grupo][hidden],[data-grupo-fechamento][hidden]{display:none;}
 
 .toast{position:fixed;bottom:22px;right:22px;background:var(--ink-950);color:#fff;padding:12px 18px;border-radius:10px;box-shadow:var(--shadow-lg);z-index:99;font-size:13px;font-weight:600;}
 
@@ -2590,61 +2601,118 @@ function openPacienteModal(paciente){
       </div>
       <form id="form-paciente">
         <div class="modal-body">
-          <div class="grid cols-2">
-            <label class="field"><span class="lbl">Nome *</span><input required name="nome" value="${escapeHtml(p.nome)}"></label>
-            <label class="field"><span class="lbl">Telefone</span><input name="telefone" value="${escapeHtml(p.telefone)}"></label>
-            <label class="field"><span class="lbl">Email</span><input type="email" name="email" value="${escapeHtml(p.email)}"></label>
-            <label class="field"><span class="lbl">Origem do Lead</span>
-              <select name="origem">
-                <option value="">—</option>
-                ${origensDisponiveis.map(o=>`<option ${p.origem===o?'selected':''}>${escapeHtml(o)}</option>`).join('')}
-              </select>
-            </label>
-          </div>
-          <label class="field"><span class="lbl">Procedimento(s) de Interesse</span>
-            <div class="chips-check">
-            ${procedimentosDisponiveis.map(proc=>`
-              <label class="chip-check ${(p.procedimentos||[]).includes(proc.nome)?'on':''}">
-                <input type="checkbox" name="procedimentos" value="${escapeHtml(proc.nome)}" ${(p.procedimentos||[]).includes(proc.nome)?'checked':''}>
-                ${escapeHtml(proc.nome)}
-              </label>`).join('')}
+          <section class="form-secao">
+            <header class="form-secao-head">
+              <span class="form-secao-num">01</span>
+              <div>
+                <h4 class="form-secao-titulo">Cadastro</h4>
+                <p class="form-secao-sub">Informações básicas do paciente</p>
+              </div>
+            </header>
+            <div class="form-secao-body">
+              <div class="grid cols-2">
+                <label class="field"><span class="lbl">Nome *</span><input required name="nome" value="${escapeHtml(p.nome)}"></label>
+                <label class="field"><span class="lbl">Telefone</span><input name="telefone" value="${escapeHtml(p.telefone)}"></label>
+                <label class="field"><span class="lbl">Email</span><input type="email" name="email" value="${escapeHtml(p.email)}"></label>
+                <label class="field"><span class="lbl">Origem do Lead</span>
+                  <select name="origem">
+                    <option value="">—</option>
+                    ${origensDisponiveis.map(o=>`<option ${p.origem===o?'selected':''}>${escapeHtml(o)}</option>`).join('')}
+                  </select>
+                </label>
+              </div>
+              <label class="field"><span class="lbl">Procedimento(s) de Interesse</span>
+                <div class="chips-check">
+                ${procedimentosDisponiveis.map(proc=>`
+                  <label class="chip-check ${(p.procedimentos||[]).includes(proc.nome)?'on':''}">
+                    <input type="checkbox" name="procedimentos" value="${escapeHtml(proc.nome)}" ${(p.procedimentos||[]).includes(proc.nome)?'checked':''}>
+                    ${escapeHtml(proc.nome)}
+                  </label>`).join('')}
+                </div>
+              </label>
+              <div class="grid cols-2">
+                <label class="field"><span class="lbl">Responsável</span>
+                  <select name="responsavel"><option value="">—</option>${DB.responsaveis.map(r=>`<option ${p.responsavel===r?'selected':''}>${escapeHtml(r)}</option>`).join('')}</select>
+                </label>
+                <label class="field"><span class="lbl">Data 1º Contato</span><input type="date" name="dataContato" value="${p.dataContato||''}"></label>
+              </div>
+              <label class="field"><span class="lbl">Indicado por <span class="muted" style="text-transform:none;font-weight:500;">(se a origem for Indicação)</span></span>
+                <input name="indicadoPor" value="${escapeHtml(p.indicadoPor||(DB.indicacoes.find(i=>i.pacienteIndicado===p.nome)?.indicadoPor)||'')}">
+              </label>
             </div>
-          </label>
-          <div class="grid cols-2">
-            <label class="field"><span class="lbl">Responsável</span>
-              <select name="responsavel"><option value="">—</option>${DB.responsaveis.map(r=>`<option ${p.responsavel===r?'selected':''}>${escapeHtml(r)}</option>`).join('')}</select>
-            </label>
-            <label class="field"><span class="lbl">Data 1º Contato</span><input type="date" name="dataContato" value="${p.dataContato||''}"></label>
-          </div>
-          <hr class="hr">
-          <div class="grid cols-3">
-            <label class="field"><span class="lbl">Marcou Consulta?</span><select name="marcouConsulta">${OPCOES_SIMNAO.map(o=>`<option value="${o}" ${p.marcouConsulta===o?'selected':''}>${o||'—'}</option>`).join('')}</select></label>
-            <label class="field"><span class="lbl">Data da Consulta</span><input type="date" name="dataConsulta" value="${p.dataConsulta||''}"></label>
-            <label class="field"><span class="lbl">Compareceu?</span><select name="compareceu">${OPCOES_SIMNAO.map(o=>`<option value="${o}" ${p.compareceu===o?'selected':''}>${o||'—'}</option>`).join('')}</select></label>
-          </div>
-          <div class="grid cols-3">
-            <label class="field"><span class="lbl">Fez Radiografia? <span class="muted" style="text-transform:none;font-weight:500;">(informativo)</span></span><select name="fezRadiografia">${OPCOES_SIMNAO.map(o=>`<option value="${o}" ${p.fezRadiografia===o?'selected':''}>${o||'—'}</option>`).join('')}</select></label>
-            <label class="field"><span class="lbl">Plano de Tratamento Apresentado?</span><select name="planoTratamento">${OPCOES_SIMNAO.map(o=>`<option value="${o}" ${p.planoTratamento===o?'selected':''}>${o||'—'}</option>`).join('')}</select></label>
-            <label class="field"><span class="lbl">Valor do Orçamento (R$)</span><input type="number" step="0.01" name="valorOrcamento" value="${p.valorOrcamento??''}"></label>
-          </div>
-          <hr class="hr">
-          <div class="grid cols-3">
-            <label class="field"><span class="lbl">Fechou Tratamento?</span>
-              <select name="fechouTratamento">${OPCOES_FECHOU.map(o=>`<option value="${o}" ${p.fechouTratamento===o?'selected':''}>${o||'—'}</option>`).join('')}</select>
-            </label>
-            <label class="field"><span class="lbl">Valor Fechado (R$)</span><input type="number" step="0.01" name="valorFechado" value="${p.valorFechado??''}"></label>
-            <label class="field"><span class="lbl">Data Fechamento</span><input type="date" name="dataFechamento" value="${p.dataFechamento||''}"></label>
-          </div>
-          <label class="field"><span class="lbl">Motivo da Perda <span class="muted" style="text-transform:none;font-weight:500;">(quando Fechou Tratamento = Não)</span></span>
-            <select name="motivoPerda"><option value="">—</option>${motivosDisponiveis.map(m=>`<option ${p.motivoPerda===m?'selected':''}>${escapeHtml(m)}</option>`).join('')}</select>
-          </label>
-          <label class="field"><span class="lbl">Observações <span class="muted" style="text-transform:none;font-weight:500;">(contexto de Pendente / Não Precisa no Momento aparece no card do Kanban)</span></span>
-            <textarea name="observacoes" rows="3">${escapeHtml(p.observacoes)}</textarea>
-          </label>
-          ${p.origem==='Indicação' || true ? `
-          <label class="field"><span class="lbl">Indicado por <span class="muted" style="text-transform:none;font-weight:500;">(se a origem for Indicação)</span></span>
-            <input name="indicadoPor" value="${escapeHtml(p.indicadoPor||(DB.indicacoes.find(i=>i.pacienteIndicado===p.nome)?.indicadoPor)||'')}">
-          </label>` : ''}
+          </section>
+
+          <section class="form-secao">
+            <header class="form-secao-head">
+              <span class="form-secao-num">02</span>
+              <div>
+                <h4 class="form-secao-titulo">Consulta</h4>
+                <p class="form-secao-sub">Agendamento e comparecimento</p>
+              </div>
+            </header>
+            <div class="form-secao-body">
+              <div class="grid cols-3">
+                <label class="field"><span class="lbl">Marcou Consulta?</span><select name="marcouConsulta" data-gate="marcouConsulta">${OPCOES_SIMNAO.map(o=>`<option value="${o}" ${p.marcouConsulta===o?'selected':''}>${o||'—'}</option>`).join('')}</select></label>
+                <label class="field" data-grupo="dataConsulta"><span class="lbl">Data da Consulta</span><input type="date" name="dataConsulta" value="${p.dataConsulta||''}"></label>
+                <label class="field"><span class="lbl">Compareceu?</span><select name="compareceu">${OPCOES_SIMNAO.map(o=>`<option value="${o}" ${p.compareceu===o?'selected':''}>${o||'—'}</option>`).join('')}</select></label>
+              </div>
+              <label class="field"><span class="lbl">Fez Radiografia? <span class="muted" style="text-transform:none;font-weight:500;">(informativo)</span></span><select name="fezRadiografia">${OPCOES_SIMNAO.map(o=>`<option value="${o}" ${p.fezRadiografia===o?'selected':''}>${o||'—'}</option>`).join('')}</select></label>
+            </div>
+          </section>
+
+          <section class="form-secao">
+            <header class="form-secao-head">
+              <span class="form-secao-num">03</span>
+              <div>
+                <h4 class="form-secao-titulo">Plano de Tratamento</h4>
+                <p class="form-secao-sub">Apresentação da proposta ao paciente</p>
+              </div>
+            </header>
+            <div class="form-secao-body">
+              <div class="grid cols-2">
+                <label class="field"><span class="lbl">Plano de Tratamento Apresentado?</span><select name="planoTratamento" data-gate="planoTratamento">${OPCOES_SIMNAO.map(o=>`<option value="${o}" ${p.planoTratamento===o?'selected':''}>${o||'—'}</option>`).join('')}</select></label>
+                <label class="field" data-grupo="valorOrcamento"><span class="lbl">Valor do Orçamento (R$)</span><input type="number" step="0.01" name="valorOrcamento" value="${p.valorOrcamento??''}"></label>
+              </div>
+            </div>
+          </section>
+
+          <section class="form-secao">
+            <header class="form-secao-head">
+              <span class="form-secao-num">04</span>
+              <div>
+                <h4 class="form-secao-titulo">Fechamento</h4>
+                <p class="form-secao-sub">Resultado comercial</p>
+              </div>
+            </header>
+            <div class="form-secao-body">
+              <label class="field"><span class="lbl">Fechou Tratamento?</span>
+                <select name="fechouTratamento" data-gate="fechouTratamento">${OPCOES_FECHOU.map(o=>`<option value="${o}" ${p.fechouTratamento===o?'selected':''}>${o||'—'}</option>`).join('')}</select>
+              </label>
+              <div class="grid cols-2" data-grupo-fechamento="sucesso">
+                <label class="field"><span class="lbl">Valor Fechado (R$)</span><input type="number" step="0.01" name="valorFechado" value="${p.valorFechado??''}"></label>
+                <label class="field"><span class="lbl">Data Fechamento</span><input type="date" name="dataFechamento" value="${p.dataFechamento||''}"></label>
+              </div>
+              <div data-grupo-fechamento="perda">
+                <label class="field"><span class="lbl">Motivo da Perda</span>
+                  <select name="motivoPerda"><option value="">—</option>${motivosDisponiveis.map(m=>`<option ${p.motivoPerda===m?'selected':''}>${escapeHtml(m)}</option>`).join('')}</select>
+                </label>
+                ${p.dataPerda? `<p class="muted small" style="margin:-6px 0 0;">Data da perda: ${fmtData(p.dataPerda)}</p>` : ''}
+              </div>
+            </div>
+          </section>
+
+          <section class="form-secao">
+            <header class="form-secao-head">
+              <span class="form-secao-num">05</span>
+              <div><h4 class="form-secao-titulo">Observações</h4></div>
+            </header>
+            <div class="form-secao-body">
+              <label class="field"><span class="lbl">Observações <span class="muted" style="text-transform:none;font-weight:500;">(contexto de Pendente / Não Precisa no Momento aparece no card do Kanban)</span></span>
+                <textarea name="observacoes" rows="3">${escapeHtml(p.observacoes)}</textarea>
+              </label>
+            </div>
+          </section>
+
           <div class="pill" style="background:${etapaCor(calcStatus(p))}22;color:${etapaCor(calcStatus(p))}">Status calculado automaticamente: será recalculado ao salvar</div>
         </div>
         <div class="modal-foot">
@@ -2656,6 +2724,7 @@ function openPacienteModal(paciente){
     </div>
   </div>`;
 
+  aplicarCondicionaisPacienteModal(modalRoot);
   modalRoot.querySelectorAll('[data-close]').forEach(el=>el.addEventListener('click', closeModal));
   modalRoot.querySelector('[data-close-backdrop]').addEventListener('click', (e)=>{ if(e.target===e.currentTarget) closeModal(); });
   // [V2.1] Botão WhatsApp do modal — reaproveita abrirWhatsAppPaciente(),
@@ -2729,6 +2798,35 @@ function openPacienteModal(paciente){
     saveState(); closeModal(); render();
     toast(isNew? 'Paciente cadastrado.' : 'Paciente atualizado.');
   });
+}
+// [UX Paciente] Progressive disclosure dos blocos 02/03/04 do modal de
+// paciente — roda no render inicial (então Editar já abre com o estado
+// certo, já que os selects vêm preenchidos do banco) e em cada `change`
+// dos selects-gatilho (então Novo começa simples e vai se expandindo).
+// Nunca limpa valor de input nenhum — só alterna `hidden` no grupo.
+function aplicarCondicionaisPacienteModal(modalRoot){
+  const form = modalRoot.querySelector('#form-paciente');
+  if(!form) return;
+
+  const selMarcou = form.querySelector('[data-gate="marcouConsulta"]');
+  const grpConsulta = form.querySelector('[data-grupo="dataConsulta"]');
+  const atualizarConsulta = ()=>{ grpConsulta.hidden = selMarcou.value !== 'Sim'; };
+  if(selMarcou && grpConsulta){ selMarcou.addEventListener('change', atualizarConsulta); atualizarConsulta(); }
+
+  const selPlano = form.querySelector('[data-gate="planoTratamento"]');
+  const grpOrcamento = form.querySelector('[data-grupo="valorOrcamento"]');
+  const atualizarPlano = ()=>{ grpOrcamento.hidden = selPlano.value !== 'Sim'; };
+  if(selPlano && grpOrcamento){ selPlano.addEventListener('change', atualizarPlano); atualizarPlano(); }
+
+  const selFechou = form.querySelector('[data-gate="fechouTratamento"]');
+  const grpSucesso = form.querySelector('[data-grupo-fechamento="sucesso"]');
+  const grpPerda = form.querySelector('[data-grupo-fechamento="perda"]');
+  const atualizarFechamento = ()=>{
+    const v = selFechou.value;
+    if(grpSucesso) grpSucesso.hidden = !(v==='Sim' || v==='Parcial');
+    if(grpPerda) grpPerda.hidden = v!=='Não';
+  };
+  if(selFechou){ selFechou.addEventListener('change', atualizarFechamento); atualizarFechamento(); }
 }
 function closeModal(){ document.getElementById('modal-root').innerHTML=''; }
 
