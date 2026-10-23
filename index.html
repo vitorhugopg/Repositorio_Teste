@@ -218,6 +218,26 @@ tr.clickable:hover{background:var(--ink-100);}
 .kcard-valor{font-size:13px;font-weight:700;color:var(--text);margin-top:4px;}
 .kcard-acoes{margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;}
 
+/* [Recorrência] indicadores clicáveis (filtros) */
+.indicadores-recorrencia{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:18px;}
+.indicador-recorrencia{flex:1 1 150px;background:var(--paper);border:1px solid var(--line);border-radius:var(--radius);padding:14px 16px;cursor:pointer;transition:border-color .15s;}
+.indicador-recorrencia:hover{border-color:var(--ink-700);}
+.indicador-recorrencia.ativo{border-color:var(--gold-500);background:var(--gold-100);}
+:root[data-theme="dark"] .indicador-recorrencia.ativo, @media(prefers-color-scheme:dark){.indicador-recorrencia.ativo{background:rgba(201,162,39,.14);}}
+.indicador-recorrencia .lbl{font-size:11.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--text-muted);font-weight:700;}
+.indicador-recorrencia .val{font-family:"Fraunces",serif;font-size:24px;font-weight:700;margin-top:4px;color:var(--ink-900);}
+:root[data-theme="dark"] .indicador-recorrencia .val, @media(prefers-color-scheme:dark){.indicador-recorrencia .val{color:var(--gold-500);}}
+
+/* [Recorrência] cards horizontais compactos */
+.recorrencia-card{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;padding:12px 14px;border:1px solid var(--line);border-radius:11px;background:var(--paper);box-shadow:0 2px 6px rgba(15,59,68,.06);}
+.recorrencia-card + .recorrencia-card{margin-top:9px;}
+.recorrencia-card.destaque{border-color:var(--gold-500);box-shadow:0 0 0 2px var(--gold-100);}
+.recorrencia-card .info{min-width:0;}
+.recorrencia-card .nm{font-weight:800;font-size:13.6px;}
+.recorrencia-card .meta{font-size:11.8px;color:var(--text-muted);margin-top:3px;}
+.recorrencia-card .situacao{margin-top:5px;}
+.recorrencia-card .acoes{display:flex;gap:8px;flex-wrap:wrap;flex-shrink:0;}
+
 /* modal */
 .modal-backdrop{position:fixed;inset:0;background:rgba(8,20,24,.55);display:flex;align-items:flex-start;justify-content:center;padding:30px 16px;overflow-y:auto;z-index:50;}
 .modal{background:var(--paper);border-radius:16px;max-width:760px;width:100%;box-shadow:var(--shadow-lg);}
@@ -1903,6 +1923,15 @@ function buildInitialState(){
     // null em modo local, sempre (não existe o conceito ali). Ver
     // filaPosVenda() e a RPC concluir_acao_comercial() no banco.
     dataInicioAcoesComerciais: null,
+    // [Recorrência] idem — só existe de verdade em modo Supabase
+    // (carregarDadosSupabase() sobrescreve com clinicas.timezone real).
+    // Em modo local o módulo de Recorrência nem é oferecido (ver
+    // renderRecorrencia()), então este valor nunca chega a ser usado —
+    // existe só para hojeCivilClinica() ter um fallback seguro.
+    clinicaTimezone: 'America/Sao_Paulo',
+    tiposRecorrenciaTodos: [],
+    ciclosRecorrencia: [],
+    _retornosRecorrenciaSupabase: [],
     funcionarios: SEED_FUNCIONARIOS.map(f=>({id:uid('func'), ...f})),
     procedimentos: SEED_PROCEDIMENTOS.map(p=>({id:uid('proc'), ...p})),
     origens: [...SEED_ORIGENS],
@@ -2063,6 +2092,26 @@ function diasEntre(isoA,isoB){
   if(!isoA||!isoB) return null;
   const a=new Date(isoA+'T00:00:00'), b=new Date(isoB+'T00:00:00');
   return Math.round((b-a)/86400000);
+}
+// [Recorrência] "Data civil de hoje" na timezone da CLÍNICA (clinicas.timezone,
+// ex: 'America/Sao_Paulo'), não em UTC. hojeISO() acima continua usando UTC
+// e NÃO é alterada — Resgate/Pós-Consulta/Agenda/Dashboard continuam
+// exatamente como estão. Isolado aqui de propósito: só o Módulo de
+// Recorrência usa esta função, para não virar o dia perto da meia-noite
+// local antes da hora real da clínica. `Intl.DateTimeFormat('en-CA', ...)`
+// formata direto como AAAA-MM-DD, nativo do navegador, sem biblioteca nova.
+function hojeCivilClinica(){
+  const tz = DB.clinicaTimezone || 'America/Sao_Paulo';
+  try{
+    return new Intl.DateTimeFormat('en-CA', { timeZone: tz }).format(new Date());
+  }catch(e){
+    console.warn(`Timezone da clínica inválido ("${tz}") — usando America/Sao_Paulo.`, e);
+    try{
+      return new Intl.DateTimeFormat('en-CA', { timeZone:'America/Sao_Paulo' }).format(new Date());
+    }catch(e2){
+      return hojeISO();
+    }
+  }
 }
 function escapeHtml(s){
   return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -2250,6 +2299,176 @@ function acaoComercialConcluida(tipo, pacienteId){
 }
 
 /* ============================================================
+   [Recorrência] Módulo de Recorrência de Pacientes
+   ------------------------------------------------------------
+   Fonte de verdade 100% Supabase (tipos_recorrencia, ciclos_recorrencia,
+   retornos_recorrencia) — sem persistência paralela em localStorage. Em
+   modo local (sem Supabase), a tela mostra um estado "indisponível" (ver
+   renderRecorrencia()) em vez de simular o módulo.
+   Toda escrita passa pelas RPCs homologadas (iniciar_ciclo_recorrencia,
+   registrar_retorno_recorrencia, finalizar_ciclo_recorrencia) — nenhum
+   INSERT/UPDATE direto nestas tabelas a partir daqui (o próprio banco já
+   bloqueia isso, mas o frontend também nunca tenta).
+   ============================================================ */
+
+const MOTIVOS_ENCERRAMENTO_RECORRENCIA = [
+  'Tratamento concluído',
+  'Paciente não continuará o tratamento',
+  'Mudou de clínica/profissional',
+  'Recorrência não é mais necessária',
+  'Outro',
+];
+
+const CATEGORIAS_RECORRENCIA = [
+  { id:'atrasados', label:'🔴 Atrasados' },
+  { id:'hoje', label:'Hoje' },
+  { id:'proximos7', label:'🟡 Próximos 7 dias' },
+  { id:'emdia', label:'🟢 Em dia' },
+  { id:'finalizados', label:'⚪ Finalizados' },
+];
+
+// Estado de UI local à tela (mesmo padrão de agendaMes/whatsappConversaSelecionadaId
+// — variável de módulo, não precisa ir para DB/localStorage).
+let filtroRecorrenciaCategoria = 'atrasados';
+let destacarCicloRecorrenciaId = null;
+
+// Categorização mutuamente exclusiva — ver arquitetura aprovada (item 9).
+// Usa hojeCivilClinica(), nunca hojeISO(), para não virar o dia perto da
+// meia-noite antes da hora real da clínica.
+function classificarCicloRecorrencia(ciclo){
+  if(ciclo.status === 'finalizado') return 'finalizados';
+  const dias = diasEntre(hojeCivilClinica(), ciclo.proximoRetorno); // negativo=atrasado, 0=hoje, positivo=futuro
+  if(dias < 0) return 'atrasados';
+  if(dias === 0) return 'hoje';
+  if(dias <= 7) return 'proximos7';
+  return 'emdia';
+}
+
+function agruparCiclosRecorrenciaPorCategoria(){
+  const grupos = { atrasados:[], hoje:[], proximos7:[], emdia:[], finalizados:[] };
+  (DB.ciclosRecorrencia||[]).forEach(c=>{ grupos[classificarCicloRecorrencia(c)].push(c); });
+  return grupos;
+}
+
+function ordenarCategoriaRecorrencia(categoria, items){
+  const arr = items.slice();
+  if(categoria==='hoje'){
+    arr.sort((a,b)=>a.pacienteNome.localeCompare(b.pacienteNome,'pt-BR'));
+  } else if(categoria==='finalizados'){
+    arr.sort((a,b)=>(b.dataEncerramento||'').localeCompare(a.dataEncerramento||''));
+  } else {
+    // atrasados/proximos7/emdia: retorno mais próximo (ou mais atrasado) primeiro.
+    arr.sort((a,b)=>(a.proximoRetorno||'').localeCompare(b.proximoRetorno||''));
+  }
+  return arr;
+}
+
+// Contador do menu lateral = Atrasados + Hoje, nunca os demais (item 4).
+function contarRecorrenciasUrgentes(){
+  if(!(typeof MODO_SUPABASE !== 'undefined' && MODO_SUPABASE)) return 0;
+  const grupos = agruparCiclosRecorrenciaPorCategoria();
+  return grupos.atrasados.length + grupos.hoje.length;
+}
+
+function cicloAtivoDoPaciente(pacienteId){
+  return (DB.ciclosRecorrencia||[]).find(c=>c.pacienteId===pacienteId && c.status==='ativo') || null;
+}
+
+// [Supabase] Join client-side com dados já carregados (paciente/tipo/
+// responsável) — mesmo padrão de mapPacienteSupabaseParaCRM: nenhuma view
+// nova no banco, nenhuma duplicação de paciente/responsável em estrutura
+// paralela (item 5).
+function mapCicloSupabaseParaCRM(row){
+  const paciente = DB.pacientes.find(x=>x.id===row.paciente_id);
+  const tipo = (DB.tiposRecorrenciaTodos||[]).find(t=>t.id===row.tipo_recorrencia_id);
+  const responsavelProfile = (DB.equipeSupabase||[]).find(pr=>pr.id===row.responsavel_id);
+  return {
+    id: row.id,
+    pacienteId: row.paciente_id,
+    pacienteNome: paciente ? paciente.nome : '(paciente não encontrado)',
+    tipoId: row.tipo_recorrencia_id,
+    tipoNome: tipo ? tipo.nome : '(tipo não encontrado)',
+    responsavelId: row.responsavel_id || null,
+    responsavelNome: responsavelProfile ? responsavelProfile.nome : '',
+    dataInicio: row.data_inicio,
+    proximoRetorno: row.proximo_retorno,
+    status: row.status,
+    dataEncerramento: row.data_encerramento || null,
+    motivoEncerramento: row.motivo_encerramento || null,
+    observacoes: row.observacoes || '',
+    observacaoEncerramento: row.observacao_encerramento || null,
+  };
+}
+function mapRetornoSupabaseParaCRM(row){
+  const usuario = (DB.equipeSupabase||[]).find(pr=>pr.id===row.usuario_id);
+  return {
+    id: row.id,
+    cicloId: row.ciclo_id,
+    dataRetornoRealizado: row.data_retorno_realizado,
+    proximoRetornoDefinido: row.proximo_retorno_definido,
+    observacao: row.observacao || '',
+    usuarioNome: usuario ? usuario.nome : '',
+  };
+}
+
+// Reconsulta só ciclos/retornos (sem recarregar os 79 pacientes) depois de
+// iniciar/registrar/finalizar um ciclo — mesmo padrão de
+// recarregarAcoesComerciaisSupabase().
+async function recarregarCiclosRecorrenciaSupabase(){
+  const [{ data:ciclosRows, error:errCiclos }, { data:retornosRows, error:errRetornos }] = await Promise.all([
+    window.moriSupabase.from('ciclos_recorrencia').select('*'),
+    window.moriSupabase.from('retornos_recorrencia').select('*'),
+  ]);
+  if(errCiclos || errRetornos){
+    console.error('Falha ao recarregar dados de Recorrência.', errCiclos||errRetornos);
+    toast('Não foi possível atualizar os dados de Recorrência agora.');
+    return false;
+  }
+  DB.ciclosRecorrencia = (ciclosRows||[]).map(mapCicloSupabaseParaCRM);
+  DB._retornosRecorrenciaSupabase = (retornosRows||[]).map(mapRetornoSupabaseParaCRM);
+  return true;
+}
+
+// [Recorrência] Wrappers das 3 RPCs homologadas — nenhum INSERT/UPDATE
+// direto em ciclos_recorrencia/retornos_recorrencia a partir daqui (o
+// banco já bloqueia, mas o frontend segue o mesmo caminho documentado).
+async function iniciarCicloRecorrencia({ pacienteId, tipoId, dataInicio, proximoRetorno, responsavelId, observacoes }){
+  const { data, error } = await window.moriSupabase.rpc('iniciar_ciclo_recorrencia', {
+    p_paciente_id: pacienteId,
+    p_tipo_recorrencia_id: tipoId,
+    p_data_inicio: dataInicio,
+    p_proximo_retorno: proximoRetorno,
+    p_responsavel_id: responsavelId || null,
+    p_observacoes: observacoes || null,
+  });
+  if(error){ console.error('Falha ao iniciar ciclo de recorrência.', error); return { ok:false, error }; }
+  await recarregarCiclosRecorrenciaSupabase();
+  return { ok:true, data };
+}
+async function registrarRetornoRecorrencia({ cicloId, dataRetorno, proximoRetorno, observacao }){
+  const { data, error } = await window.moriSupabase.rpc('registrar_retorno_recorrencia', {
+    p_ciclo_id: cicloId,
+    p_data_retorno_realizado: dataRetorno,
+    p_proximo_retorno: proximoRetorno,
+    p_observacao: observacao || null,
+  });
+  if(error){ console.error('Falha ao registrar retorno.', error); return { ok:false, error }; }
+  await recarregarCiclosRecorrenciaSupabase();
+  return { ok:true, data };
+}
+async function finalizarCicloRecorrencia({ cicloId, dataEncerramento, motivo, observacaoEncerramento }){
+  const { data, error } = await window.moriSupabase.rpc('finalizar_ciclo_recorrencia', {
+    p_ciclo_id: cicloId,
+    p_data_encerramento: dataEncerramento,
+    p_motivo_encerramento: motivo,
+    p_observacao_encerramento: observacaoEncerramento || null,
+  });
+  if(error){ console.error('Falha ao finalizar ciclo de recorrência.', error); return { ok:false, error }; }
+  await recarregarCiclosRecorrenciaSupabase();
+  return { ok:true, data };
+}
+
+/* ============================================================
    4) ROTEAMENTO / RENDER PRINCIPAL
    ============================================================ */
 const ROUTES = [
@@ -2258,6 +2477,7 @@ const ROUTES = [
   {id:'kanban', label:'Kanban', ic:'🗂️'},
   {id:'whatsapp', label:'WhatsApp', ic:'📱'},          // [V2]
   {id:'posvendas', label:'Pós-Consulta', ic:'📞'},        // [V2] rota/função internas mantêm o nome antigo, só o texto visível muda (Fase A)
+  {id:'recorrencia', label:'Recorrência', ic:'🔁'},       // [Recorrência]
   {id:'indicacoes', label:'Indicações', ic:'🔗'},
   {id:'dashboard', label:'Dashboard', ic:'📊'},
   {id:'agenda', label:'Agenda', ic:'🗓️'},
@@ -2272,6 +2492,10 @@ function labelComBadge(route){
   }
   if(route.id==='posvendas'){
     const n = filaPosVenda().length;
+    return n>0 ? `${route.label} (${n})` : route.label;
+  }
+  if(route.id==='recorrencia'){
+    const n = contarRecorrenciasUrgentes();
     return n>0 ? `${route.label} (${n})` : route.label;
   }
   return route.label;
@@ -2332,6 +2556,7 @@ function render(){
     kanban: renderKanban,
     whatsapp: renderWhatsapp,     // [V2]
     posvendas: renderPosVendas,   // [V2]
+    recorrencia: renderRecorrencia, // [Recorrência]
     indicacoes: renderIndicacoes,
     dashboard: renderDashboard,
     agenda: renderAgenda,
@@ -2390,6 +2615,19 @@ function bindGlobalEvents(){
   });
   document.querySelectorAll('[data-ver-paciente]').forEach(el=>{
     el.addEventListener('click', (e)=>{ e.stopPropagation(); abrirPaciente(el.dataset.verPaciente); });
+  });
+  // [Recorrência] "Abrir na Recorrência" — navegação contextual reaproveitando
+  // ROUTE_PARAM (já existia, não usado até agora) em vez de criar um segundo
+  // sistema de navegação paralelo. Ver renderRecorrencia() para o consumo.
+  document.querySelectorAll('[data-abrir-recorrencia]').forEach(el=>{
+    el.addEventListener('click', (e)=>{
+      e.stopPropagation();
+      closeModal();
+      navigate('recorrencia', { cicloId: el.dataset.abrirRecorrencia, pacienteId: el.dataset.abrirRecorrenciaPaciente });
+    });
+  });
+  document.querySelectorAll('[data-ir-para-config]').forEach(el=>{
+    el.addEventListener('click', (e)=>{ e.stopPropagation(); closeModal(); navigate('config'); });
   });
 
   // [V2.1] Conclusão explícita de ações comerciais — nunca automática só
@@ -2590,6 +2828,12 @@ function openPacienteModal(paciente){
   const origensDisponiveis = (p.origem && !DB.origens.includes(p.origem)) ? [...DB.origens, p.origem] : DB.origens;
   const motivosDisponiveis = (p.motivoPerda && !DB.motivosPerda.includes(p.motivoPerda)) ? [...DB.motivosPerda, p.motivoPerda] : DB.motivosPerda;
 
+  // [Recorrência] Bloco 05 do modal — 100% Supabase, sem equivalente em
+  // modo local (ver item 29/compatibilidade local do pedido).
+  const modoSupabaseAtivo = typeof MODO_SUPABASE !== 'undefined' && MODO_SUPABASE;
+  const cicloAtivoRecorrencia = (modoSupabaseAtivo && !isNew) ? cicloAtivoDoPaciente(p.id) : null;
+  const tiposRecorrenciaAtivos = modoSupabaseAtivo ? (DB.tiposRecorrenciaTodos||[]).filter(t=>t.ativo) : [];
+
   const modalRoot = document.getElementById('modal-root');
   modalRoot.innerHTML = `
   <div class="modal-backdrop" data-close-backdrop>
@@ -2706,6 +2950,66 @@ function openPacienteModal(paciente){
           <section class="form-secao">
             <header class="form-secao-head">
               <span class="form-secao-num">05</span>
+              <div>
+                <h4 class="form-secao-titulo">Recorrência</h4>
+                <p class="form-secao-sub">Pacientes que retornam periodicamente (manutenção, limpeza, acompanhamento)</p>
+              </div>
+            </header>
+            <div class="form-secao-body">
+              ${!modoSupabaseAtivo ? `
+                <p class="muted small" style="margin:0;">Este recurso depende da conexão com o Supabase e não está disponível no modo local.</p>
+              ` : cicloAtivoRecorrencia ? `
+                <div class="pill" style="background:var(--success-bg);color:var(--success);margin-bottom:10px;">Recorrência ativa</div>
+                <div class="grid cols-2">
+                  <div><span class="lbl" style="display:block;">Tipo</span>${escapeHtml(cicloAtivoRecorrencia.tipoNome)}</div>
+                  <div><span class="lbl" style="display:block;">Responsável</span>${escapeHtml(cicloAtivoRecorrencia.responsavelNome||'—')}</div>
+                </div>
+                <p class="small" style="margin:10px 0 0;"><b>Próximo retorno:</b> ${fmtData(cicloAtivoRecorrencia.proximoRetorno)}</p>
+                <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;">
+                  <button type="button" class="btn sm gold" data-abrir-recorrencia="${cicloAtivoRecorrencia.id}" data-abrir-recorrencia-paciente="${p.id}">Abrir na Recorrência</button>
+                </div>
+                <p class="muted small" style="margin:10px 0 0;">Para registrar um retorno ou encerrar este ciclo, use a tela Recorrência — não é possível iniciar um segundo ciclo enquanto este estiver ativo.</p>
+              ` : `
+                <label class="field"><span class="lbl">Paciente recorrente?</span>
+                  <select name="recorrente" data-gate="recorrente">
+                    <option value="Não" selected>Não</option>
+                    <option value="Sim">Sim</option>
+                  </select>
+                </label>
+                <div data-grupo="camposRecorrencia" hidden>
+                  ${tiposRecorrenciaAtivos.length? `
+                    <div class="grid cols-2">
+                      <label class="field"><span class="lbl">Tipo de recorrência</span>
+                        <select name="recorrenciaTipo">
+                          <option value="">—</option>
+                          ${tiposRecorrenciaAtivos.map(t=>`<option value="${t.id}">${escapeHtml(t.nome)}</option>`).join('')}
+                        </select>
+                      </label>
+                      <label class="field"><span class="lbl">Responsável</span>
+                        <select name="recorrenciaResponsavel">
+                          <option value="">—</option>
+                          ${DB.responsaveis.map(r=>`<option ${p.responsavel===r?'selected':''}>${escapeHtml(r)}</option>`).join('')}
+                        </select>
+                      </label>
+                    </div>
+                    <div class="grid cols-2">
+                      <label class="field"><span class="lbl">Data de início</span><input type="date" name="recorrenciaDataInicio" value="${hojeCivilClinica()}"></label>
+                      <label class="field"><span class="lbl">Próximo retorno previsto</span><input type="date" name="recorrenciaProximoRetorno"></label>
+                    </div>
+                  ` : `
+                    <div class="small" style="background:var(--warn-bg);color:var(--warn);padding:10px 12px;border-radius:8px;">
+                      Cadastre primeiro um Tipo de Recorrência em Configurações.
+                      <button type="button" class="btn sm ghost" data-ir-para-config style="margin-left:6px;">Ir para Configurações</button>
+                    </div>
+                  `}
+                </div>
+              `}
+            </div>
+          </section>
+
+          <section class="form-secao">
+            <header class="form-secao-head">
+              <span class="form-secao-num">06</span>
               <div><h4 class="form-secao-titulo">Observações</h4></div>
             </header>
             <div class="form-secao-body">
@@ -2843,6 +3147,18 @@ function aplicarCondicionaisPacienteModal(modalRoot){
   };
   if(selFechou){ selFechou.addEventListener('change', atualizarFechamento); atualizarFechamento(); }
   if(selMarcou){ selMarcou.addEventListener('change', atualizarFechamento); }
+
+  // [Recorrência] Só existe no DOM quando o paciente NÃO tem ciclo ativo
+  // (ver bloco 05 em openPacienteModal) — quando há ciclo ativo, o bloco é
+  // só leitura e este seletor nem é renderizado, então os querySelector
+  // abaixo retornam null e o `if` seguinte não faz nada.
+  const selRecorrente = form.querySelector('[data-gate="recorrente"]');
+  const grpRecorrencia = form.querySelector('[data-grupo="camposRecorrencia"]');
+  if(selRecorrente && grpRecorrencia){
+    const atualizarRecorrente = ()=>{ grpRecorrencia.hidden = selRecorrente.value !== 'Sim'; };
+    selRecorrente.addEventListener('change', atualizarRecorrente);
+    atualizarRecorrente();
+  }
 }
 function closeModal(){ document.getElementById('modal-root').innerHTML=''; }
 
@@ -2934,6 +3250,24 @@ async function salvarPacienteSupabase(form, fd, procedimentosSelecionados, p, is
     .map(nomeSel => ((DB.procedimentosTodos||DB.procedimentos).find(x=>x.nome===nomeSel) || {}).id)
     .filter(Boolean);
 
+  // [Recorrência] Campo só existe no formulário quando o bloco 05 estava em
+  // modo "toggle" (sem ciclo ativo) — vem null quando o paciente já tem
+  // ciclo ativo (bloco só leitura) ou em modo local (bloco não oferece o
+  // campo). Novo Paciente: vai dentro da MESMA chamada RPC (atômico —
+  // item 20). Paciente existente: chamada separada depois do save
+  // (item 21), tratada ao final desta função.
+  const recorrente = fd.get('recorrente');
+  const recorrenciaTipoId = fd.get('recorrenciaTipo');
+  const recorrenciaDataInicio = fd.get('recorrenciaDataInicio');
+  const recorrenciaProximoRetorno = fd.get('recorrenciaProximoRetorno');
+  const recorrenciaResponsavelNome = fd.get('recorrenciaResponsavel') || '';
+  if(recorrente === 'Sim' && (!recorrenciaTipoId || !recorrenciaDataInicio || !recorrenciaProximoRetorno)){
+    // Validação ANTES de desabilitar o botão/chamar qualquer RPC — nada foi
+    // enviado ainda, o modal continua exatamente como estava.
+    toast('Preencha tipo, data de início e próximo retorno para iniciar a recorrência.');
+    return;
+  }
+
   const payload = {
     p_nome: nome,
     p_telefone_original: telefoneOriginal,
@@ -2963,6 +3297,19 @@ async function salvarPacienteSupabase(form, fd, procedimentosSelecionados, p, is
   // fora do escopo desta rodada (indicações ficam para outra etapa).
   if(!isNew) payload.p_paciente_id = p.id;
 
+  // [Recorrência — item 20] Novo Paciente + recorrente=Sim: parâmetros
+  // opcionais já existentes na RPC homologada — MESMA chamada, atômica.
+  // Se a recorrência falhar (ex: tipo inválido), toda a função no banco
+  // sofre rollback — o paciente também não fica criado. Não criamos
+  // paciente numa chamada e ciclo noutra.
+  if(isNew && recorrente === 'Sim'){
+    payload.p_recorrente_inicial = true;
+    payload.p_recorrencia_tipo_id = recorrenciaTipoId;
+    payload.p_recorrencia_data_inicio = recorrenciaDataInicio;
+    payload.p_recorrencia_proximo_retorno = recorrenciaProximoRetorno;
+    payload.p_recorrencia_responsavel_id = refsBase.responsaveisPorNome[recorrenciaResponsavelNome] || null;
+  }
+
   const btnSalvar = form.querySelector('[data-btn-salvar]');
   const textoOriginalBtn = btnSalvar ? btnSalvar.textContent : '';
   if(btnSalvar){ btnSalvar.disabled = true; btnSalvar.textContent = 'Salvando…'; }
@@ -2987,6 +3334,36 @@ async function salvarPacienteSupabase(form, fd, procedimentosSelecionados, p, is
   const pacienteAtualizado = mapPacienteSupabaseParaCRM(data, refsComProcedimentos);
   const idx = DB.pacientes.findIndex(x=>x.id===pacienteAtualizado.id);
   if(idx>=0) DB.pacientes[idx] = pacienteAtualizado; else DB.pacientes.push(pacienteAtualizado);
+
+  // [Recorrência] Novo Paciente + recorrente=Sim: o ciclo foi criado
+  // ATOMICAMENTE pela mesma chamada acima (criar_paciente_com_procedimentos),
+  // mas o cache local DB.ciclosRecorrencia só sabe disso depois de recarregar
+  // — sem isso, cicloAtivoDoPaciente() não encontraria o ciclo recém-criado
+  // até o próximo reload completo da página.
+  if(isNew && recorrente === 'Sim'){
+    await recarregarCiclosRecorrenciaSupabase();
+  }
+
+  // [Recorrência — item 21] Paciente EXISTENTE sem ciclo ativo + recorrente=Sim:
+  // chamada SEPARADA (iniciar_ciclo_recorrencia), depois do paciente já
+  // salvo com sucesso — não atomiza com a edição geral do paciente (decisão
+  // já aprovada). Importante: um erro aqui é SÓ da recorrência — o
+  // paciente já foi salvo, a mensagem nunca pode sugerir o contrário.
+  if(!isNew && recorrente === 'Sim'){
+    const resultadoCiclo = await iniciarCicloRecorrencia({
+      pacienteId: pacienteAtualizado.id,
+      tipoId: recorrenciaTipoId,
+      dataInicio: recorrenciaDataInicio,
+      proximoRetorno: recorrenciaProximoRetorno,
+      responsavelId: refsBase.responsaveisPorNome[recorrenciaResponsavelNome] || null,
+    });
+    if(!resultadoCiclo.ok){
+      closeModal();
+      render();
+      toast('Paciente salvo, mas não foi possível iniciar a recorrência. Edite o paciente novamente para tentar.');
+      return;
+    }
+  }
 
   closeModal();
   render();
@@ -3987,6 +4364,306 @@ function bindPosVendasEvents(){
 }
 
 /* ============================================================
+   10b) RECORRÊNCIA — fila operacional de pacientes que precisam retornar
+   ------------------------------------------------------------
+   Não é um segundo Kanban: 5 categorias mutuamente exclusivas, só a
+   categoria selecionada é renderizada por vez (ver filtroRecorrenciaCategoria,
+   classificarCicloRecorrencia() e demais funções de dados já definidas
+   antes do roteamento). 100% Supabase — em modo local mostra estado
+   indisponível (item 29 do pedido), sem persistência paralela.
+   ============================================================ */
+function cardRecorrencia(ciclo){
+  const categoria = filtroRecorrenciaCategoria;
+  const destaque = destacarCicloRecorrenciaId===ciclo.id;
+  const respTipo = [ciclo.tipoNome, ciclo.responsavelNome].filter(Boolean).join(' · ');
+  const acoesAtivas = categoria!=='finalizados';
+
+  let situacaoHtml = '';
+  if(categoria==='atrasados'){
+    const dias = diasEntre(ciclo.proximoRetorno, hojeCivilClinica());
+    situacaoHtml = `<span class="badge-status" style="background:var(--danger-bg);color:var(--danger);">Atraso: ${dias} dia${dias===1?'':'s'}</span>`;
+  } else if(categoria==='hoje'){
+    situacaoHtml = `<span class="badge-status" style="background:var(--info-bg);color:var(--info);">Retorno previsto para hoje</span>`;
+  } else if(categoria==='proximos7'){
+    const dias = diasEntre(hojeCivilClinica(), ciclo.proximoRetorno);
+    situacaoHtml = `<span class="badge-status" style="background:var(--warn-bg);color:var(--warn);">Retorno em ${dias} dia${dias===1?'':'s'}</span>`;
+  } else if(categoria==='emdia'){
+    situacaoHtml = `<span class="muted small">Previsto: ${fmtData(ciclo.proximoRetorno)}</span>`;
+  } else if(categoria==='finalizados'){
+    situacaoHtml = `<span class="badge-status" style="background:var(--ink-100);color:var(--text-muted);">Encerrado em ${fmtData(ciclo.dataEncerramento)}</span>`;
+  }
+
+  return `
+  <div class="recorrencia-card ${destaque?'destaque':''}" data-ciclo-recorrencia="${ciclo.id}">
+    <div class="info">
+      <div class="nm">${escapeHtml(ciclo.pacienteNome)}</div>
+      ${respTipo? `<div class="meta">${escapeHtml(respTipo)}</div>` : ''}
+      ${categoria!=='finalizados'? `<div class="meta">Previsto: ${fmtData(ciclo.proximoRetorno)}</div>` : ''}
+      <div class="situacao">${situacaoHtml}</div>
+      ${categoria==='finalizados' && ciclo.motivoEncerramento? `<div class="meta">${escapeHtml(ciclo.motivoEncerramento)}${ciclo.observacaoEncerramento? ' — '+escapeHtml(ciclo.observacaoEncerramento) : ''}</div>` : ''}
+    </div>
+    <div class="acoes">
+      ${acoesAtivas? `
+        <button class="btn sm ghost" data-wa-paciente="${ciclo.pacienteId}">WhatsApp</button>
+        <button class="btn sm ghost" data-rec-historico="${ciclo.id}">Ver histórico</button>
+        <button class="btn sm ghost" data-rec-finalizar="${ciclo.id}">Finalizar recorrência</button>
+        <button class="btn sm primary" data-rec-retorno="${ciclo.id}">Registrar retorno</button>
+      ` : `
+        <button class="btn sm ghost" data-ver-paciente="${ciclo.pacienteId}">Abrir paciente</button>
+        <button class="btn sm ghost" data-rec-historico="${ciclo.id}">Ver histórico</button>
+      `}
+    </div>
+  </div>`;
+}
+
+function renderRecorrencia(){
+  if(!(typeof MODO_SUPABASE !== 'undefined' && MODO_SUPABASE)){
+    return `
+    <div class="card">
+      <h3 style="margin-bottom:2px;">Recorrência de Pacientes</h3>
+      <p class="muted small" style="margin:0 0 16px;">Acompanhe pacientes que precisam retornar à clínica e priorize quem deve ser contatado.</p>
+      <div class="empty">Este módulo depende da conexão com o Supabase e não está disponível no modo local (dados salvos só neste navegador).</div>
+    </div>`;
+  }
+
+  // [Navegação contextual] "Abrir na Recorrência" (ver ROUTE_PARAM em
+  // navigate()) — consumido uma única vez: seleciona a categoria real do
+  // ciclo e destaca o card, depois zera para não repetir num próximo
+  // acesso pela barra lateral.
+  if(ROUTE_PARAM && ROUTE_PARAM.cicloId){
+    const alvo = (DB.ciclosRecorrencia||[]).find(c=>c.id===ROUTE_PARAM.cicloId);
+    if(alvo){
+      filtroRecorrenciaCategoria = classificarCicloRecorrencia(alvo);
+      destacarCicloRecorrenciaId = alvo.id;
+    }
+    ROUTE_PARAM = null;
+  }
+
+  const grupos = agruparCiclosRecorrenciaPorCategoria();
+  const itens = ordenarCategoriaRecorrencia(filtroRecorrenciaCategoria, grupos[filtroRecorrenciaCategoria]||[]);
+
+  return `
+  <div class="card">
+    <h3 style="margin-bottom:2px;">Recorrência de Pacientes</h3>
+    <p class="muted small" style="margin:0 0 16px;">Acompanhe pacientes que precisam retornar à clínica e priorize quem deve ser contatado.</p>
+
+    <div class="indicadores-recorrencia">
+      ${CATEGORIAS_RECORRENCIA.map(cat=>`
+        <div class="indicador-recorrencia ${filtroRecorrenciaCategoria===cat.id?'ativo':''}" data-recorrencia-categoria="${cat.id}">
+          <div class="lbl">${cat.label}</div>
+          <div class="val">${grupos[cat.id].length}</div>
+        </div>`).join('')}
+    </div>
+
+    ${itens.length? itens.map(cardRecorrencia).join('') : `<div class="empty">Nenhum paciente nesta categoria.</div>`}
+  </div>`;
+}
+
+// Mini-modal: Registrar retorno. Mesmo padrão de mostrarConfirmacaoTelefoneDuplicado
+// (overlay próprio, resolve com valores ou null se cancelado).
+function abrirModalRegistrarRetorno(ciclo){
+  return new Promise(resolve=>{
+    const hoje = hojeCivilClinica();
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-backdrop';
+    overlay.innerHTML = `
+      <div class="modal" style="max-width:440px;">
+        <div class="modal-head">
+          <h3>Registrar retorno</h3>
+          <button type="button" class="modal-close" data-rr-close>✕</button>
+        </div>
+        <form id="form-registrar-retorno">
+          <div class="modal-body">
+            <p class="muted small" style="margin-top:0;">Paciente: <b>${escapeHtml(ciclo.pacienteNome)}</b></p>
+            <label class="field"><span class="lbl">Data do retorno realizado</span><input type="date" name="dataRetorno" value="${hoje}" required></label>
+            <label class="field"><span class="lbl">Próximo retorno previsto</span><input type="date" name="proximoRetorno" required></label>
+            <label class="field"><span class="lbl">Observação <span class="muted" style="text-transform:none;font-weight:500;">(opcional)</span></span><textarea name="observacao" rows="2"></textarea></label>
+          </div>
+          <div class="modal-foot">
+            <button type="button" class="btn ghost" data-rr-close>Cancelar</button>
+            <button type="submit" class="btn primary">Registrar retorno</button>
+          </div>
+        </form>
+      </div>`;
+    document.body.appendChild(overlay);
+    const finalizar = (v)=>{ overlay.remove(); resolve(v); };
+    overlay.addEventListener('click', (e)=>{ if(e.target===overlay) finalizar(null); });
+    overlay.querySelectorAll('[data-rr-close]').forEach(el=>el.addEventListener('click', ()=>finalizar(null)));
+    overlay.querySelector('#form-registrar-retorno').addEventListener('submit', (e)=>{
+      e.preventDefault();
+      const fd = new FormData(e.target);
+      finalizar({
+        dataRetorno: fd.get('dataRetorno'),
+        proximoRetorno: fd.get('proximoRetorno'),
+        observacao: (fd.get('observacao')||'').trim() || null,
+      });
+    });
+  });
+}
+
+// Mini-modal: Finalizar recorrência. Valida "Outro exige observação" no
+// próprio frontend (mesma regra já protegida no banco — defesa em
+// profundidade, mensagem amigável antes de chamar a RPC).
+function abrirModalFinalizarRecorrencia(ciclo){
+  return new Promise(resolve=>{
+    const hoje = hojeCivilClinica();
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-backdrop';
+    overlay.innerHTML = `
+      <div class="modal" style="max-width:440px;">
+        <div class="modal-head">
+          <h3>Finalizar recorrência</h3>
+          <button type="button" class="modal-close" data-fr-close>✕</button>
+        </div>
+        <form id="form-finalizar-recorrencia">
+          <div class="modal-body">
+            <p class="muted small" style="margin-top:0;">Paciente: <b>${escapeHtml(ciclo.pacienteNome)}</b></p>
+            <label class="field"><span class="lbl">Data de encerramento</span><input type="date" name="dataEncerramento" value="${hoje}" required></label>
+            <label class="field"><span class="lbl">Motivo</span>
+              <select name="motivo" data-fr-motivo required>
+                <option value="">—</option>
+                ${MOTIVOS_ENCERRAMENTO_RECORRENCIA.map(m=>`<option value="${escapeHtml(m)}">${escapeHtml(m)}</option>`).join('')}
+              </select>
+            </label>
+            <label class="field"><span class="lbl">Observação de encerramento <span class="muted" data-fr-obs-opcional style="text-transform:none;font-weight:500;">(opcional)</span></span><textarea name="observacaoEncerramento" rows="2"></textarea></label>
+          </div>
+          <div class="modal-foot">
+            <button type="button" class="btn ghost" data-fr-close>Cancelar</button>
+            <button type="submit" class="btn primary">Finalizar recorrência</button>
+          </div>
+        </form>
+      </div>`;
+    document.body.appendChild(overlay);
+    const finalizar = (v)=>{ overlay.remove(); resolve(v); };
+    overlay.addEventListener('click', (e)=>{ if(e.target===overlay) finalizar(null); });
+    overlay.querySelectorAll('[data-fr-close]').forEach(el=>el.addEventListener('click', ()=>finalizar(null)));
+    const selMotivo = overlay.querySelector('[data-fr-motivo]');
+    const lblObsOpcional = overlay.querySelector('[data-fr-obs-opcional]');
+    selMotivo.addEventListener('change', ()=>{ lblObsOpcional.style.display = selMotivo.value==='Outro' ? 'none' : ''; });
+    overlay.querySelector('#form-finalizar-recorrencia').addEventListener('submit', (e)=>{
+      e.preventDefault();
+      const fd = new FormData(e.target);
+      const motivo = fd.get('motivo');
+      const observacaoEncerramento = (fd.get('observacaoEncerramento')||'').trim();
+      if(!motivo){ toast('Selecione o motivo do encerramento.'); return; }
+      if(motivo==='Outro' && !observacaoEncerramento){
+        toast('Ao selecionar "Outro", é obrigatório informar uma observação de encerramento.');
+        return;
+      }
+      finalizar({ dataEncerramento: fd.get('dataEncerramento'), motivo, observacaoEncerramento: observacaoEncerramento || null });
+    });
+  });
+}
+
+// Mini-modal: Ver histórico — só leitura, sem edição/exclusão de
+// registros históricos (item 17 do pedido).
+function abrirModalHistoricoCiclo(ciclo){
+  const retornos = (DB._retornosRecorrenciaSupabase||[])
+    .filter(r=>r.cicloId===ciclo.id)
+    .sort((a,b)=> a.dataRetornoRealizado < b.dataRetornoRealizado ? -1 : 1);
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-backdrop';
+  overlay.innerHTML = `
+    <div class="modal" style="max-width:540px;">
+      <div class="modal-head">
+        <h3>Histórico do ciclo</h3>
+        <button type="button" class="modal-close" data-hc-close>✕</button>
+      </div>
+      <div class="modal-body">
+        <p class="muted small" style="margin-top:0;">
+          <b>${escapeHtml(ciclo.pacienteNome)}</b> · ${escapeHtml(ciclo.tipoNome)}${ciclo.responsavelNome? ` · ${escapeHtml(ciclo.responsavelNome)}` : ''}<br>
+          Início do ciclo: ${fmtData(ciclo.dataInicio)}
+        </p>
+        ${retornos.length? `
+          <div class="table-wrap"><table>
+            <thead><tr><th>Retorno realizado</th><th>Próximo definido</th><th>Observação</th></tr></thead>
+            <tbody>
+              ${retornos.map(r=>`<tr>
+                <td>${fmtData(r.dataRetornoRealizado)}</td>
+                <td>${fmtData(r.proximoRetornoDefinido)}</td>
+                <td>${escapeHtml(r.observacao||'—')}</td>
+              </tr>`).join('')}
+            </tbody>
+          </table></div>
+        ` : `<div class="empty">Nenhum retorno registrado ainda neste ciclo.</div>`}
+        ${ciclo.status==='finalizado'? `
+          <hr class="hr">
+          <p class="small" style="margin:0;"><b>Encerrado em ${fmtData(ciclo.dataEncerramento)}</b> — ${escapeHtml(ciclo.motivoEncerramento||'')}</p>
+          ${ciclo.observacaoEncerramento? `<p class="small muted" style="margin:4px 0 0;">${escapeHtml(ciclo.observacaoEncerramento)}</p>` : ''}
+        ` : ''}
+      </div>
+      <div class="modal-foot">
+        <button type="button" class="btn ghost" data-hc-close>Fechar</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+  const fechar = ()=>overlay.remove();
+  overlay.addEventListener('click', (e)=>{ if(e.target===overlay) fechar(); });
+  overlay.querySelectorAll('[data-hc-close]').forEach(el=>el.addEventListener('click', fechar));
+}
+
+function bindRecorrenciaEvents(){
+  document.querySelectorAll('[data-recorrencia-categoria]').forEach(el=>{
+    el.addEventListener('click', ()=>{
+      filtroRecorrenciaCategoria = el.dataset.recorrenciaCategoria;
+      render();
+    });
+  });
+
+  document.querySelectorAll('[data-rec-retorno]').forEach(el=>{
+    el.addEventListener('click', async ()=>{
+      const ciclo = (DB.ciclosRecorrencia||[]).find(c=>c.id===el.dataset.recRetorno);
+      if(!ciclo) return;
+      const valores = await abrirModalRegistrarRetorno(ciclo);
+      if(!valores) return;
+      if(!valores.proximoRetorno){ toast('Informe o próximo retorno previsto.'); return; }
+      const resultado = await registrarRetornoRecorrencia({
+        cicloId: ciclo.id, dataRetorno: valores.dataRetorno,
+        proximoRetorno: valores.proximoRetorno, observacao: valores.observacao,
+      });
+      if(!resultado.ok){ toast('Não foi possível registrar o retorno. Tente novamente.'); return; }
+      // [item 14.5] categoria é recalculada a cada render a partir de
+      // DB.ciclosRecorrencia recarregado — o paciente some sozinho da
+      // categoria atual se a nova data mudar sua classificação.
+      render();
+      toast('Retorno registrado.');
+    });
+  });
+
+  document.querySelectorAll('[data-rec-finalizar]').forEach(el=>{
+    el.addEventListener('click', async ()=>{
+      const ciclo = (DB.ciclosRecorrencia||[]).find(c=>c.id===el.dataset.recFinalizar);
+      if(!ciclo) return;
+      const valores = await abrirModalFinalizarRecorrencia(ciclo);
+      if(!valores) return;
+      const resultado = await finalizarCicloRecorrencia({
+        cicloId: ciclo.id, dataEncerramento: valores.dataEncerramento,
+        motivo: valores.motivo, observacaoEncerramento: valores.observacaoEncerramento,
+      });
+      if(!resultado.ok){ toast('Não foi possível finalizar a recorrência. Tente novamente.'); return; }
+      filtroRecorrenciaCategoria = 'finalizados'; // segue o paciente até onde ele foi
+      render();
+      toast('Recorrência finalizada.');
+    });
+  });
+
+  document.querySelectorAll('[data-rec-historico]').forEach(el=>{
+    el.addEventListener('click', ()=>{
+      const ciclo = (DB.ciclosRecorrencia||[]).find(c=>c.id===el.dataset.recHistorico);
+      if(ciclo) abrirModalHistoricoCiclo(ciclo);
+    });
+  });
+
+  // Destaque do deep-link "Abrir na Recorrência" — rola até o card uma
+  // única vez (destacarCicloRecorrenciaId já foi consumido em renderRecorrencia()).
+  if(destacarCicloRecorrenciaId){
+    const el = document.querySelector(`[data-ciclo-recorrencia="${destacarCicloRecorrenciaId}"]`);
+    if(el) el.scrollIntoView({ block:'center', behavior:'smooth' });
+    destacarCicloRecorrenciaId = null;
+  }
+}
+
+/* ============================================================
    11) CONFIGURAÇÕES
    ============================================================ */
 // [Limpeza Supabase] Em modo Supabase, Configurações é somente leitura e
@@ -4029,6 +4706,7 @@ function renderConfigSupabase(){
   const procedimentosTodos = (DB.procedimentosTodos||[]).slice().sort((a,b)=>(a.nome||'').localeCompare(b.nome||''));
   const origensTodas = (DB.origensTodas||[]).slice().sort((a,b)=>(a.nome||'').localeCompare(b.nome||''));
   const motivosTodos = (DB.motivosPerdaTodas||[]).slice().sort((a,b)=>(a.nome||'').localeCompare(b.nome||''));
+  const tiposRecorrenciaTodos = (DB.tiposRecorrenciaTodos||[]).slice().sort((a,b)=>(a.nome||'').localeCompare(b.nome||''));
 
   return `
   <div class="grid cols-2">
@@ -4131,6 +4809,31 @@ function renderConfigSupabase(){
               <button class="btn sm ${m.ativo?'danger':'gold'}" data-cfg-toggle="motivo" data-id="${m.id}" data-ativo="${m.ativo}">${m.ativo?'Desativar':'Reativar'}</button>
             </td>` : ''}
           </tr>`).join('') : `<tr><td class="empty" colspan="${isAdmin?3:2}">Nenhum motivo cadastrado.</td></tr>`}
+        </tbody>
+      </table>
+      </div>
+    </div>
+
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <h3>Tipos de Recorrência</h3>
+        ${isAdmin? `<button class="btn sm gold" data-cfg-add="tipo_recorrencia">+ Adicionar</button>` : ''}
+      </div>
+      <p class="muted small" style="margin-top:-4px;">Usados no bloco "Recorrência" do cadastro de paciente (manutenção ortodôntica, limpeza periódica, acompanhamento, etc.).</p>
+      <div class="table-wrap">
+      <table>
+        <thead><tr><th>Nome</th><th>Frequência sugerida</th><th>Situação</th>${isAdmin?'<th>Ações</th>':''}</tr></thead>
+        <tbody>
+        ${tiposRecorrenciaTodos.length? tiposRecorrenciaTodos.map(t=>`
+          <tr>
+            <td>${escapeHtml(t.nome)}</td>
+            <td>${t.frequenciaDias!=null? `${t.frequenciaDias} dia${t.frequenciaDias===1?'':'s'}` : '—'}</td>
+            <td>${badgeAtivo(t.ativo)}</td>
+            ${isAdmin? `<td style="white-space:nowrap;display:flex;gap:6px;">
+              <button class="btn sm ghost" data-cfg-edit="tipo_recorrencia" data-id="${t.id}">Editar</button>
+              <button class="btn sm ${t.ativo?'danger':'gold'}" data-cfg-toggle="tipo_recorrencia" data-id="${t.id}" data-ativo="${t.ativo}">${t.ativo?'Desativar':'Reativar'}</button>
+            </td>` : ''}
+          </tr>`).join('') : `<tr><td class="empty" colspan="${isAdmin?4:3}">Nenhum tipo de recorrência cadastrado.</td></tr>`}
         </tbody>
       </table>
       </div>
@@ -4339,9 +5042,15 @@ async function editarPessoaSupabase(id){
 // Fábrica de CRUD para procedimentos/origens/motivos — as 3 tabelas têm a
 // mesma forma (clinica_id, nome, ativo), só procedimentos tem valor_medio
 // a mais. Evita escrever a mesma função 3 vezes.
-function criarCrudTabelaConfig(tabela, { comValor } = {}){
+// [Recorrência] `campoExtra` generaliza a fábrica para um 2º campo numérico
+// qualquer (além de `comValor`, específico de Procedimentos) — usado por
+// Tipos de Recorrência (frequência sugerida em dias). Opcional e
+// retrocompatível: Procedimentos/Origens/Motivos continuam exatamente como
+// antes (campoExtra undefined não muda nada do comportamento deles).
+function criarCrudTabelaConfig(tabela, { comValor, campoExtra } = {}){
   const campos = [{ name:'nome', label:'Nome', required:true }];
   if(comValor) campos.push({ name:'valorMedio', label:'Valor médio (R$)', type:'number', step:'0.01' });
+  if(campoExtra) campos.push({ name:campoExtra.name, label:campoExtra.label, type:'number' });
 
   return {
     async adicionar(){
@@ -4350,6 +5059,7 @@ function criarCrudTabelaConfig(tabela, { comValor } = {}){
       if(!valores.nome || !valores.nome.trim()){ toast('Informe o nome.'); return; }
       const payload = { clinica_id: DB.usuarioAtual.clinicaId, nome: valores.nome.trim(), ativo: true };
       if(comValor) payload.valor_medio = valores.valorMedio? parseFloat(valores.valorMedio) : 0;
+      if(campoExtra) payload[campoExtra.column] = valores[campoExtra.name]? parseInt(valores[campoExtra.name],10) : null;
       const { error } = await window.moriSupabase.from(tabela).insert(payload);
       if(error){ console.error(`Falha ao adicionar em ${tabela}.`, error); toast('Não foi possível adicionar. Tente novamente.'); return; }
       await recarregarListasConfigSupabase();
@@ -4357,11 +5067,14 @@ function criarCrudTabelaConfig(tabela, { comValor } = {}){
       toast('Adicionado com sucesso.');
     },
     async editar(id, atual){
-      const valores = await abrirModalFormulario(`Editar`, campos, { nome: atual.nome, valorMedio: atual.valorMedio });
+      const valoresIniciais = { nome: atual.nome, valorMedio: atual.valorMedio };
+      if(campoExtra) valoresIniciais[campoExtra.name] = atual[campoExtra.name];
+      const valores = await abrirModalFormulario(`Editar`, campos, valoresIniciais);
       if(!valores) return;
       if(!valores.nome || !valores.nome.trim()){ toast('Informe o nome.'); return; }
       const payload = { nome: valores.nome.trim() };
       if(comValor) payload.valor_medio = valores.valorMedio? parseFloat(valores.valorMedio) : 0;
+      if(campoExtra) payload[campoExtra.column] = valores[campoExtra.name]? parseInt(valores[campoExtra.name],10) : null;
       const { error } = await window.moriSupabase.from(tabela).update(payload).eq('id', id);
       if(error){ console.error(`Falha ao editar em ${tabela}.`, error); toast('Não foi possível salvar. Tente novamente.'); return; }
       await recarregarListasConfigSupabase();
@@ -4381,6 +5094,11 @@ function criarCrudTabelaConfig(tabela, { comValor } = {}){
 const crudProcedimentos = criarCrudTabelaConfig('procedimentos', { comValor:true });
 const crudOrigens = criarCrudTabelaConfig('origens_lead');
 const crudMotivos = criarCrudTabelaConfig('motivos_perda');
+// [Recorrência] Mesmo padrão operacional de Procedimentos/Origens/Motivos —
+// nenhuma exclusão física, só ativo/inativo (item 25 do pedido).
+const crudTiposRecorrencia = criarCrudTabelaConfig('tipos_recorrencia', {
+  campoExtra: { name:'frequenciaDias', label:'Frequência sugerida em dias (opcional)', column:'frequencia_sugerida_dias' },
+});
 
 function bindConfigEventsSupabase(){
   // Exportação é visível/permitida para qualquer usuário autenticado (não é
@@ -4398,6 +5116,7 @@ function bindConfigEventsSupabase(){
       if(tipo==='procedimento') crudProcedimentos.adicionar();
       if(tipo==='origem') crudOrigens.adicionar();
       if(tipo==='motivo') crudMotivos.adicionar();
+      if(tipo==='tipo_recorrencia') crudTiposRecorrencia.adicionar();
     });
   });
   document.querySelectorAll('[data-cfg-edit]').forEach(el=>{
@@ -4408,6 +5127,7 @@ function bindConfigEventsSupabase(){
       if(tipo==='procedimento'){ const atual = (DB.procedimentosTodos||[]).find(x=>x.id===id); if(atual) crudProcedimentos.editar(id, atual); }
       if(tipo==='origem'){ const atual = (DB.origensTodas||[]).find(x=>x.id===id); if(atual) crudOrigens.editar(id, atual); }
       if(tipo==='motivo'){ const atual = (DB.motivosPerdaTodas||[]).find(x=>x.id===id); if(atual) crudMotivos.editar(id, atual); }
+      if(tipo==='tipo_recorrencia'){ const atual = (DB.tiposRecorrenciaTodos||[]).find(x=>x.id===id); if(atual) crudTiposRecorrencia.editar(id, atual); }
     });
   });
   document.querySelectorAll('[data-cfg-toggle]').forEach(el=>{
@@ -4418,6 +5138,7 @@ function bindConfigEventsSupabase(){
       if(tipo==='procedimento'){ const atual = (DB.procedimentosTodos||[]).find(x=>x.id===id); if(atual) crudProcedimentos.alternarAtivo(id, ativoAtual, atual.nome); }
       if(tipo==='origem'){ const atual = (DB.origensTodas||[]).find(x=>x.id===id); if(atual) crudOrigens.alternarAtivo(id, ativoAtual, atual.nome); }
       if(tipo==='motivo'){ const atual = (DB.motivosPerdaTodas||[]).find(x=>x.id===id); if(atual) crudMotivos.alternarAtivo(id, ativoAtual, atual.nome); }
+      if(tipo==='tipo_recorrencia'){ const atual = (DB.tiposRecorrenciaTodos||[]).find(x=>x.id===id); if(atual) crudTiposRecorrencia.alternarAtivo(id, ativoAtual, atual.nome); }
     });
   });
 }
@@ -4534,6 +5255,7 @@ function bindRouteEvents(){
   if(ROUTE==='kanban') bindKanbanEvents();
   if(ROUTE==='whatsapp') bindWhatsappEvents();     // [V2]
   if(ROUTE==='posvendas') bindPosVendasEvents();   // [V2]
+  if(ROUTE==='recorrencia') bindRecorrenciaEvents(); // [Recorrência]
   if(ROUTE==='indicacoes') bindIndicacoesEvents();
   if(ROUTE==='dashboard') bindDashboardEvents();
   if(ROUTE==='agenda') bindAgendaEvents();         // [V2]
@@ -4748,7 +5470,7 @@ async function carregarAposLogin(){
 // inativos, com id) ficam em DB.procedimentosTodos/origensTodas/motivosPerdaTodas,
 // usadas pela tela de Configurações e pela injeção do valor histórico do
 // paciente no modal (ver openPacienteModal).
-function aplicarListasAuxiliaresConfig(procRows, origensRows, motivosRows, profilesRows){
+function aplicarListasAuxiliaresConfig(procRows, origensRows, motivosRows, profilesRows, tiposRecorrenciaRows){
   DB.procedimentosTodos = (procRows||[]).map(p=>({ id:p.id, nome:p.nome, valorMedio:p.valor_medio ?? 0, ativo: p.ativo !== false }));
   DB.procedimentos = DB.procedimentosTodos.filter(p=>p.ativo);
   DB.origensTodas = (origensRows||[]).map(o=>({ id:o.id, nome:o.nome, ativo: o.ativo !== false }));
@@ -4756,6 +5478,9 @@ function aplicarListasAuxiliaresConfig(procRows, origensRows, motivosRows, profi
   DB.motivosPerdaTodas = (motivosRows||[]).map(m=>({ id:m.id, nome:m.nome, ativo: m.ativo !== false }));
   DB.motivosPerda = DB.motivosPerdaTodas.filter(m=>m.ativo).map(m=>m.nome);
   DB.responsaveis = (profilesRows||[]).map(p=>p.nome);
+  // [Recorrência] mesmo padrão de procedimentos/origens/motivos — lista
+  // configurável, só admin gerencia (ver Configurações).
+  DB.tiposRecorrenciaTodos = (tiposRecorrenciaRows||[]).map(t=>({ id:t.id, nome:t.nome, frequenciaDias:t.frequencia_sugerida_dias ?? null, ativo: t.ativo !== false }));
   // Lista completa de profiles (com cargo/role/ativo/auth_user_id) para a
   // tela de Configurações (Equipe) — DB.responsaveis acima guarda só os
   // nomes, que é o que os filtros/modal de Pacientes precisam.
@@ -4793,19 +5518,21 @@ async function recarregarListasConfigSupabase(){
     { data: origensRows, error: errOrig },
     { data: motivosRows, error: errMot },
     { data: profilesRows, error: errProf },
+    { data: tiposRecorrenciaRows, error: errTiposRec },
   ] = await Promise.all([
     sb.from('procedimentos').select('id, nome, valor_medio, ativo'),
     sb.from('origens_lead').select('id, nome, ativo'),
     sb.from('motivos_perda').select('id, nome, ativo'),
     sb.from('profiles').select('id, nome, cargo, role, ativo, auth_user_id'),
+    sb.from('tipos_recorrencia').select('id, nome, frequencia_sugerida_dias, ativo'),
   ]);
-  const erro = errProc || errOrig || errMot || errProf;
+  const erro = errProc || errOrig || errMot || errProf || errTiposRec;
   if(erro){
     console.error('Falha ao recarregar listas de Configurações.', erro);
     toast('Não foi possível atualizar as listas agora. Tente recarregar a página.');
     return;
   }
-  aplicarListasAuxiliaresConfig(procRows, origensRows, motivosRows, profilesRows);
+  aplicarListasAuxiliaresConfig(procRows, origensRows, motivosRows, profilesRows, tiposRecorrenciaRows);
 }
 
 async function carregarDadosSupabase(perfil){
@@ -4821,6 +5548,9 @@ async function carregarDadosSupabase(perfil){
     { data: profilesRows, error: errProf },
     { data: acoesRows, error: errAcoes },
     { data: clinicaRows, error: errClinica },
+    { data: tiposRecorrenciaRows, error: errTiposRec },
+    { data: ciclosRecorrenciaRows, error: errCiclosRec },
+    { data: retornosRecorrenciaRows, error: errRetornosRec },
   ] = await Promise.all([
     sb.from('pacientes_com_status').select('*'),
     sb.from('paciente_procedimentos').select('paciente_id, procedimento_id'),
@@ -4830,13 +5560,18 @@ async function carregarDadosSupabase(perfil){
     sb.from('profiles').select('id, nome, cargo, role, ativo, auth_user_id'),
     // [Fase A] cache de ações comerciais já concluídas — ver acaoComercialConcluida().
     sb.from('acoes_comerciais').select('paciente_id, tipo, data_elegivel, data_conclusao, observacao'),
-    // [Corte operacional] data a partir da qual a clínica gera novas
-    // pendências de Pós-Consulta — ver filaPosVenda(). RLS já restringe à
-    // própria clínica (ver_minha_clinica), por isso sempre 0 ou 1 linha.
-    sb.from('clinicas').select('id, data_inicio_acoes_comerciais'),
+    // [Corte operacional / Recorrência] data_inicio_acoes_comerciais e
+    // timezone — RLS já restringe à própria clínica (ver_minha_clinica),
+    // por isso sempre 0 ou 1 linha.
+    sb.from('clinicas').select('id, data_inicio_acoes_comerciais, timezone'),
+    // [Recorrência] lista configurável de tipos + ciclos + histórico de
+    // retornos, todos já escopados pela RLS da clínica do usuário.
+    sb.from('tipos_recorrencia').select('id, nome, frequencia_sugerida_dias, ativo'),
+    sb.from('ciclos_recorrencia').select('*'),
+    sb.from('retornos_recorrencia').select('*'),
   ]);
 
-  const erro = errPac || errPP || errProc || errOrig || errMot || errProf || errAcoes || errClinica;
+  const erro = errPac || errPP || errProc || errOrig || errMot || errProf || errAcoes || errClinica || errTiposRec || errCiclosRec || errRetornosRec;
   if(erro) throw erro;
 
   // [Supabase] Monta o DB da sessão a partir do estado padrão local — mantém
@@ -4858,7 +5593,7 @@ async function carregarDadosSupabase(perfil){
   // passam a vir do banco real — substitui as listas de exemplo
   // (SEED_ORIGENS, SEED_MOTIVOS_PERDA, ['Mariana','Natalia','Julia'],
   // SEED_PROCEDIMENTOS) que o buildInitialState() acima usou como padrão.
-  aplicarListasAuxiliaresConfig(procRows, origensRows, motivosRows, profilesRows);
+  aplicarListasAuxiliaresConfig(procRows, origensRows, motivosRows, profilesRows, tiposRecorrenciaRows);
 
   const procedimentosPorId = {};
   (procRows||[]).forEach(p=>{ procedimentosPorId[p.id] = p.nome; });
@@ -4887,6 +5622,16 @@ async function carregarDadosSupabase(perfil){
   // [Corte operacional] null = clínica ainda sem corte configurado (sem
   // alteração de comportamento — mesma coisa que antes desta correção).
   DB.dataInicioAcoesComerciais = (clinicaRows && clinicaRows[0] && clinicaRows[0].data_inicio_acoes_comerciais) || null;
+  // [Recorrência] fuso horário da clínica — usado SOMENTE por
+  // hojeCivilClinica()/classificarCicloRecorrencia(). Nunca afeta hojeISO()
+  // nem Resgate/Pós-Consulta/Agenda/Dashboard. Default local mantém a Mori
+  // funcionando mesmo antes da coluna existir numa clínica futura.
+  DB.clinicaTimezone = (clinicaRows && clinicaRows[0] && clinicaRows[0].timezone) || 'America/Sao_Paulo';
+  // [Recorrência] mapCicloSupabaseParaCRM()/mapRetornoSupabaseParaCRM() já
+  // fazem o join client-side com DB.pacientes/DB.tiposRecorrenciaTodos/
+  // DB.equipeSupabase — todos já preenchidos nesta altura da função.
+  DB.ciclosRecorrencia = (ciclosRecorrenciaRows||[]).map(mapCicloSupabaseParaCRM);
+  DB._retornosRecorrenciaSupabase = (retornosRecorrenciaRows||[]).map(mapRetornoSupabaseParaCRM);
 
   render();
   bindRouteEvents();
