@@ -106,6 +106,14 @@
 -- revalida `clinica_id` explicitamente em toda consulta/INSERT que faz
 -- (defesa em profundidade: mesmo rodando com privilégio do dono e
 -- bypassando RLS, nunca confia cegamente no que o wrapper já validou).
+-- Em particular, o próprio `p_clinica_id` recebido como parâmetro não é
+-- confiável por si só: o núcleo valida, antes de qualquer outra coisa,
+-- que existe um profile ativo do usuário autenticado (`auth.uid()`)
+-- pertencente EXATAMENTE a `p_clinica_id` — a função é segura mesmo
+-- considerando só os próprios parâmetros, sem depender de o wrapper
+-- público ter validado isso primeiro nem de `internal` não estar exposto
+-- pelo PostgREST (essas continuam valendo, mas deixam de ser a única
+-- barreira).
 -- `search_path=''` em ambas as funções, igual ao padrão do projeto.
 -- Avaliei e descartei usar SECURITY DEFINER só na função pública (sem
 -- núcleo separado): juntaria autenticação/validação de negócio com o
@@ -228,6 +236,30 @@ as $$
 declare
   v_resultado public.indicacoes;
 begin
+  -- Defesa em profundidade (item exigido explicitamente): o núcleo NÃO
+  -- confia que p_clinica_id corresponde ao usuário autenticado que
+  -- originou a chamada, mesmo sabendo que o único chamador atual
+  -- (public.registrar_indicacao) já deriva clinica_id corretamente via
+  -- auth.uid()->profiles antes de chamar esta função. A função
+  -- privilegiada precisa ser segura considerando SOMENTE seus próprios
+  -- parâmetros — não pode depender do wrapper público ter validado
+  -- corretamente, nem do fato de `internal` não estar exposto pelo
+  -- PostgREST (ambos continuam valendo, mas não são a única barreira).
+  -- Sem este bloco, qualquer código futuro com EXECUTE em `authenticated`
+  -- (o grant já existe, por necessidade do SECURITY INVOKER chamar o
+  -- DEFINER sob o papel authenticated) poderia chamar
+  -- internal.registrar_indicacao_core diretamente com um p_clinica_id
+  -- arbitrário e pacientes dessa mesma clínica arbitrária, produzindo uma
+  -- indicação válida numa clínica à qual o usuário não pertence.
+  if not exists (
+    select 1 from public.profiles
+    where auth_user_id = auth.uid()
+      and ativo = true
+      and clinica_id = p_clinica_id
+  ) then
+    raise exception 'Usuário autenticado não pertence à clínica informada.';
+  end if;
+
   -- Validação de tenant EXPLÍCITA dentro do núcleo privilegiado — nunca
   -- confia que "quem chamou já validou isso" sozinho, mesmo sendo
   -- verdade no único chamador atual (public.registrar_indicacao). Como
@@ -572,6 +604,28 @@ select * from public.registrar_indicacao(
 );
 -- Esperado: erro "Paciente indicador não encontrado ou sem permissão de acesso."
 rollback to savepoint antes_tentativa_2;
+
+-- Tentativa 3 (TESTE OBRIGATÓRIO DE DEFESA EM PROFUNDIDADE): chamada
+-- DIRETA ao núcleo privilegiado internal.registrar_indicacao_core,
+-- IGNORANDO o wrapper público — o Vitor (clínica A/Mori) passa
+-- <QA_CLINICA_B_ID> como p_clinica_id e o paciente da clínica B como
+-- paciente indicado. Isto prova que a proteção multi-tenant não depende
+-- só de public.registrar_indicacao ter derivado clinica_id corretamente
+-- — o núcleo tem que rejeitar sozinho, porque authenticated tem EXECUTE
+-- nele (necessário para o wrapper funcionar).
+savepoint antes_tentativa_3;
+select * from internal.registrar_indicacao_core(
+  p_clinica_id := '<QA_CLINICA_B_ID>',
+  p_paciente_indicado_id := '<QA_PACIENTE_CLINICA_B_ID>',
+  p_tipo_indicador := 'outro',
+  p_indicador_paciente_id := null,
+  p_indicador_nome_externo := null
+);
+-- Esperado: erro "Usuário autenticado não pertence à clínica informada."
+-- (rejeitado pelo PRÓPRIO núcleo, antes mesmo de chegar nas validações de
+-- paciente — prova que a defesa em profundidade funciona mesmo chamando
+-- o core diretamente, sem passar pelo wrapper público.)
+rollback to savepoint antes_tentativa_3;
 
 reset role;
 rollback;
