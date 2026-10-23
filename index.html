@@ -2468,6 +2468,64 @@ async function finalizarCicloRecorrencia({ cicloId, dataEncerramento, motivo, ob
   return { ok:true, data };
 }
 
+// [Indicações — Fase B2] Join client-side com DB.pacientes (mesmo padrão
+// de mapCicloSupabaseParaCRM) — tipo_indicador é SEMPRE a fonte da verdade
+// do tipo, nunca inferido por texto. indicadorNomeExibicao centraliza a
+// regra de qual nome mostrar (item 12: evita espalhar condicionais pela
+// tela): paciente usa o nome ATUAL do paciente indicador (join vivo, nunca
+// congelado); profissional/outro usam o texto gravado; "outro" sem nome
+// (16 registros históricos — ver migration de segurança) mostra um rótulo
+// neutro, nunca um nome inventado.
+function mapIndicacaoSupabaseParaCRM(row){
+  const pacienteIndicado = DB.pacientes.find(x=>x.id===row.paciente_indicado_id);
+  const pacienteIndicador = row.indicador_paciente_id ? DB.pacientes.find(x=>x.id===row.indicador_paciente_id) : null;
+  return {
+    id: row.id,
+    pacienteIndicadoId: row.paciente_indicado_id,
+    pacienteIndicadoNome: pacienteIndicado ? pacienteIndicado.nome : '(paciente não encontrado)',
+    indicadorPacienteId: row.indicador_paciente_id || null,
+    indicadorNomeExterno: row.indicador_nome_externo || null,
+    tipoIndicador: row.tipo_indicador,
+    indicadorNomeExibicao: row.indicador_paciente_id
+      ? (pacienteIndicador ? pacienteIndicador.nome : '(paciente não encontrado)')
+      : (row.indicador_nome_externo || 'Não informado'),
+    legacyId: row.legacy_id || null,
+    createdAt: row.created_at || null,
+  };
+}
+
+// Reconsulta só indicações (sem recarregar os pacientes) depois de
+// registrar uma nova — mesmo padrão de recarregarCiclosRecorrenciaSupabase().
+async function recarregarIndicacoesSupabase(){
+  const { data, error } = await window.moriSupabase
+    .from('indicacoes')
+    .select('id, paciente_indicado_id, indicador_paciente_id, indicador_nome_externo, tipo_indicador, legacy_id, created_at');
+  if(error){
+    console.error('Falha ao recarregar indicações.', error);
+    toast('Não foi possível atualizar os dados de Indicações agora.');
+    return false;
+  }
+  DB.indicacoes = (data||[]).map(mapIndicacaoSupabaseParaCRM);
+  return true;
+}
+
+// [Indicações — Fase B2] Única forma de criar uma indicação — nunca
+// .from('indicacoes').insert(...)/update/delete a partir do frontend (o
+// banco já bloqueia, mas o frontend segue o mesmo caminho documentado).
+// clinica_id/created_at/legacy_id nunca são enviados — a RPC deriva
+// clinica_id via auth.uid()->profiles no próprio banco.
+async function registrarIndicacao({ pacienteIndicadoId, tipoIndicador, indicadorPacienteId, indicadorNomeExterno }){
+  const { data, error } = await window.moriSupabase.rpc('registrar_indicacao', {
+    p_paciente_indicado_id: pacienteIndicadoId,
+    p_tipo_indicador: tipoIndicador,
+    p_indicador_paciente_id: indicadorPacienteId || null,
+    p_indicador_nome_externo: nuloSeVazio((indicadorNomeExterno||'').trim()),
+  });
+  if(error){ console.error('Falha ao registrar indicação.', error); return { ok:false, error }; }
+  await recarregarIndicacoesSupabase();
+  return { ok:true, data };
+}
+
 /* ============================================================
    4) ROTEAMENTO / RENDER PRINCIPAL
    ============================================================ */
@@ -2833,6 +2891,10 @@ function openPacienteModal(paciente){
   const modoSupabaseAtivo = typeof MODO_SUPABASE !== 'undefined' && MODO_SUPABASE;
   const cicloAtivoRecorrencia = (modoSupabaseAtivo && !isNew) ? cicloAtivoDoPaciente(p.id) : null;
   const tiposRecorrenciaAtivos = modoSupabaseAtivo ? (DB.tiposRecorrenciaTodos||[]).filter(t=>t.ativo) : [];
+  // [Indicações — Fase B2, item 10] Só leitura — nunca um campo de texto
+  // fingindo persistir. Paciente novo nunca tem indicação (ainda não
+  // existe no banco); paciente existente mostra o registro real, se houver.
+  const indicacaoDoPaciente = (modoSupabaseAtivo && !isNew) ? (DB.indicacoes||[]).find(i=>i.pacienteIndicadoId===p.id) : null;
 
   const modalRoot = document.getElementById('modal-root');
   modalRoot.innerHTML = `
@@ -2882,9 +2944,26 @@ function openPacienteModal(paciente){
                 </label>
                 <label class="field"><span class="lbl">Data 1º Contato</span><input type="date" name="dataContato" value="${p.dataContato||''}"></label>
               </div>
-              <label class="field"><span class="lbl">Indicado por <span class="muted" style="text-transform:none;font-weight:500;">(se a origem for Indicação)</span></span>
-                <input name="indicadoPor" value="${escapeHtml(p.indicadoPor||(DB.indicacoes.find(i=>i.pacienteIndicado===p.nome)?.indicadoPor)||'')}">
-              </label>
+              ${modoSupabaseAtivo ? `
+                <div class="field">
+                  <span class="lbl">Indicação</span>
+                  ${isNew ? `
+                    <p class="muted small" style="margin:4px 0 0;">Salve o paciente primeiro. Depois você poderá registrar quem fez a indicação.</p>
+                  ` : indicacaoDoPaciente ? `
+                    <div class="small" style="background:var(--ink-100);padding:10px 12px;border-radius:8px;">
+                      <div><b>Indicado por:</b> ${escapeHtml(indicacaoDoPaciente.indicadorNomeExibicao)}</div>
+                      <div><b>Tipo:</b> ${escapeHtml(TIPO_INDICADOR_LABEL[indicacaoDoPaciente.tipoIndicador] || indicacaoDoPaciente.tipoIndicador)}</div>
+                    </div>
+                  ` : `
+                    <p class="muted small" style="margin:4px 0 8px;">Nenhuma indicação registrada.</p>
+                    <button type="button" class="btn sm ghost" data-ir-registrar-indicacao="${p.id}">Registrar indicação</button>
+                  `}
+                </div>
+              ` : `
+                <label class="field"><span class="lbl">Indicado por <span class="muted" style="text-transform:none;font-weight:500;">(se a origem for Indicação)</span></span>
+                  <input name="indicadoPor" value="${escapeHtml(p.indicadoPor||(DB.indicacoes.find(i=>i.pacienteIndicado===p.nome)?.indicadoPor)||'')}">
+                </label>
+              `}
             </div>
           </section>
 
@@ -3039,6 +3118,16 @@ function openPacienteModal(paciente){
   if(waModalBtn) waModalBtn.addEventListener('click', ()=>{
     closeModal();
     abrirWhatsAppPaciente(p.id);
+  });
+  // [Indicações — Fase B2] "Registrar indicação" — bind direto aqui (não
+  // em bindGlobalEvents()): este botão só existe dentro do modal, aberto
+  // via openPacienteModal() fora do ciclo normal de render()/bindRouteEvents(),
+  // então um bind global nunca o alcançaria.
+  const btnRegistrarIndicacao = modalRoot.querySelector('[data-ir-registrar-indicacao]');
+  if(btnRegistrarIndicacao) btnRegistrarIndicacao.addEventListener('click', (e)=>{
+    e.stopPropagation();
+    closeModal();
+    navigate('indicacoes', { pacienteIndicadoId: btnRegistrarIndicacao.dataset.irRegistrarIndicacao });
   });
   modalRoot.querySelectorAll('.chip-check').forEach(el=>{
     el.addEventListener('click', (e)=>{
@@ -3439,18 +3528,14 @@ function bindKanbanEvents(){
    7) INDICAÇÕES
    ============================================================ */
 /* ============================================================
-   [V2.1] CLASSIFICAÇÃO TEMPORÁRIA DE TIPO DE INDICADOR
+   [V2.1→Fase B2] CLASSIFICAÇÃO DE TIPO DE INDICADOR
    ------------------------------------------------------------
-   O campo estruturado `tipo_indicador` (paciente | profissional | outro)
-   AINDA NÃO EXISTE no modelo de dados — hoje só existe o texto livre
-   `indicadoPor`, digitado pela secretária. Esta função classifica esse
-   texto por palavras-chave SOMENTE para fins de demonstração nesta
-   homologação. O texto original de `indicadoPor` nunca é alterado — a
-   classificação é sempre calculada na hora, nunca gravada por cima do
-   dado real.
-   Quando o campo `tipo_indicador` existir de verdade (Supabase), esta
-   função inteira deve ser removida e a classificação passa a vir direto
-   da coluna, não de um palpite por texto.
+   Em modo Supabase real, o tipo SEMPRE vem da coluna `tipo_indicador`
+   (ver mapIndicacaoSupabaseParaCRM) — esta heurística por palavras-chave
+   NUNCA é usada para indicações reais. Ela permanece só para o modo local
+   legado (demonstração sem Supabase, SEED_INDICACOES), onde o texto livre
+   `indicadoPor` é o único dado que existe — nunca grava por cima do dado
+   real, só classifica na hora de exibir.
    Retorna 'paciente' | 'profissional' | 'outro' | null (null = sem
    indicador registrado, não deve ser exibido como se fosse "Outros").
    ============================================================ */
@@ -3462,10 +3547,58 @@ function classificarTipoIndicador(nomeIndicador){
   return 'outro';
 }
 
+const TIPO_INDICADOR_LABEL = { paciente:'Paciente', profissional:'Profissional', outro:'Outro' };
+
+// [Indicações — Fase B2, item 12] Normaliza uma indicação (Supabase real
+// OU modo local legado) para um formato único de exibição — centraliza a
+// compatibilidade aqui, em vez de espalhar condicionais pela tela. Uma
+// indicação real sempre tem `tipoIndicador` definido (string, nunca
+// undefined — mesmo "outro" sem nome tem o campo preenchido); é esse
+// campo, e não a presença de `indicadoPor`, que decide o caminho.
+function exibicaoIndicacao(i){
+  if(typeof i.tipoIndicador !== 'undefined'){
+    return {
+      id: i.id,
+      pacienteIndicadoId: i.pacienteIndicadoId,
+      pacienteNome: i.pacienteIndicadoNome,
+      indicadorNome: i.indicadorNomeExibicao,
+      tipo: i.tipoIndicador,
+      tipoLabel: TIPO_INDICADOR_LABEL[i.tipoIndicador] || i.tipoIndicador,
+      dataIso: i.createdAt,
+    };
+  }
+  // Modo local legado — heurística preservada SÓ aqui (ver comentário acima).
+  const tipo = classificarTipoIndicador(i.indicadoPor);
+  return {
+    id: i.id,
+    pacienteIndicadoId: null,
+    pacienteNome: i.pacienteIndicado,
+    indicadorNome: i.indicadoPor || null,
+    tipo,
+    tipoLabel: tipo ? (TIPO_INDICADOR_LABEL[tipo] || tipo) : null,
+    dataIso: null,
+  };
+}
+
+// [Navegação contextual] "Registrar indicação" a partir do modal do
+// paciente (ver bloco "Indicação" em openPacienteModal) — mesmo padrão de
+// destacarCicloRecorrenciaId: consumido uma única vez aqui, a abertura do
+// modal de verdade acontece em bindIndicacoesEvents() (precisa do DOM já
+// montado).
+let abrirNovaIndicacaoParaPacienteId = null;
+
 function renderIndicacoes(){
-  const inds = DB.indicacoes;
+  const modoSupabaseAtivo = typeof MODO_SUPABASE !== 'undefined' && MODO_SUPABASE;
+
+  if(ROUTE_PARAM && ROUTE_PARAM.pacienteIndicadoId){
+    abrirNovaIndicacaoParaPacienteId = ROUTE_PARAM.pacienteIndicadoId;
+    ROUTE_PARAM = null;
+  }
+
+  const linhas = DB.indicacoes.map(exibicaoIndicacao)
+    .sort((a,b)=> (b.dataIso||'').localeCompare(a.dataIso||''));
   const ranking = {};
-  inds.forEach(i=>{ if(i.indicadoPor){ ranking[i.indicadoPor]=(ranking[i.indicadoPor]||0)+1; } });
+  linhas.forEach(l=>{ if(l.indicadorNome && l.indicadorNome!=='Não informado'){ ranking[l.indicadorNome]=(ranking[l.indicadorNome]||0)+1; } });
   const rankArr = Object.entries(ranking).sort((a,b)=>b[1]-a[1]);
   return `
   <div class="grid cols-3">
@@ -3478,22 +3611,26 @@ function renderIndicacoes(){
       </table>
     </div>
     <div class="card" style="grid-column:span 2;">
-      <div class="section-title"><h2 style="font-size:16px;margin:0;">Registros de indicação (${inds.length})</h2>
+      <div class="section-title"><h2 style="font-size:16px;margin:0;">Registros de indicação (${linhas.length})</h2>
         <button class="btn sm gold" data-action="nova-indicacao">+ Nova Indicação</button>
       </div>
       <div class="table-wrap">
       <table>
-        <thead><tr><th>Paciente indicado</th><th>Quem indicou</th><th>Status do indicado</th></tr></thead>
+        <thead><tr><th>Paciente indicado</th><th>Quem indicou</th><th>Tipo</th><th>Data</th><th>Status do indicado</th></tr></thead>
         <tbody>
-        ${inds.map(i=>{
-          const pac = DB.pacientes.find(p=>p.nome===i.pacienteIndicado);
+        ${linhas.length? linhas.map(l=>{
+          const pac = modoSupabaseAtivo
+            ? (l.pacienteIndicadoId? DB.pacientes.find(p=>p.id===l.pacienteIndicadoId) : null)
+            : DB.pacientes.find(p=>p.nome===l.pacienteNome);
           const status = pac? calcStatus(pac) : null;
           return `<tr>
-            <td>${escapeHtml(i.pacienteIndicado)}</td>
-            <td>${escapeHtml(i.indicadoPor)||'<span class="muted">a preencher</span>'}</td>
+            <td>${escapeHtml(l.pacienteNome||'—')}</td>
+            <td>${l.indicadorNome? escapeHtml(l.indicadorNome) : '<span class="muted">a preencher</span>'}</td>
+            <td>${l.tipoLabel? escapeHtml(l.tipoLabel) : '<span class="muted">—</span>'}</td>
+            <td>${l.dataIso? fmtData(l.dataIso.slice(0,10)) : '—'}</td>
             <td>${status?`<span class="badge-status" style="background:${etapaCor(status)}22;color:${etapaCor(status)}">${escapeHtml(status)}</span>`:'<span class="muted">paciente não encontrado</span>'}</td>
           </tr>`;
-        }).join('')}
+        }).join('') : `<tr><td colspan="5" class="empty">Nenhuma indicação registrada.</td></tr>`}
         </tbody>
       </table>
       </div>
@@ -3501,19 +3638,21 @@ function renderIndicacoes(){
   </div>
   <div class="card" style="margin-top:16px;">
     <h3>Qual tipo de indicador mais gera indicações</h3>
-    ${renderGraficoTipoIndicador()}
+    ${renderGraficoTipoIndicador(linhas)}
   </div>`;
 }
 // [V2.1] Substitui o gráfico "De onde vêm as indicações" (que mostrava
 // pessoa por pessoa) por uma visão por CATEGORIA de indicador — o que a
 // clínica realmente quer saber para decidir onde investir esforço de
 // relacionamento (pacientes vs. rede de profissionais vs. outros).
-function renderGraficoTipoIndicador(){
+// [Fase B2] Recebe as linhas já normalizadas por exibicaoIndicacao() — o
+// tipo vem de `tipo`, que em modo Supabase é sempre tipo_indicador (nunca
+// heurística); só o modo local legado chega aqui com tipo heurístico.
+function renderGraficoTipoIndicador(linhas){
   const contagem = { paciente:0, profissional:0, outro:0 };
   let semClassificar = 0;
-  DB.indicacoes.forEach(i=>{
-    const tipo = classificarTipoIndicador(i.indicadoPor);
-    if(tipo) contagem[tipo]++;
+  linhas.forEach(l=>{
+    if(l.tipo && contagem.hasOwnProperty(l.tipo)) contagem[l.tipo]++;
     else semClassificar++;
   });
   const totalClassificado = contagem.paciente + contagem.profissional + contagem.outro;
@@ -3525,19 +3664,200 @@ function renderGraficoTipoIndicador(){
   return `
     ${renderBarListHorizontal(itens)}
     <div class="muted small" style="margin-top:10px;">
-      ${totalClassificado} de ${DB.indicacoes.length} indicações classificadas
+      ${totalClassificado} de ${linhas.length} indicações classificadas
       ${semClassificar? ` — ${semClassificar} sem indicador registrado (não entram nesta contagem).` : '.'}
     </div>`;
 }
+
+// [Indicações — Fase B2] Filtro "digite para buscar" sobre um <select>
+// comum (sem biblioteca nova) — oculta as <option> que não combinam com o
+// texto digitado e, opcionalmente, uma option cujo value deve ficar
+// sempre fora da lista (ex: o próprio paciente indicado, no select de
+// "Paciente que indicou"). Retorna a função de reaplicação, para o
+// chamador poder disparar de novo quando a exclusão mudar.
+function configurarSelectPesquisavel(inputEl, selectEl, obterIdExcluido){
+  const aplicar = ()=>{
+    const termo = (inputEl.value||'').toLowerCase().trim();
+    const idExcluido = obterIdExcluido ? obterIdExcluido() : null;
+    Array.from(selectEl.options).forEach(opt=>{
+      if(!opt.value){ opt.hidden = false; return; }
+      const combina = !termo || opt.textContent.toLowerCase().includes(termo);
+      opt.hidden = !combina || opt.value === idExcluido;
+    });
+    if(selectEl.selectedOptions[0] && selectEl.selectedOptions[0].hidden){
+      selectEl.value = '';
+    }
+  };
+  inputEl.addEventListener('input', aplicar);
+  aplicar();
+  return aplicar;
+}
+
+// Modal "Registrar nova indicação" — único caminho de escrita (item 9:
+// nunca .from('indicacoes').insert/update/delete). Mesmo padrão de overlay
+// de abrirModalRegistrarRetorno, mas com a chamada à RPC feita AQUI DENTRO
+// (não via Promise de confirmação): em caso de erro o modal permanece
+// aberto, com os campos preenchidos, e uma mensagem amigável — nunca fecha
+// sozinho (item 9 do pedido).
+function abrirModalNovaIndicacao(pacienteIndicadoIdPreSelecionado){
+  const indicados = new Set((DB.indicacoes||[]).map(i=>i.pacienteIndicadoId).filter(Boolean));
+  const pacientesElegiveis = DB.pacientes
+    .filter(p => !indicados.has(p.id) || p.id === pacienteIndicadoIdPreSelecionado)
+    .slice()
+    .sort((a,b)=> a.nome.localeCompare(b.nome, 'pt-BR'));
+
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-backdrop';
+  overlay.innerHTML = `
+    <div class="modal" style="max-width:480px;">
+      <div class="modal-head">
+        <h3>Registrar nova indicação</h3>
+        <button type="button" class="modal-close" data-ni-close>✕</button>
+      </div>
+      <form id="form-nova-indicacao">
+        <div class="modal-body">
+          <label class="field"><span class="lbl">Paciente indicado *</span>
+            <input type="text" data-ni-busca-indicado placeholder="Buscar paciente…" autocomplete="off" style="margin-bottom:6px;">
+            <select name="pacienteIndicadoId" data-ni-select-indicado size="6" required>
+              <option value="">— Selecione —</option>
+              ${pacientesElegiveis.map(p=>`<option value="${p.id}" ${p.id===pacienteIndicadoIdPreSelecionado?'selected':''}>${escapeHtml(p.nome)}</option>`).join('')}
+            </select>
+            ${pacientesElegiveis.length < DB.pacientes.length ? `<p class="muted small" style="margin:4px 0 0;">Pacientes que já possuem indicação registrada não aparecem nesta lista.</p>` : ''}
+          </label>
+
+          <label class="field"><span class="lbl">Tipo de indicador *</span>
+            <select name="tipoIndicador" data-ni-gate-tipo required>
+              <option value="">— Selecione —</option>
+              <option value="paciente">Paciente</option>
+              <option value="profissional">Profissional</option>
+              <option value="outro">Outro</option>
+            </select>
+          </label>
+
+          <div data-ni-grupo="paciente" hidden>
+            <label class="field"><span class="lbl">Paciente que indicou *</span>
+              <input type="text" data-ni-busca-indicador placeholder="Buscar paciente…" autocomplete="off" style="margin-bottom:6px;">
+              <select name="indicadorPacienteId" data-ni-select-indicador size="6">
+                <option value="">— Selecione —</option>
+                ${DB.pacientes.slice().sort((a,b)=>a.nome.localeCompare(b.nome,'pt-BR')).map(p=>`<option value="${p.id}">${escapeHtml(p.nome)}</option>`).join('')}
+              </select>
+            </label>
+          </div>
+
+          <div data-ni-grupo="profissional" hidden>
+            <label class="field"><span class="lbl">Nome do profissional *</span>
+              <input type="text" name="nomeProfissional">
+            </label>
+          </div>
+
+          <div data-ni-grupo="outro" hidden>
+            <label class="field"><span class="lbl">Quem indicou?</span>
+              <input type="text" name="nomeOutro">
+              <p class="muted small" style="margin:4px 0 0;">Se não souber quem indicou, você pode deixar em branco.</p>
+            </label>
+          </div>
+        </div>
+        <div class="modal-foot">
+          <button type="button" class="btn ghost" data-ni-close>Cancelar</button>
+          <button type="submit" class="btn primary" data-ni-btn-salvar>Registrar indicação</button>
+        </div>
+      </form>
+    </div>`;
+  document.body.appendChild(overlay);
+
+  const fechar = ()=>overlay.remove();
+  overlay.addEventListener('click', (e)=>{ if(e.target===overlay) fechar(); });
+  overlay.querySelectorAll('[data-ni-close]').forEach(el=>el.addEventListener('click', fechar));
+
+  const selIndicado = overlay.querySelector('[data-ni-select-indicado]');
+  const selIndicador = overlay.querySelector('[data-ni-select-indicador]');
+  const aplicarFiltroIndicador = configurarSelectPesquisavel(
+    overlay.querySelector('[data-ni-busca-indicador]'), selIndicador, ()=>selIndicado.value
+  );
+  configurarSelectPesquisavel(overlay.querySelector('[data-ni-busca-indicado]'), selIndicado, null);
+  // Paciente que indicou nunca pode ser o próprio paciente indicado — se o
+  // indicado mudar depois do tipo já estar em "paciente", reaplica a
+  // exclusão (item 8 do pedido).
+  selIndicado.addEventListener('change', aplicarFiltroIndicador);
+
+  const selTipo = overlay.querySelector('[data-ni-gate-tipo]');
+  const grupos = {
+    paciente: overlay.querySelector('[data-ni-grupo="paciente"]'),
+    profissional: overlay.querySelector('[data-ni-grupo="profissional"]'),
+    outro: overlay.querySelector('[data-ni-grupo="outro"]'),
+  };
+  const atualizarGrupos = ()=>{
+    Object.keys(grupos).forEach(k=>{ grupos[k].hidden = selTipo.value !== k; });
+  };
+  selTipo.addEventListener('change', atualizarGrupos);
+  atualizarGrupos();
+
+  overlay.querySelector('#form-nova-indicacao').addEventListener('submit', async (e)=>{
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    const pacienteIndicadoId = fd.get('pacienteIndicadoId');
+    const tipoIndicador = fd.get('tipoIndicador');
+
+    if(!pacienteIndicadoId){ toast('Selecione o paciente indicado.'); return; }
+    if(!tipoIndicador){ toast('Selecione o tipo de indicador.'); return; }
+
+    let indicadorPacienteId = null, indicadorNomeExterno = null;
+    if(tipoIndicador==='paciente'){
+      indicadorPacienteId = fd.get('indicadorPacienteId') || null;
+      if(!indicadorPacienteId){ toast('Selecione o paciente que indicou.'); return; }
+      if(indicadorPacienteId === pacienteIndicadoId){ toast('Um paciente não pode indicar a si mesmo.'); return; }
+    } else if(tipoIndicador==='profissional'){
+      indicadorNomeExterno = (fd.get('nomeProfissional')||'').trim();
+      if(!indicadorNomeExterno){ toast('Informe o nome do profissional.'); return; }
+    } else { // outro
+      indicadorNomeExterno = (fd.get('nomeOutro')||'').trim() || null;
+    }
+
+    const btnSalvar = overlay.querySelector('[data-ni-btn-salvar]');
+    const textoOriginal = btnSalvar.textContent;
+    btnSalvar.disabled = true; btnSalvar.textContent = 'Salvando…';
+
+    const resultado = await registrarIndicacao({ pacienteIndicadoId, tipoIndicador, indicadorPacienteId, indicadorNomeExterno });
+
+    if(!resultado.ok){
+      // [item 9] Nunca fecha o modal sozinho em caso de erro — campos
+      // preenchidos permanecem, mensagem amigável derivada do erro da RPC
+      // (duplicidade, incoerência, cross-tenant etc. — ver migration de
+      // segurança), nunca um erro técnico cru.
+      btnSalvar.disabled = false; btnSalvar.textContent = textoOriginal;
+      toast((resultado.error && resultado.error.message) || 'Não foi possível registrar a indicação. Tente novamente.');
+      return;
+    }
+
+    fechar();
+    render();
+    toast('Indicação registrada.');
+  });
+}
+
 function bindIndicacoesEvents(){
+  const modoSupabaseAtivo = typeof MODO_SUPABASE !== 'undefined' && MODO_SUPABASE;
   const btn = document.querySelector('[data-action="nova-indicacao"]');
   if(btn) btn.addEventListener('click', ()=>{
-    const nome = prompt('Nome do paciente indicado:');
-    if(!nome) return;
-    const quem = prompt('Quem indicou?') || '';
-    DB.indicacoes.push({id:uid('ind'), pacienteIndicado:nome.trim(), indicadoPor:quem.trim()});
-    saveState(); render(); toast('Indicação registrada.');
+    if(modoSupabaseAtivo) abrirModalNovaIndicacao(null);
+    else {
+      // Modo local legado — preserva o comportamento de sempre (sem
+      // Supabase, sem RPC, sem regra de duplicidade real).
+      const nome = prompt('Nome do paciente indicado:');
+      if(!nome) return;
+      const quem = prompt('Quem indicou?') || '';
+      DB.indicacoes.push({id:uid('ind'), pacienteIndicado:nome.trim(), indicadoPor:quem.trim()});
+      saveState(); render(); toast('Indicação registrada.');
+    }
   });
+
+  // Deep-link "Registrar indicação" a partir do modal do paciente —
+  // consumido uma única vez (ver abrirNovaIndicacaoParaPacienteId acima).
+  if(modoSupabaseAtivo && abrirNovaIndicacaoParaPacienteId){
+    const pacienteId = abrirNovaIndicacaoParaPacienteId;
+    abrirNovaIndicacaoParaPacienteId = null;
+    abrirModalNovaIndicacao(pacienteId);
+  }
 }
 
 /* ============================================================
@@ -5559,6 +5879,7 @@ async function carregarDadosSupabase(perfil){
     { data: tiposRecorrenciaRows, error: errTiposRec },
     { data: ciclosRecorrenciaRows, error: errCiclosRec },
     { data: retornosRecorrenciaRows, error: errRetornosRec },
+    { data: indicacoesRows, error: errIndic },
   ] = await Promise.all([
     sb.from('pacientes_com_status').select('*'),
     sb.from('paciente_procedimentos').select('paciente_id, procedimento_id'),
@@ -5577,9 +5898,12 @@ async function carregarDadosSupabase(perfil){
     sb.from('tipos_recorrencia').select('id, nome, frequencia_sugerida_dias, ativo'),
     sb.from('ciclos_recorrencia').select('*'),
     sb.from('retornos_recorrencia').select('*'),
+    // [Indicações — Fase B2] authenticated só tem SELECT direto nesta
+    // tabela (ver migration 20261023000003) — RLS já escopa por clínica.
+    sb.from('indicacoes').select('id, paciente_indicado_id, indicador_paciente_id, indicador_nome_externo, tipo_indicador, legacy_id, created_at'),
   ]);
 
-  const erro = errPac || errPP || errProc || errOrig || errMot || errProf || errAcoes || errClinica || errTiposRec || errCiclosRec || errRetornosRec;
+  const erro = errPac || errPP || errProc || errOrig || errMot || errProf || errAcoes || errClinica || errTiposRec || errCiclosRec || errRetornosRec || errIndic;
   if(erro) throw erro;
 
   // [Supabase] Monta o DB da sessão a partir do estado padrão local — mantém
@@ -5620,10 +5944,10 @@ async function carregarDadosSupabase(perfil){
 
   const pacientesMapeados = (pacientesRows||[]).map(row=>mapPacienteSupabaseParaCRM(row, DB._refsSupabase));
   DB.pacientes = pacientesMapeados;
-  // Indicações não são carregadas do Supabase nesta rodada (fora do escopo
-  // definido para esta etapa) — mantidas vazias para não exibir dado
-  // desatualizado como se fosse real.
-  DB.indicacoes = [];
+  // [Indicações — Fase B2] join client-side com DB.pacientes (já populado
+  // acima) — mesmo padrão de mapCicloSupabaseParaCRM, nenhuma view nova no
+  // banco. tipo_indicador é sempre a fonte da verdade (nunca heurística).
+  DB.indicacoes = (indicacoesRows||[]).map(mapIndicacaoSupabaseParaCRM);
   // [Fase A] cache de ações comerciais concluídas (Resgate/Follow-up/
   // Pós-Consulta) — ver acaoComercialConcluida()/recarregarAcoesComerciaisSupabase().
   DB._acoesComerciaisSupabase = acoesRows || [];
