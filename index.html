@@ -2970,7 +2970,7 @@ function openPacienteModal(paciente){
                 </div>
                 <p class="muted small" style="margin:10px 0 0;">Para registrar um retorno ou encerrar este ciclo, use a tela Recorrência — não é possível iniciar um segundo ciclo enquanto este estiver ativo.</p>
               ` : `
-                <label class="field"><span class="lbl">Paciente recorrente?</span>
+                <label class="field"><span class="lbl">Iniciar recorrência?</span>
                   <select name="recorrente" data-gate="recorrente">
                     <option value="Não" selected>Não</option>
                     <option value="Sim">Sim</option>
@@ -4388,7 +4388,11 @@ function cardRecorrencia(ciclo){
     const dias = diasEntre(hojeCivilClinica(), ciclo.proximoRetorno);
     situacaoHtml = `<span class="badge-status" style="background:var(--warn-bg);color:var(--warn);">Retorno em ${dias} dia${dias===1?'':'s'}</span>`;
   } else if(categoria==='emdia'){
-    situacaoHtml = `<span class="muted small">Previsto: ${fmtData(ciclo.proximoRetorno)}</span>`;
+    // [Refinamento pós-homologação] a data já aparece na linha "Previsto:"
+    // logo acima (sempre presente para categorias ativas) — aqui só o
+    // complemento "Retorno em X dias", sem repetir a data.
+    const dias = diasEntre(hojeCivilClinica(), ciclo.proximoRetorno);
+    situacaoHtml = `<span class="muted small">Retorno em ${dias} dia${dias===1?'':'s'}</span>`;
   } else if(categoria==='finalizados'){
     situacaoHtml = `<span class="badge-status" style="background:var(--ink-100);color:var(--text-muted);">Encerrado em ${fmtData(ciclo.dataEncerramento)}</span>`;
   }
@@ -4406,7 +4410,7 @@ function cardRecorrencia(ciclo){
       ${acoesAtivas? `
         <button class="btn sm ghost" data-wa-paciente="${ciclo.pacienteId}">WhatsApp</button>
         <button class="btn sm ghost" data-rec-historico="${ciclo.id}">Ver histórico</button>
-        <button class="btn sm ghost" data-rec-finalizar="${ciclo.id}">Finalizar recorrência</button>
+        <button class="btn sm ghost" data-rec-finalizar="${ciclo.id}" style="color:var(--text-muted);">Finalizar recorrência</button>
         <button class="btn sm primary" data-rec-retorno="${ciclo.id}">Registrar retorno</button>
       ` : `
         <button class="btn sm ghost" data-ver-paciente="${ciclo.pacienteId}">Abrir paciente</button>
@@ -4477,7 +4481,7 @@ function abrirModalRegistrarRetorno(ciclo){
             <p class="muted small" style="margin-top:0;">Paciente: <b>${escapeHtml(ciclo.pacienteNome)}</b></p>
             <label class="field"><span class="lbl">Data do retorno realizado</span><input type="date" name="dataRetorno" value="${hoje}" required></label>
             <label class="field"><span class="lbl">Próximo retorno previsto</span><input type="date" name="proximoRetorno" required></label>
-            <label class="field"><span class="lbl">Observação <span class="muted" style="text-transform:none;font-weight:500;">(opcional)</span></span><textarea name="observacao" rows="2"></textarea></label>
+            <label class="field"><span class="lbl">Observação do retorno <span class="muted" style="text-transform:none;font-weight:500;">(opcional)</span></span><textarea name="observacao" rows="2"></textarea></label>
           </div>
           <div class="modal-foot">
             <button type="button" class="btn ghost" data-rr-close>Cancelar</button>
@@ -4539,7 +4543,11 @@ function abrirModalFinalizarRecorrencia(ciclo){
     overlay.querySelectorAll('[data-fr-close]').forEach(el=>el.addEventListener('click', ()=>finalizar(null)));
     const selMotivo = overlay.querySelector('[data-fr-motivo]');
     const lblObsOpcional = overlay.querySelector('[data-fr-obs-opcional]');
-    selMotivo.addEventListener('change', ()=>{ lblObsOpcional.style.display = selMotivo.value==='Outro' ? 'none' : ''; });
+    // [Refinamento pós-homologação] "Outro" torna a observação obrigatória
+    // (validação já existente, inalterada) — o texto do label agora reflete
+    // isso em vez de só esconder "(opcional)", para não parecer que o campo
+    // continua opcional quando na verdade não é.
+    selMotivo.addEventListener('change', ()=>{ lblObsOpcional.textContent = selMotivo.value==='Outro' ? '(obrigatória)' : '(opcional)'; });
     overlay.querySelector('#form-finalizar-recorrencia').addEventListener('submit', (e)=>{
       e.preventDefault();
       const fd = new FormData(e.target);
