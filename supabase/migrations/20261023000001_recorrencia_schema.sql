@@ -100,6 +100,12 @@ create table public.ciclos_recorrencia (
   data_encerramento      date null,
   motivo_encerramento    text null,
   observacoes            text null,
+  -- [Revisão] Observação do ENCERRAMENTO, separada de `observacoes`
+  -- (observação geral/original do ciclo). finalizar_ciclo_recorrencia()
+  -- grava aqui, e NUNCA toca em `observacoes` — evita apagar uma
+  -- observação anterior do ciclo quando o encerramento informar uma
+  -- observação própria.
+  observacao_encerramento text null,
   created_at             timestamptz not null default now(),
   updated_at             timestamptz not null default now(),
   created_by             uuid not null,
@@ -126,6 +132,20 @@ create table public.ciclos_recorrencia (
     check ((status = 'finalizado') = (data_encerramento is not null)),
   constraint ciclos_recorrencia_motivo_consistente
     check ((status = 'finalizado') = (motivo_encerramento is not null)),
+
+  -- [Revisão] Quando o motivo é "Outro", a observação de encerramento
+  -- passa a ser OBRIGATÓRIA — protegido no banco, não só na futura
+  -- interface. `is distinct from` trata NULL explicitamente (NULL IS
+  -- DISTINCT FROM 'Outro' = true), então a constraint não depende do
+  -- comportamento "NULL em CHECK = passa" para os outros motivos: ela é
+  -- vácua (passa) sempre que motivo_encerramento não for exatamente
+  -- 'Outro' (inclusive quando é NULL, ciclo ainda ativo), e só exige
+  -- observação preenchida (não vazia/whitespace) quando for 'Outro'.
+  constraint ciclos_recorrencia_observacao_encerramento_outro_check
+    check (
+      motivo_encerramento is distinct from 'Outro'
+      or (observacao_encerramento is not null and btrim(observacao_encerramento) <> '')
+    ),
 
   -- FKs COMPOSTAS (padrão multi-tenant real do projeto) — impossível
   -- vincular um ciclo da clínica A a um paciente/tipo/responsável da
@@ -179,32 +199,47 @@ create unique index ciclos_recorrencia_um_ativo_por_paciente
 
 alter table public.ciclos_recorrencia enable row level security;
 
--- SELECT/INSERT/UPDATE escopados por clínica, igual a toda tabela de
--- paciente já existente. Importante: isso NÃO substitui a validação de
--- negócio das RPCs (ex.: "só pode registrar retorno se o ciclo estiver
--- ativo") — a RLS garante isolamento entre clínicas; a RPC garante a
--- regra de negócio. São camadas complementares, não redundantes: uma
--- chamada direta à tabela (fora das RPCs) continuaria respeitando o
--- isolamento por clínica, mas não as regras de negócio — por isso as
--- RPCs são o caminho documentado e esperado para escrever nesta tabela.
+-- [Revisão — fechar bypass de regras de negócio] SOMENTE SELECT é
+-- concedido/permitido para `authenticated` nesta tabela. NENHUMA policy
+-- de INSERT/UPDATE/DELETE existe aqui, e NENHUM grant de INSERT/UPDATE/
+-- DELETE é dado abaixo — de propósito, não por omissão.
+--
+-- Motivo: a versão anterior desta migration concedia INSERT/UPDATE com
+-- policy escopada por clínica, confiando que o frontend só chamaria as
+-- RPCs. Isso permitia, tecnicamente, que um cliente autenticado
+-- escrevesse direto na tabela — por exemplo, um
+-- `UPDATE ciclos_recorrencia SET proximo_retorno = X`
+-- sem passar por `registrar_retorno_recorrencia`, alterando a próxima
+-- data sem criar a linha correspondente em `retornos_recorrencia`
+-- (quebra da regra central de histórico do módulo). RLS escopada por
+-- clínica protege isolamento MULTI-TENANT, mas nunca protegeu REGRAS DE
+-- NEGÓCIO (ex.: "só pode mudar proximo_retorno junto com um retorno
+-- novo no histórico") — um GRANT de UPDATE, mesmo com policy, não tem
+-- como expressar essa regra.
+--
+-- Solução: toda escrita em ciclos_recorrencia passa a ser IMPOSSÍVEL
+-- por fora das RPCs — não "desencorajada", estruturalmente impossível,
+-- porque não existe nenhum caminho de permissão que a permita. As
+-- RPCs (20261023000002_recorrencia_rpcs.sql) escrevem através de
+-- funções `internal.*_core` com `security definer`, que executam com o
+-- privilégio do DONO da função (o operador que rodar esta migration no
+-- SQL Editor, tipicamente a role `postgres`), não do chamador — por
+-- isso conseguem escrever mesmo sem este GRANT. Cada uma dessas funções
+-- faz sua própria validação explícita de clínica dentro do corpo
+-- (nunca confiando em RLS, já que SECURITY DEFINER a contorna) — ver
+-- comentário completo na outra migration.
 create policy "select_ciclos_recorrencia" on public.ciclos_recorrencia
   for select to authenticated
   using (clinica_id in (select public.minhas_clinicas()));
 
-create policy "insert_ciclos_recorrencia" on public.ciclos_recorrencia
-  for insert to authenticated
-  with check (clinica_id in (select public.minhas_clinicas()));
-
-create policy "update_ciclos_recorrencia" on public.ciclos_recorrencia
-  for update to authenticated
-  using (clinica_id in (select public.minhas_clinicas()))
-  with check (clinica_id in (select public.minhas_clinicas()));
-
--- Sem policy de DELETE — encerramento é sempre lógico (status='finalizado').
+-- Sem policy de INSERT, UPDATE ou DELETE — propositalmente. RLS
+-- habilitada + zero policy permissiva para essas operações = "fail
+-- closed": mesmo que um GRANT fosse adicionado por engano no futuro,
+-- ainda não haveria nenhuma policy liberando a escrita.
 
 revoke all on public.ciclos_recorrencia from public, anon;
-grant select, insert, update on public.ciclos_recorrencia to authenticated;
--- Sem grant de delete.
+grant select on public.ciclos_recorrencia to authenticated;
+-- Deliberadamente SEM insert, SEM update, SEM delete.
 
 -- ------------------------------------------------------------
 -- 3) retornos_recorrencia — histórico append-only de cada "Registrar
@@ -248,19 +283,19 @@ create policy "select_retornos_recorrencia" on public.retornos_recorrencia
   for select to authenticated
   using (clinica_id in (select public.minhas_clinicas()));
 
-create policy "insert_retornos_recorrencia" on public.retornos_recorrencia
-  for insert to authenticated
-  with check (clinica_id in (select public.minhas_clinicas()));
-
--- Sem policy de UPDATE, sem policy de DELETE — append-only garantido em
--- DUAS camadas independentes: nenhuma RLS permissiva para essas
--- operações E (abaixo) nenhum GRANT de UPDATE/DELETE também. Mesmo que
--- uma das duas camadas tivesse um erro de configuração no futuro, a
--- outra ainda bloquearia.
+-- [Revisão — mesmo motivo de ciclos_recorrencia acima] Sem policy de
+-- INSERT, UPDATE ou DELETE. O histórico append-only só pode crescer
+-- através de `registrar_retorno_recorrencia` (via
+-- `internal.registrar_retorno_recorrencia_core`, security definer) —
+-- nunca por INSERT direto do cliente autenticado. Isso fecha o mesmo
+-- tipo de bypass: sem isso, seria tecnicamente possível inserir uma
+-- linha de histórico "fabricada", sem relação real com a RPC, ou uma
+-- linha cujo `proximo_retorno_definido` nunca refletiu de fato o
+-- `ciclos_recorrencia.proximo_retorno` correspondente.
 
 revoke all on public.retornos_recorrencia from public, anon;
-grant select, insert on public.retornos_recorrencia to authenticated;
--- Deliberadamente SEM update, SEM delete.
+grant select on public.retornos_recorrencia to authenticated;
+-- Deliberadamente SEM insert, SEM update, SEM delete.
 
 commit;
 
@@ -283,7 +318,11 @@ where schemaname='public'
   and tablename in ('tipos_recorrencia','ciclos_recorrencia','retornos_recorrencia')
 order by tablename, cmd;
 -- Esperado: nenhuma linha com cmd='DELETE' em nenhuma das 3 tabelas;
--- nenhuma linha com cmd='UPDATE' em retornos_recorrencia.
+-- ciclos_recorrencia e retornos_recorrencia com APENAS 1 policy cada
+-- (select_*, cmd='SELECT') — nenhuma policy de INSERT/UPDATE nelas
+-- (escrita só via RPC, ver 20261023000002_recorrencia_rpcs.sql).
+-- tipos_recorrencia continua com select + gerenciar_*_admin (ALL),
+-- inalterada.
 
 -- ---- Confirmar os índices (inclusive o único parcial) ----
 select indexname, indexdef
@@ -294,12 +333,16 @@ order by tablename, indexname;
 -- Esperado: ciclos_recorrencia_um_ativo_por_paciente presente, com
 -- "WHERE (status = 'ativo'::text)" na definição.
 
--- ---- Confirmar os grants (anon sem nada, authenticated sem delete) ----
+-- ---- Confirmar os grants (anon sem nada; authenticated só SELECT em
+--      ciclos_recorrencia/retornos_recorrencia; tipos_recorrencia
+--      continua com select+insert+update) ----
 select table_name, grantee, privilege_type
 from information_schema.role_table_grants
 where table_schema='public'
   and table_name in ('tipos_recorrencia','ciclos_recorrencia','retornos_recorrencia')
   and grantee in ('anon','authenticated')
 order by table_name, grantee, privilege_type;
--- Esperado: nenhuma linha com grantee='anon'; authenticated sem DELETE
--- em nenhuma tabela, e sem UPDATE em retornos_recorrencia.
+-- Esperado: nenhuma linha com grantee='anon'. Para authenticated:
+-- ciclos_recorrencia -> SOMENTE SELECT (nenhum INSERT/UPDATE/DELETE);
+-- retornos_recorrencia -> SOMENTE SELECT (nenhum INSERT/UPDATE/DELETE);
+-- tipos_recorrencia -> SELECT, INSERT, UPDATE (inalterado, sem DELETE).
