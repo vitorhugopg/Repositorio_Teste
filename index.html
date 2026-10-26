@@ -3024,12 +3024,12 @@ function openPacienteModal(paciente){
                 <select name="fechouTratamento" data-gate="fechouTratamento">${OPCOES_FECHOU.map(o=>`<option value="${o}" ${p.fechouTratamento===o?'selected':''}>${o||'—'}</option>`).join('')}</select>
               </label>
               <div class="grid cols-2" data-grupo-fechamento="sucesso">
-                <label class="field"><span class="lbl">Valor Fechado (R$)</span><input type="number" step="0.01" name="valorFechado" value="${p.valorFechado??''}"></label>
-                <label class="field"><span class="lbl">Data Fechamento</span><input type="date" name="dataFechamento" value="${p.dataFechamento||''}"></label>
+                <label class="field"><span class="lbl">Valor Fechado (R$) *</span><input type="number" step="0.01" name="valorFechado" data-input-valor-fechado value="${p.valorFechado??''}"></label>
+                <label class="field"><span class="lbl">Data Fechamento *</span><input type="date" name="dataFechamento" data-input-data-fechamento value="${p.dataFechamento||''}"></label>
               </div>
               <div data-grupo-fechamento="perda">
-                <label class="field"><span class="lbl">Motivo da Perda</span>
-                  <select name="motivoPerda"><option value="">—</option>${motivosDisponiveis.map(m=>`<option ${p.motivoPerda===m?'selected':''}>${escapeHtml(m)}</option>`).join('')}</select>
+                <label class="field"><span class="lbl">Motivo da Perda *</span>
+                  <select name="motivoPerda" data-input-motivo-perda><option value="">—</option>${motivosDisponiveis.map(m=>`<option ${p.motivoPerda===m?'selected':''}>${escapeHtml(m)}</option>`).join('')}</select>
                 </label>
                 ${p.dataPerda? `<p class="muted small" style="margin:-6px 0 0;">Data da perda: ${fmtData(p.dataPerda)}</p>` : ''}
               </div>
@@ -3168,25 +3168,58 @@ function openPacienteModal(paciente){
       return;
     }
 
+    // [Fase C2] mesma normalização/validação do modo Supabase, baseada no
+    // STATUS CALCULADO — nunca só em fechouTratamento (calcStatus()
+    // também produz 'Perdido' via marcouConsulta='Não').
+    const nomeLocal = fd.get('nome').trim();
+    const fechouTratamentoLocal = fd.get('fechouTratamento');
+    const planoTratamentoLocal = fd.get('planoTratamento');
+    const compareceuLocal = fd.get('compareceu');
+    const marcouConsultaLocal = fd.get('marcouConsulta');
+    const statusLocal = calcStatus({
+      nome: nomeLocal, fechouTratamento: fechouTratamentoLocal, planoTratamento: planoTratamentoLocal,
+      compareceu: compareceuLocal, marcouConsulta: marcouConsultaLocal,
+    });
+    const ehFechadoLocal = statusLocal === 'Fechado (Total)' || statusLocal === 'Fechado (Parcial)';
+    const ehPerdidoLocal = statusLocal === 'Perdido';
+
+    let valorFechadoLocal = fd.get('valorFechado')? parseFloat(fd.get('valorFechado')) : null;
+    let dataFechamentoLocal = fd.get('dataFechamento') || '';
+    let motivoPerdaLocal = fd.get('motivoPerda') || '';
+
+    if(ehFechadoLocal){
+      if(valorFechadoLocal === null){ toast('Informe o valor fechado.'); return; }
+      if(!dataFechamentoLocal){ toast('Informe a data de fechamento.'); return; }
+      motivoPerdaLocal = '';
+    } else if(ehPerdidoLocal){
+      if(!motivoPerdaLocal){ toast('Informe o motivo da perda.'); return; }
+      valorFechadoLocal = null;
+      dataFechamentoLocal = '';
+    } else {
+      valorFechadoLocal = null;
+      dataFechamentoLocal = '';
+      motivoPerdaLocal = '';
+    }
+
     const novo = {
       ...p,
-      nome: fd.get('nome').trim(),
+      nome: nomeLocal,
       telefone: fd.get('telefone').trim(),
       email: fd.get('email').trim(),
       origem: fd.get('origem'),
       procedimentos,
       responsavel: fd.get('responsavel'),
       dataContato: fd.get('dataContato'),
-      marcouConsulta: fd.get('marcouConsulta'),
+      marcouConsulta: marcouConsultaLocal,
       dataConsulta: fd.get('dataConsulta'),
-      compareceu: fd.get('compareceu'),
+      compareceu: compareceuLocal,
       fezRadiografia: fd.get('fezRadiografia'),
-      planoTratamento: fd.get('planoTratamento'),
+      planoTratamento: planoTratamentoLocal,
       valorOrcamento: fd.get('valorOrcamento')? parseFloat(fd.get('valorOrcamento')) : null,
-      fechouTratamento: fd.get('fechouTratamento'),
-      valorFechado: fd.get('valorFechado')? parseFloat(fd.get('valorFechado')) : null,
-      dataFechamento: fd.get('dataFechamento'),
-      motivoPerda: fd.get('motivoPerda'),
+      fechouTratamento: fechouTratamentoLocal,
+      valorFechado: valorFechadoLocal,
+      dataFechamento: dataFechamentoLocal,
+      motivoPerda: motivoPerdaLocal,
       observacoes: fd.get('observacoes'),
       indicadoPor: fd.get('indicadoPor')?.trim() || '',
       // [Fase C1] mesma regra de consistência do modo Supabase: só existe
@@ -3257,12 +3290,12 @@ function aplicarCondicionaisPacienteModal(modalRoot){
   const selFechou = form.querySelector('[data-gate="fechouTratamento"]');
   const grpSucesso = form.querySelector('[data-grupo-fechamento="sucesso"]');
   const grpPerda = form.querySelector('[data-grupo-fechamento="perda"]');
-  // [Correção] "Perdido" tem DOIS caminhos em calcStatus(): fechouTratamento
-  // === 'Não' OU marcouConsulta === 'Não' (lead que nunca marcou consulta).
-  // Usar só o select de Fechamento deixava o grupo (Motivo/Data da Perda)
-  // escondido para o segundo caminho, mesmo com data_perda real existindo
-  // — reaproveita calcStatus() (só leitura, função não alterada) para
-  // cobrir os dois casos corretamente.
+  // [Correção / Fase C2] "Perdido" tem DOIS caminhos em calcStatus():
+  // fechouTratamento === 'Não' OU marcouConsulta === 'Não' (lead que nunca
+  // marcou consulta). A regra central da C2 é que a coerência comercial é
+  // sempre decidida pelo STATUS CALCULADO, nunca só pelo valor cru de
+  // "Fechou Tratamento?" — por isso os dois grupos (Fechamento/Perda)
+  // usam `statusAtual`, não `v`, para visibilidade.
   const atualizarFechamento = ()=>{
     const v = selFechou.value;
     const statusAtual = calcStatus({
@@ -3272,8 +3305,10 @@ function aplicarCondicionaisPacienteModal(modalRoot){
       compareceu: (form.querySelector('[name="compareceu"]')||{}).value || '',
       marcouConsulta: selMarcou ? selMarcou.value : '',
     });
-    if(grpSucesso) grpSucesso.hidden = !(v==='Sim' || v==='Parcial');
-    if(grpPerda) grpPerda.hidden = statusAtual !== 'Perdido';
+    const ehFechado = statusAtual === 'Fechado (Total)' || statusAtual === 'Fechado (Parcial)';
+    const ehPerdido = statusAtual === 'Perdido';
+    if(grpSucesso) grpSucesso.hidden = !ehFechado;
+    if(grpPerda) grpPerda.hidden = !ehPerdido;
   };
   if(selFechou){ selFechou.addEventListener('change', atualizarFechamento); atualizarFechamento(); }
   if(selMarcou){ selMarcou.addEventListener('change', atualizarFechamento); }
@@ -3414,6 +3449,43 @@ async function salvarPacienteSupabase(form, fd, procedimentosSelecionados, p, is
   }
   const dataEnvioPlano = planoTratamentoNovo === 'Sim' ? nuloSeVazio(dataEnvioPlanoBruta) : null;
 
+  // [Fase C2] Coerência comercial baseada no STATUS CALCULADO — nunca só
+  // em fechouTratamento, porque calcStatus() também produz 'Perdido' via
+  // marcouConsulta='Não' (preservado aqui, mesma regra central do pedido).
+  // Frontend normaliza para boa UX; a RPC normaliza de novo por segurança
+  // (item 5 do pedido). Diferente de data_envio_plano (C1), NÃO existe
+  // carve-out para paciente histórico aqui: se um registro inconsistente
+  // for editado agora, a nova regra passa a valer para este save (decisão
+  // explícita do pedido — legado só fica incompleto enquanto não for
+  // editado de novo).
+  const fechouTratamentoNovo = nuloSeVazio(fd.get('fechouTratamento'));
+  const compareceuNovo = nuloSeVazio(fd.get('compareceu'));
+  const marcouConsultaNovo = nuloSeVazio(fd.get('marcouConsulta'));
+  const statusNovo = calcStatus({
+    nome, fechouTratamento: fechouTratamentoNovo, planoTratamento: planoTratamentoNovo,
+    compareceu: compareceuNovo, marcouConsulta: marcouConsultaNovo,
+  });
+  const ehFechado = statusNovo === 'Fechado (Total)' || statusNovo === 'Fechado (Parcial)';
+  const ehPerdido = statusNovo === 'Perdido';
+
+  let valorFechado = fd.get('valorFechado') ? parseFloat(fd.get('valorFechado')) : null;
+  let dataFechamento = nuloSeVazio(fd.get('dataFechamento'));
+  let motivoPerdaId = refsBase.motivosPorNome[motivoNome] || null;
+
+  if(ehFechado){
+    if(valorFechado === null){ toast('Informe o valor fechado.'); return; }
+    if(!dataFechamento){ toast('Informe a data de fechamento.'); return; }
+    motivoPerdaId = null;
+  } else if(ehPerdido){
+    if(!motivoPerdaId){ toast('Informe o motivo da perda.'); return; }
+    valorFechado = null;
+    dataFechamento = null;
+  } else {
+    valorFechado = null;
+    dataFechamento = null;
+    motivoPerdaId = null;
+  }
+
   const payload = {
     p_nome: nome,
     p_telefone_original: telefoneOriginal,
@@ -3425,16 +3497,16 @@ async function salvarPacienteSupabase(form, fd, procedimentosSelecionados, p, is
     p_procedimento_original: p.procedimentoOriginal || null,
     p_responsavel_id: refsBase.responsaveisPorNome[responsavelNome] || null,
     p_data_contato: nuloSeVazio(fd.get('dataContato')),
-    p_marcou_consulta: nuloSeVazio(fd.get('marcouConsulta')),
+    p_marcou_consulta: marcouConsultaNovo,
     p_data_consulta: nuloSeVazio(fd.get('dataConsulta')),
-    p_compareceu: nuloSeVazio(fd.get('compareceu')),
+    p_compareceu: compareceuNovo,
     p_fez_radiografia: nuloSeVazio(fd.get('fezRadiografia')),
     p_plano_tratamento: planoTratamentoNovo,
     p_valor_orcamento: fd.get('valorOrcamento')? parseFloat(fd.get('valorOrcamento')) : null,
-    p_fechou_tratamento: nuloSeVazio(fd.get('fechouTratamento')),
-    p_valor_fechado: fd.get('valorFechado')? parseFloat(fd.get('valorFechado')) : null,
-    p_data_fechamento: nuloSeVazio(fd.get('dataFechamento')),
-    p_motivo_perda_id: refsBase.motivosPorNome[motivoNome] || null,
+    p_fechou_tratamento: fechouTratamentoNovo,
+    p_valor_fechado: valorFechado,
+    p_data_fechamento: dataFechamento,
+    p_motivo_perda_id: motivoPerdaId,
     p_observacoes: nuloSeVazio((fd.get('observacoes')||'').trim()),
     p_procedimento_ids: procedimentoIds,
     p_data_envio_plano: dataEnvioPlano,
