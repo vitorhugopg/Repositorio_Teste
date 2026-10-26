@@ -3601,7 +3601,11 @@ function renderIndicacoes(){
   linhas.forEach(l=>{ if(l.indicadorNome && l.indicadorNome!=='Não informado'){ ranking[l.indicadorNome]=(ranking[l.indicadorNome]||0)+1; } });
   const rankArr = Object.entries(ranking).sort((a,b)=>b[1]-a[1]);
   return `
-  <div class="grid cols-3">
+  <div class="card">
+    <h3>Qual tipo de indicador mais gera indicações</h3>
+    ${renderGraficoTipoIndicador(linhas)}
+  </div>
+  <div class="grid cols-3" style="margin-top:16px;">
     <div class="card" style="grid-column:span 1;">
       <h3>Top indicadores</h3>
       <table>
@@ -3635,10 +3639,6 @@ function renderIndicacoes(){
       </table>
       </div>
     </div>
-  </div>
-  <div class="card" style="margin-top:16px;">
-    <h3>Qual tipo de indicador mais gera indicações</h3>
-    ${renderGraficoTipoIndicador(linhas)}
   </div>`;
 }
 // [V2.1] Substitui o gráfico "De onde vêm as indicações" (que mostrava
