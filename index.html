@@ -2212,7 +2212,12 @@ function estadoPlanoTratamentoDemo(p){
   const concluido = acaoComercialConcluida('followup_plano', p.id);
   if(concluido) return { estado:'followup_feito', label:'Follow-up realizado', dataHora:concluido.dataHora };
   const dataEnvio = obterDataEnvioPlanoComFallbackLegado(p);
-  const dias = diasEntre(dataEnvio, hojeISO());
+  // [Fase C1] hojeCivilClinica() (America/Sao_Paulo), nunca hojeISO() (UTC)
+  // — evita abrir o alerta de follow-up um dia cedo/tarde perto da meia-
+  // noite. Mesmo helper já usado pela Recorrência; nenhuma arquitetura nova
+  // de timezone. Regra aprovada: enviado hoje -> sem alerta hoje; enviado
+  // ontem -> primeiro alerta hoje (dias>=1).
+  const dias = diasEntre(dataEnvio, hojeCivilClinica());
   if(dias!==null && dias>=1) return { estado:'followup', label:'Follow-up necessário' };
   return { estado:'enviado', label:'Enviado' };
 }
@@ -2873,7 +2878,7 @@ function openPacienteModal(paciente){
     id:uid('pac'), nome:'',telefone:'',email:'',origem:'',procedimentos:[],procedimentoOriginal:'',
     responsavel:'',dataContato:hojeISO(),marcouConsulta:'',dataConsulta:'',compareceu:'',fezRadiografia:'',
     planoTratamento:'',valorOrcamento:null,fechouTratamento:'',valorFechado:null,dataFechamento:'',
-    motivoPerda:'',observacoes:'',indicadoPor:'',
+    motivoPerda:'',observacoes:'',indicadoPor:'',dataEnvioPlano:'',
   };
   // [Config admin] Procedimentos/origens/motivos inativos não aparecem
   // como opção nova, mas um paciente que já os possui continua mostrando
@@ -2997,6 +3002,11 @@ function openPacienteModal(paciente){
               <div class="grid cols-2">
                 <label class="field"><span class="lbl">Plano de Tratamento Apresentado?</span><select name="planoTratamento" data-gate="planoTratamento">${OPCOES_SIMNAO.map(o=>`<option value="${o}" ${p.planoTratamento===o?'selected':''}>${o||'—'}</option>`).join('')}</select></label>
                 <label class="field" data-grupo="valorOrcamento"><span class="lbl">Valor do Orçamento (R$)</span><input type="number" step="0.01" name="valorOrcamento" value="${p.valorOrcamento??''}"></label>
+              </div>
+              <div data-grupo="dataEnvioPlano" hidden>
+                <label class="field"><span class="lbl">Data de envio/apresentação do plano *</span>
+                  <input type="date" name="dataEnvioPlano" data-input-data-envio-plano value="${p.dataEnvioPlano||''}">
+                </label>
               </div>
             </div>
           </section>
@@ -3179,6 +3189,9 @@ function openPacienteModal(paciente){
       motivoPerda: fd.get('motivoPerda'),
       observacoes: fd.get('observacoes'),
       indicadoPor: fd.get('indicadoPor')?.trim() || '',
+      // [Fase C1] mesma regra de consistência do modo Supabase: só existe
+      // data de envio do plano quando o plano foi apresentado.
+      dataEnvioPlano: fd.get('planoTratamento')==='Sim' ? (fd.get('dataEnvioPlano')||'') : '',
     };
     if(!novo.nome){ toast('Informe o nome do paciente.'); return; }
     const idx = DB.pacientes.findIndex(x=>x.id===novo.id);
@@ -3210,8 +3223,36 @@ function aplicarCondicionaisPacienteModal(modalRoot){
 
   const selPlano = form.querySelector('[data-gate="planoTratamento"]');
   const grpOrcamento = form.querySelector('[data-grupo="valorOrcamento"]');
-  const atualizarPlano = ()=>{ grpOrcamento.hidden = selPlano.value !== 'Sim'; };
-  if(selPlano && grpOrcamento){ selPlano.addEventListener('change', atualizarPlano); atualizarPlano(); }
+  const grpDataEnvioPlano = form.querySelector('[data-grupo="dataEnvioPlano"]');
+  const inputDataEnvioPlano = form.querySelector('[data-input-data-envio-plano]');
+  // [Fase C1] Visibilidade dos dois grupos — roda na carga inicial E a
+  // cada mudança do select, SEM sugerir data nenhuma aqui (ver por quê
+  // abaixo).
+  const atualizarPlano = ()=>{
+    const visivel = selPlano.value === 'Sim';
+    grpOrcamento.hidden = !visivel;
+    if(grpDataEnvioPlano) grpDataEnvioPlano.hidden = !visivel;
+  };
+  // [Fase C1] Sugere a data atual da clínica SÓ numa mudança ao vivo do
+  // select para "Sim", e só se o campo ainda estiver vazio — nunca na
+  // carga inicial do modal. Isso é essencial: um paciente HISTÓRICO que
+  // já abre o modal com planoTratamento='Sim' e data_envio_plano vazia
+  // (o campo novo nasceu depois dele) NÃO pode ganhar "hoje" só por ter
+  // sido aberto para editar outra coisa — precisa continuar exatamente
+  // como está (NULL) até que alguém realmente mude o select. Paciente com
+  // data real já preenchida nunca aciona esta função por engano também
+  // pelo mesmo motivo (só dispara em 'change', não na carga inicial).
+  // hojeCivilClinica() — nunca hojeISO() — mesmo helper já usado pela
+  // Recorrência, evita data errada perto da meia-noite UTC.
+  const sugerirDataEnvioPlano = ()=>{
+    if(selPlano.value === 'Sim' && inputDataEnvioPlano && !inputDataEnvioPlano.value){
+      inputDataEnvioPlano.value = hojeCivilClinica();
+    }
+  };
+  if(selPlano && grpOrcamento){
+    selPlano.addEventListener('change', ()=>{ atualizarPlano(); sugerirDataEnvioPlano(); });
+    atualizarPlano();
+  }
 
   const selFechou = form.querySelector('[data-gate="fechouTratamento"]');
   const grpSucesso = form.querySelector('[data-grupo-fechamento="sucesso"]');
@@ -3357,6 +3398,22 @@ async function salvarPacienteSupabase(form, fd, procedimentosSelecionados, p, is
     return;
   }
 
+  // [Fase C1] data_envio_plano: só é enviada quando planoTratamento==='Sim'
+  // — a mesma regra é protegida de novo na RPC (item 7: nunca confiar só
+  // no frontend esconder/limpar o campo). A exigência de preencher a data
+  // vale SÓ para cadastro novo ou para uma transição NOVA para "Sim" nesta
+  // edição — um paciente histórico que JÁ estava "Sim" sem data continua
+  // editável sem forçar preenchimento retroativo (não pode "sumir" dos
+  // fluxos comerciais só porque o campo novo está vazio).
+  const planoTratamentoNovo = nuloSeVazio(fd.get('planoTratamento'));
+  const dataEnvioPlanoBruta = fd.get('dataEnvioPlano');
+  const planoJaEraSimAntes = !isNew && p.planoTratamento === 'Sim';
+  if(planoTratamentoNovo === 'Sim' && !planoJaEraSimAntes && !dataEnvioPlanoBruta){
+    toast('Informe a data de envio/apresentação do plano.');
+    return;
+  }
+  const dataEnvioPlano = planoTratamentoNovo === 'Sim' ? nuloSeVazio(dataEnvioPlanoBruta) : null;
+
   const payload = {
     p_nome: nome,
     p_telefone_original: telefoneOriginal,
@@ -3372,7 +3429,7 @@ async function salvarPacienteSupabase(form, fd, procedimentosSelecionados, p, is
     p_data_consulta: nuloSeVazio(fd.get('dataConsulta')),
     p_compareceu: nuloSeVazio(fd.get('compareceu')),
     p_fez_radiografia: nuloSeVazio(fd.get('fezRadiografia')),
-    p_plano_tratamento: nuloSeVazio(fd.get('planoTratamento')),
+    p_plano_tratamento: planoTratamentoNovo,
     p_valor_orcamento: fd.get('valorOrcamento')? parseFloat(fd.get('valorOrcamento')) : null,
     p_fechou_tratamento: nuloSeVazio(fd.get('fechouTratamento')),
     p_valor_fechado: fd.get('valorFechado')? parseFloat(fd.get('valorFechado')) : null,
@@ -3380,10 +3437,12 @@ async function salvarPacienteSupabase(form, fd, procedimentosSelecionados, p, is
     p_motivo_perda_id: refsBase.motivosPorNome[motivoNome] || null,
     p_observacoes: nuloSeVazio((fd.get('observacoes')||'').trim()),
     p_procedimento_ids: procedimentoIds,
+    p_data_envio_plano: dataEnvioPlano,
   };
   // Nunca enviados: clinica_id, created_by, updated_by, status, data_perda,
-  // data_envio_plano, indicadoPor — derivados/calculados no servidor ou
-  // fora do escopo desta rodada (indicações ficam para outra etapa).
+  // indicadoPor — derivados/calculados no servidor ou fora do escopo desta
+  // rodada (indicações ficam para outra etapa). data_envio_plano passou a
+  // ser enviada nesta rodada (Fase C1), sempre normalizada acima.
   if(!isNew) payload.p_paciente_id = p.id;
 
   // [Recorrência — item 20] Novo Paciente + recorrente=Sim: parâmetros
@@ -5558,12 +5617,12 @@ function importBackupJSON(e){
   reader.readAsText(file);
 }
 function exportPacientesCSV(){
-  const headers = ['Nome','Telefone','Email','Origem','Procedimentos','Responsável','Data 1º Contato','Marcou Consulta','Data Consulta','Compareceu','Fez Radiografia','Plano de Tratamento','Valor Orçamento','Fechou Tratamento','Valor Fechado','Data Fechamento','Motivo da Perda','Status Atual','Observações'];
+  const headers = ['Nome','Telefone','Email','Origem','Procedimentos','Responsável','Data 1º Contato','Marcou Consulta','Data Consulta','Compareceu','Fez Radiografia','Plano de Tratamento','Data Envio Plano','Valor Orçamento','Fechou Tratamento','Valor Fechado','Data Fechamento','Motivo da Perda','Data Perda','Status Atual','Observações'];
   const rows = DB.pacientes.map(p=>[
     p.nome,p.telefone,p.email,p.origem,(p.procedimentos||[]).join('; '),p.responsavel,
     fmtData(p.dataContato),p.marcouConsulta,fmtData(p.dataConsulta),p.compareceu,p.fezRadiografia,
-    p.planoTratamento,p.valorOrcamento??'',p.fechouTratamento,p.valorFechado??'',fmtData(p.dataFechamento),
-    p.motivoPerda,calcStatus(p),p.observacoes
+    p.planoTratamento,fmtData(p.dataEnvioPlano),p.valorOrcamento??'',p.fechouTratamento,p.valorFechado??'',fmtData(p.dataFechamento),
+    p.motivoPerda,fmtData(p.dataPerda),calcStatus(p),p.observacoes
   ]);
   const csv = [headers, ...rows].map(r=>r.map(v=>`"${String(v??'').replace(/"/g,'""')}"`).join(',')).join('\n');
   const blob = new Blob(['﻿'+csv], {type:'text/csv;charset=utf-8;'});
