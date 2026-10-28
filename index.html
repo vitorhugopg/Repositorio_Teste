@@ -256,6 +256,7 @@ tr.clickable:hover{background:var(--ink-100);}
 .form-secao-sub{margin:2px 0 0;font-size:12px;color:var(--text-muted);}
 .form-secao-body{display:flex;flex-direction:column;gap:14px;}
 [data-grupo][hidden],[data-grupo-fechamento][hidden]{display:none;}
+option.opcao-indisponivel{color:#999;font-style:italic;}
 
 .toast{position:fixed;bottom:22px;right:22px;background:var(--ink-950);color:#fff;padding:12px 18px;border-radius:10px;box-shadow:var(--shadow-lg);z-index:99;font-size:13px;font-weight:600;}
 
@@ -2984,9 +2985,9 @@ function openPacienteModal(paciente){
               <div class="grid cols-3">
                 <label class="field"><span class="lbl">Marcou Consulta?</span><select name="marcouConsulta" data-gate="marcouConsulta">${OPCOES_SIMNAO.map(o=>`<option value="${o}" ${p.marcouConsulta===o?'selected':''}>${o||'—'}</option>`).join('')}</select></label>
                 <label class="field" data-grupo="dataConsulta"><span class="lbl">Data da Consulta</span><input type="date" name="dataConsulta" value="${p.dataConsulta||''}"></label>
-                <label class="field"><span class="lbl">Compareceu?</span><select name="compareceu">${OPCOES_SIMNAO.map(o=>`<option value="${o}" ${p.compareceu===o?'selected':''}>${o||'—'}</option>`).join('')}</select></label>
+                <label class="field" data-grupo="compareceu"><span class="lbl">Compareceu?</span><select name="compareceu">${OPCOES_SIMNAO.map(o=>`<option value="${o}" ${p.compareceu===o?'selected':''}>${o||'—'}</option>`).join('')}</select></label>
               </div>
-              <label class="field"><span class="lbl">Fez Radiografia? <span class="muted" style="text-transform:none;font-weight:500;">(informativo)</span></span><select name="fezRadiografia">${OPCOES_SIMNAO.map(o=>`<option value="${o}" ${p.fezRadiografia===o?'selected':''}>${o||'—'}</option>`).join('')}</select></label>
+              <label class="field" data-grupo="fezRadiografia"><span class="lbl">Fez Radiografia? <span class="muted" style="text-transform:none;font-weight:500;">(informativo)</span></span><select name="fezRadiografia">${OPCOES_SIMNAO.map(o=>`<option value="${o}" ${p.fezRadiografia===o?'selected':''}>${o||'—'}</option>`).join('')}</select></label>
             </div>
           </section>
 
@@ -3000,7 +3001,7 @@ function openPacienteModal(paciente){
             </header>
             <div class="form-secao-body">
               <div class="grid cols-2">
-                <label class="field"><span class="lbl">Plano de Tratamento Apresentado?</span><select name="planoTratamento" data-gate="planoTratamento">${OPCOES_SIMNAO.map(o=>`<option value="${o}" ${p.planoTratamento===o?'selected':''}>${o||'—'}</option>`).join('')}</select></label>
+                <label class="field" data-grupo="planoTratamento"><span class="lbl">Plano de Tratamento Apresentado?</span><select name="planoTratamento" data-gate="planoTratamento">${OPCOES_SIMNAO.map(o=>`<option value="${o}" ${p.planoTratamento===o?'selected':''}>${o||'—'}</option>`).join('')}</select></label>
                 <label class="field" data-grupo="valorOrcamento"><span class="lbl">Valor do Orçamento (R$)</span><input type="number" step="0.01" name="valorOrcamento" value="${p.valorOrcamento??''}"></label>
               </div>
               <div data-grupo="dataEnvioPlano" hidden>
@@ -3168,14 +3169,46 @@ function openPacienteModal(paciente){
       return;
     }
 
-    // [Fase C2] mesma normalização/validação do modo Supabase, baseada no
-    // STATUS CALCULADO — nunca só em fechouTratamento (calcStatus()
-    // também produz 'Perdido' via marcouConsulta='Não').
+    // [Fase C2.3 — Regra 4] Bloqueio (não limpeza) de fechamento
+    // incoerente, igual ao modo Supabase — usa o valor CRU submetido.
+    const fechouBrutoLocal = fd.get('fechouTratamento');
+    if(fechouBrutoLocal === 'Sim' || fechouBrutoLocal === 'Parcial'){
+      const marcouBrutoLocal = fd.get('marcouConsulta');
+      const compareceuBrutoLocal = fd.get('compareceu');
+      const planoBrutoLocal = fd.get('planoTratamento');
+      if(marcouBrutoLocal !== 'Sim'){ toast('Para registrar o fechamento, informe que o paciente marcou a consulta.'); return; }
+      if(compareceuBrutoLocal !== 'Sim'){ toast('Para registrar o fechamento, informe que o paciente compareceu à consulta.'); return; }
+      if(planoBrutoLocal !== 'Sim'){ toast('Para registrar o fechamento, informe que o plano de tratamento foi apresentado.'); return; }
+    }
+
+    // [Fase C2.3] Integridade das etapas do funil — limpeza por TRANSIÇÃO
+    // real (mesma cautela do modo Supabase: nunca apaga histórico só por
+    // reabrir e salvar sem mexer nos campos do funil).
     const nomeLocal = fd.get('nome').trim();
-    const fechouTratamentoLocal = fd.get('fechouTratamento');
-    const planoTratamentoLocal = fd.get('planoTratamento');
-    const compareceuLocal = fd.get('compareceu');
     const marcouConsultaLocal = fd.get('marcouConsulta');
+    const marcouAntesLocal = isNew ? '' : (p.marcouConsulta || '');
+    const compareceuAntesLocal = isNew ? '' : (p.compareceu || '');
+    const transicaoMarcouNaoLocal = marcouConsultaLocal === 'Não' && marcouAntesLocal !== 'Não';
+
+    let compareceuLocal = fd.get('compareceu');
+    let fezRadiografiaLocal = fd.get('fezRadiografia');
+    let planoTratamentoLocal = fd.get('planoTratamento');
+    let fechouTratamentoLocal = fd.get('fechouTratamento');
+    let dataConsultaLocal = fd.get('dataConsulta');
+
+    if(transicaoMarcouNaoLocal){
+      compareceuLocal = ''; fezRadiografiaLocal = ''; planoTratamentoLocal = '';
+      fechouTratamentoLocal = ''; dataConsultaLocal = '';
+    }
+
+    const transicaoCompareceuNaoLocal = compareceuLocal === 'Não' && compareceuAntesLocal !== 'Não';
+    if(transicaoCompareceuNaoLocal){
+      fezRadiografiaLocal = ''; planoTratamentoLocal = ''; fechouTratamentoLocal = '';
+    }
+    // Regra 3 (correção explícita): plano_tratamento='Não' não é tratado
+    // como incoerente com fechouTratamento em ('Não','Pendente','Não
+    // precisa no momento') — nenhuma limpeza adicional aqui.
+
     const statusLocal = calcStatus({
       nome: nomeLocal, fechouTratamento: fechouTratamentoLocal, planoTratamento: planoTratamentoLocal,
       compareceu: compareceuLocal, marcouConsulta: marcouConsultaLocal,
@@ -3211,9 +3244,9 @@ function openPacienteModal(paciente){
       responsavel: fd.get('responsavel'),
       dataContato: fd.get('dataContato'),
       marcouConsulta: marcouConsultaLocal,
-      dataConsulta: fd.get('dataConsulta'),
+      dataConsulta: dataConsultaLocal,
       compareceu: compareceuLocal,
-      fezRadiografia: fd.get('fezRadiografia'),
+      fezRadiografia: fezRadiografiaLocal,
       planoTratamento: planoTratamentoLocal,
       valorOrcamento: fd.get('valorOrcamento')? parseFloat(fd.get('valorOrcamento')) : null,
       fechouTratamento: fechouTratamentoLocal,
@@ -3223,8 +3256,9 @@ function openPacienteModal(paciente){
       observacoes: fd.get('observacoes'),
       indicadoPor: fd.get('indicadoPor')?.trim() || '',
       // [Fase C1] mesma regra de consistência do modo Supabase: só existe
-      // data de envio do plano quando o plano foi apresentado.
-      dataEnvioPlano: fd.get('planoTratamento')==='Sim' ? (fd.get('dataEnvioPlano')||'') : '',
+      // data de envio do plano quando o plano foi apresentado (usa o valor
+      // JÁ normalizado pela integridade do funil acima — Fase C2.3).
+      dataEnvioPlano: planoTratamentoLocal==='Sim' ? (fd.get('dataEnvioPlano')||'') : '',
     };
     if(!novo.nome){ toast('Informe o nome do paciente.'); return; }
     const idx = DB.pacientes.findIndex(x=>x.id===novo.id);
@@ -3244,26 +3278,118 @@ function openPacienteModal(paciente){
 // paciente — roda no render inicial (então Editar já abre com o estado
 // certo, já que os selects vêm preenchidos do banco) e em cada `change`
 // dos selects-gatilho (então Novo começa simples e vai se expandindo).
-// Nunca limpa valor de input nenhum — só alterna `hidden` no grupo.
+// A visibilidade (hidden) roda sempre (carga inicial + change). Limpeza de
+// valor (reset para '') só roda em `change` AO VIVO dos campos-gatilho
+// (marcouConsulta/compareceu) — nunca na carga inicial, pelo mesmo motivo
+// já estabelecido na Fase C1 (data_envio_plano): um paciente HISTÓRICO que
+// abre com dado incoerente/antigo não pode ter esse dado apagado só por
+// ter sido aberto para editar outra coisa.
 function aplicarCondicionaisPacienteModal(modalRoot){
   const form = modalRoot.querySelector('#form-paciente');
   if(!form) return;
 
   const selMarcou = form.querySelector('[data-gate="marcouConsulta"]');
   const grpConsulta = form.querySelector('[data-grupo="dataConsulta"]');
-  const atualizarConsulta = ()=>{ grpConsulta.hidden = selMarcou.value !== 'Sim'; };
-  if(selMarcou && grpConsulta){ selMarcou.addEventListener('change', atualizarConsulta); atualizarConsulta(); }
-
+  const grpCompareceu = form.querySelector('[data-grupo="compareceu"]');
+  const selCompareceu = form.querySelector('[name="compareceu"]');
+  const grpFezRadiografia = form.querySelector('[data-grupo="fezRadiografia"]');
+  const selFezRadiografia = form.querySelector('[name="fezRadiografia"]');
+  const grpPlano = form.querySelector('[data-grupo="planoTratamento"]');
   const selPlano = form.querySelector('[data-gate="planoTratamento"]');
   const grpOrcamento = form.querySelector('[data-grupo="valorOrcamento"]');
   const grpDataEnvioPlano = form.querySelector('[data-grupo="dataEnvioPlano"]');
   const inputDataEnvioPlano = form.querySelector('[data-input-data-envio-plano]');
-  // [Fase C1] Visibilidade dos dois grupos — roda na carga inicial E a
-  // cada mudança do select, SEM sugerir data nenhuma aqui (ver por quê
-  // abaixo).
+  const selFechou = form.querySelector('[data-gate="fechouTratamento"]');
+  const grpSucesso = form.querySelector('[data-grupo-fechamento="sucesso"]');
+  const grpPerda = form.querySelector('[data-grupo-fechamento="perda"]');
+
+  // [Fase C2.3] Integridade das etapas do funil. Duas coisas DIFERENTES
+  // aqui, que não podem ser confundidas:
+  // (a) VISIBILIDADE (Regras 1/2 — limpeza): compareceu/fezRadiografia/
+  //     planoTratamento só ficam ESCONDIDOS quando o campo anterior é
+  //     EXPLICITAMENTE 'Não' — nunca só por ainda estar em branco. Um
+  //     cadastro novo com marcouConsulta ainda não respondido continua
+  //     mostrando normalmente compareceu/plano (comportamento já existente
+  //     antes da C2.3, preservado) — só marcar 'Não' é que limpa e some
+  //     com o que vem depois.
+  // (b) DISPONIBILIDADE de Fechado Sim/Parcial (Regra 4 — bloqueio): essa
+  //     sim exige marcou/compareceu/plano === 'Sim' (os três, de verdade),
+  //     porque fechar o tratamento é uma afirmação forte que não pode
+  //     conviver com uma etapa anterior ainda em aberto ou negativa.
+  // fechouTratamento NUNCA é escondido por completo (continua fazendo
+  // sentido mesmo com marcou/compareceu='Não' — Pendente, Não, Não Precisa
+  // no Momento são sempre válidos), só as opções 'Sim'/'Parcial' ficam
+  // visualmente marcadas como indisponíveis. IMPORTANTE: nunca usamos
+  // `option.disabled` aqui — o HTML exclui silenciosamente da FormData o
+  // valor de uma option disabled mesmo que já estivesse selecionada (ex.:
+  // paciente histórico que já abre com fechouTratamento='Sim' e
+  // compareceu incoerente) — isso apagaria o dado no submit sem nenhum
+  // aviso, o oposto do que a Regra 4 pede (bloquear, nunca apagar
+  // silenciosamente). Em vez disso, o bloqueio acontece em dois lugares:
+  // (1) `change` ao vivo no próprio select, que reverte a escolha nova e
+  // avisa com toast; (2) a validação de submit (Regra 4 em
+  // salvarPacienteSupabase/local), que é a autoridade final e cobre
+  // também o caso do valor já vir assim desde a carga do modal.
+  const marcouNao = ()=> !!selMarcou && selMarcou.value === 'Não';
+  const compareceuNao = ()=> !!selCompareceu && selCompareceu.value === 'Não';
+  const marcouOk = ()=> !!selMarcou && selMarcou.value === 'Sim';
+  const compareceuOk = ()=> marcouOk() && !!selCompareceu && selCompareceu.value === 'Sim';
+  const planoOk = ()=> compareceuOk() && !!selPlano && selPlano.value === 'Sim';
+
+  const atualizarIntegridadeFunil = ()=>{
+    if(grpCompareceu) grpCompareceu.hidden = marcouNao();
+    if(grpFezRadiografia) grpFezRadiografia.hidden = marcouNao() || compareceuNao();
+    if(grpPlano) grpPlano.hidden = marcouNao() || compareceuNao();
+    if(selFechou){
+      const permiteFechado = planoOk();
+      Array.from(selFechou.options).forEach(opt=>{
+        if(opt.value === 'Sim' || opt.value === 'Parcial') opt.classList.toggle('opcao-indisponivel', !permiteFechado);
+      });
+    }
+  };
+  // Guarda de `change` ao vivo: se o usuário tenta selecionar 'Sim'/
+  // 'Parcial' sem a cadeia anterior 100% 'Sim', reverte a escolha e avisa
+  // — nunca deixa a seleção inválida "parada" no select (ela só existiria
+  // ali se o próprio histórico já tivesse esse valor, nunca por causa
+  // desta função).
+  const bloquearFechamentoIncoerenteAoVivo = ()=>{
+    if(!selFechou) return false;
+    const v = selFechou.value;
+    if((v === 'Sim' || v === 'Parcial') && !planoOk()){
+      selFechou.value = '';
+      if(!marcouOk()) toast('Para registrar o fechamento, informe que o paciente marcou a consulta.');
+      else if(!compareceuOk()) toast('Para registrar o fechamento, informe que o paciente compareceu à consulta.');
+      else toast('Para registrar o fechamento, informe que o plano de tratamento foi apresentado.');
+      return true;
+    }
+    return false;
+  };
+  // Limpeza (reset de valor) só em `change` AO VIVO — nunca na carga
+  // inicial (ver comentário da função). Espelha exatamente a Regra 1/2 da
+  // migration: marcouConsulta->Não limpa compareceu/fezRadiografia/
+  // planoTratamento/fechouTratamento/dataConsulta; compareceu->Não limpa
+  // fezRadiografia/planoTratamento/fechouTratamento.
+  const limparDecorrentesDeMarcou = ()=>{
+    if(selCompareceu) selCompareceu.value = '';
+    if(selFezRadiografia) selFezRadiografia.value = '';
+    if(selPlano) selPlano.value = '';
+    if(selFechou) selFechou.value = '';
+    if(inputDataEnvioPlano) inputDataEnvioPlano.value = '';
+  };
+  const limparDecorrentesDeCompareceu = ()=>{
+    if(selFezRadiografia) selFezRadiografia.value = '';
+    if(selPlano) selPlano.value = '';
+    if(selFechou) selFechou.value = '';
+    if(inputDataEnvioPlano) inputDataEnvioPlano.value = '';
+  };
+
+  // [Fase C1] Visibilidade de valorOrcamento/dataEnvioPlano — roda na
+  // carga inicial E a cada mudança do select, SEM sugerir data nenhuma
+  // aqui (ver por quê abaixo). Agora também depende da cadeia
+  // marcou/compareceu (Fase C2.3) além do próprio valor de planoTratamento.
   const atualizarPlano = ()=>{
-    const visivel = selPlano.value === 'Sim';
-    grpOrcamento.hidden = !visivel;
+    const visivel = !marcouNao() && !compareceuNao() && !!selPlano && selPlano.value === 'Sim';
+    if(grpOrcamento) grpOrcamento.hidden = !visivel;
     if(grpDataEnvioPlano) grpDataEnvioPlano.hidden = !visivel;
   };
   // [Fase C1] Sugere a data atual da clínica SÓ numa mudança ao vivo do
@@ -3284,12 +3410,8 @@ function aplicarCondicionaisPacienteModal(modalRoot){
   };
   if(selPlano && grpOrcamento){
     selPlano.addEventListener('change', ()=>{ atualizarPlano(); sugerirDataEnvioPlano(); });
-    atualizarPlano();
   }
 
-  const selFechou = form.querySelector('[data-gate="fechouTratamento"]');
-  const grpSucesso = form.querySelector('[data-grupo-fechamento="sucesso"]');
-  const grpPerda = form.querySelector('[data-grupo-fechamento="perda"]');
   // [Correção / Fase C2] "Perdido" tem DOIS caminhos em calcStatus():
   // fechouTratamento === 'Não' OU marcouConsulta === 'Não' (lead que nunca
   // marcou consulta). A regra central da C2 é que a coerência comercial é
@@ -3310,8 +3432,34 @@ function aplicarCondicionaisPacienteModal(modalRoot){
     if(grpSucesso) grpSucesso.hidden = !ehFechado;
     if(grpPerda) grpPerda.hidden = !ehPerdido;
   };
-  if(selFechou){ selFechou.addEventListener('change', atualizarFechamento); atualizarFechamento(); }
-  if(selMarcou){ selMarcou.addEventListener('change', atualizarFechamento); }
+  if(selFechou){
+    selFechou.addEventListener('change', ()=>{
+      bloquearFechamentoIncoerenteAoVivo();
+      atualizarFechamento();
+    });
+  }
+
+  // [Fase C2.3] Listeners dos dois campos-gatilho da integridade do funil.
+  // Cada `change` reaplica TODA a cadeia (integridade -> plano -> fechamento)
+  // porque uma limpeza em cascata pode esvaziar campos que, por sua vez,
+  // afetam a visibilidade/opções dos grupos seguintes.
+  if(selMarcou){
+    selMarcou.addEventListener('change', ()=>{
+      if(selMarcou.value !== 'Sim') limparDecorrentesDeMarcou();
+      atualizarIntegridadeFunil(); atualizarPlano(); atualizarFechamento();
+    });
+  }
+  if(selCompareceu){
+    selCompareceu.addEventListener('change', ()=>{
+      if(selCompareceu.value === 'Não') limparDecorrentesDeCompareceu();
+      atualizarIntegridadeFunil(); atualizarPlano(); atualizarFechamento();
+    });
+  }
+
+  // Estado inicial (carga do modal) — só visibilidade/opções, nunca limpeza.
+  atualizarIntegridadeFunil();
+  atualizarPlano();
+  atualizarFechamento();
 
   // [Recorrência] Só existe no DOM quando o paciente NÃO tem ciclo ativo
   // (ver bloco 05 em openPacienteModal) — quando há ciclo ativo, o bloco é
@@ -3388,6 +3536,23 @@ async function salvarPacienteSupabase(form, fd, procedimentosSelecionados, p, is
   const nome = (fd.get('nome')||'').trim();
   if(!nome){ toast('Informe o nome do paciente.'); return; }
 
+  // [Fase C2.3 — Regra 4] Bloqueio (não limpeza) de fechamento incoerente.
+  // Usa o valor CRU submetido, antes de qualquer normalização de
+  // integridade do funil feita mais abaixo — o objetivo aqui é VALIDAR a
+  // combinação que o usuário está tentando enviar agora (ex.: marcar
+  // compareceu='Não' e fechouTratamento='Sim' na mesma ação), não decidir
+  // o que apagar. Mesma validação é refeita na RPC como autoridade final
+  // (defesa em profundidade, igual já acontece com valor_fechado/motivo).
+  const fechouBruto = nuloSeVazio(fd.get('fechouTratamento'));
+  if(fechouBruto === 'Sim' || fechouBruto === 'Parcial'){
+    const marcouBruto = nuloSeVazio(fd.get('marcouConsulta'));
+    const compareceuBruto = nuloSeVazio(fd.get('compareceu'));
+    const planoBruto = nuloSeVazio(fd.get('planoTratamento'));
+    if(marcouBruto !== 'Sim'){ toast('Para registrar o fechamento, informe que o paciente marcou a consulta.'); return; }
+    if(compareceuBruto !== 'Sim'){ toast('Para registrar o fechamento, informe que o paciente compareceu à consulta.'); return; }
+    if(planoBruto !== 'Sim'){ toast('Para registrar o fechamento, informe que o plano de tratamento foi apresentado.'); return; }
+  }
+
   const telefoneOriginal = nuloSeVazio((fd.get('telefone')||'').trim());
   const telefoneE164 = normalizarTelefoneE164BR(telefoneOriginal);
 
@@ -3433,14 +3598,54 @@ async function salvarPacienteSupabase(form, fd, procedimentosSelecionados, p, is
     return;
   }
 
+  // [Fase C2.3] Integridade das etapas do funil — limpeza (Regras 1/2) por
+  // TRANSIÇÃO REAL (valor antigo != valor novo), nunca por resubmissão de
+  // um valor já histórico — mesma cautela da C1 com data_envio_plano:
+  // reabrir e salvar um paciente histórico incoerente sem mexer nos campos
+  // do funil não pode apagar dado antigo (item HISTÓRICO/CRÍTICO do
+  // pedido). Para cadastro novo (isNew) não existe "antigo", então a
+  // limpeza vale incondicionalmente quando o valor final é 'Não'. A
+  // validação (Regra 4, bloqueio de Fechado Sim/Parcial incoerente) já foi
+  // feita acima, em cima do valor CRU, antes desta limpeza — por isso ela
+  // nunca entra em conflito com o que acontece aqui.
+  const marcouConsultaNovo = nuloSeVazio(fd.get('marcouConsulta'));
+  const marcouAntes = isNew ? null : nuloSeVazio(p.marcouConsulta);
+  const compareceuAntes = isNew ? null : nuloSeVazio(p.compareceu);
+  const transicaoMarcouNao = marcouConsultaNovo === 'Não' && marcouAntes !== 'Não';
+
+  let compareceuNovo = nuloSeVazio(fd.get('compareceu'));
+  let fezRadiografiaNovo = nuloSeVazio(fd.get('fezRadiografia'));
+  let planoTratamentoNovo = nuloSeVazio(fd.get('planoTratamento'));
+  let fechouTratamentoNovo = nuloSeVazio(fd.get('fechouTratamento'));
+  let dataConsultaNovo = nuloSeVazio(fd.get('dataConsulta'));
+
+  if(transicaoMarcouNao){
+    compareceuNovo = null; fezRadiografiaNovo = null; planoTratamentoNovo = null;
+    fechouTratamentoNovo = null; dataConsultaNovo = null;
+  }
+
+  // Regra 2: mesmo racional, agora sobre compareceu, usando o valor JÁ
+  // normalizado pela Regra 1 acima (se a Regra 1 já limpou compareceu para
+  // null, esta condição naturalmente não dispara de novo).
+  const transicaoCompareceuNao = compareceuNovo === 'Não' && compareceuAntes !== 'Não';
+  if(transicaoCompareceuNao){
+    fezRadiografiaNovo = null; planoTratamentoNovo = null; fechouTratamentoNovo = null;
+  }
+  // Regra 3 (correção explícita): plano_tratamento='Não' NÃO é tratado como
+  // incoerente com fechouTratamento em ('Não','Pendente','Não precisa no
+  // momento') — existem pacientes históricos reais com essa combinação.
+  // Nenhuma limpeza adicional acontece aqui além da já existente (C1) logo
+  // abaixo.
+
   // [Fase C1] data_envio_plano: só é enviada quando planoTratamento==='Sim'
   // — a mesma regra é protegida de novo na RPC (item 7: nunca confiar só
-  // no frontend esconder/limpar o campo). A exigência de preencher a data
-  // vale SÓ para cadastro novo ou para uma transição NOVA para "Sim" nesta
-  // edição — um paciente histórico que JÁ estava "Sim" sem data continua
-  // editável sem forçar preenchimento retroativo (não pode "sumir" dos
-  // fluxos comerciais só porque o campo novo está vazio).
-  const planoTratamentoNovo = nuloSeVazio(fd.get('planoTratamento'));
+  // no frontend esconder/limpar o campo). Opera sobre o valor JÁ
+  // normalizado pela integridade do funil acima, nunca sobre o valor cru.
+  // A exigência de preencher a data vale SÓ para cadastro novo ou para uma
+  // transição NOVA para "Sim" nesta edição — um paciente histórico que JÁ
+  // estava "Sim" sem data continua editável sem forçar preenchimento
+  // retroativo (não pode "sumir" dos fluxos comerciais só porque o campo
+  // novo está vazio).
   const dataEnvioPlanoBruta = fd.get('dataEnvioPlano');
   const planoJaEraSimAntes = !isNew && p.planoTratamento === 'Sim';
   if(planoTratamentoNovo === 'Sim' && !planoJaEraSimAntes && !dataEnvioPlanoBruta){
@@ -3457,10 +3662,8 @@ async function salvarPacienteSupabase(form, fd, procedimentosSelecionados, p, is
   // carve-out para paciente histórico aqui: se um registro inconsistente
   // for editado agora, a nova regra passa a valer para este save (decisão
   // explícita do pedido — legado só fica incompleto enquanto não for
-  // editado de novo).
-  const fechouTratamentoNovo = nuloSeVazio(fd.get('fechouTratamento'));
-  const compareceuNovo = nuloSeVazio(fd.get('compareceu'));
-  const marcouConsultaNovo = nuloSeVazio(fd.get('marcouConsulta'));
+  // editado de novo). Opera sobre os valores JÁ normalizados pela
+  // integridade do funil acima (Regras 1/2).
   const statusNovo = calcStatus({
     nome, fechouTratamento: fechouTratamentoNovo, planoTratamento: planoTratamentoNovo,
     compareceu: compareceuNovo, marcouConsulta: marcouConsultaNovo,
@@ -3498,9 +3701,9 @@ async function salvarPacienteSupabase(form, fd, procedimentosSelecionados, p, is
     p_responsavel_id: refsBase.responsaveisPorNome[responsavelNome] || null,
     p_data_contato: nuloSeVazio(fd.get('dataContato')),
     p_marcou_consulta: marcouConsultaNovo,
-    p_data_consulta: nuloSeVazio(fd.get('dataConsulta')),
+    p_data_consulta: dataConsultaNovo,
     p_compareceu: compareceuNovo,
-    p_fez_radiografia: nuloSeVazio(fd.get('fezRadiografia')),
+    p_fez_radiografia: fezRadiografiaNovo,
     p_plano_tratamento: planoTratamentoNovo,
     p_valor_orcamento: fd.get('valorOrcamento')? parseFloat(fd.get('valorOrcamento')) : null,
     p_fechou_tratamento: fechouTratamentoNovo,
