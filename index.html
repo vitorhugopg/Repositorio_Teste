@@ -1964,6 +1964,12 @@ function buildInitialState(){
     // os ids dos pacientes reais são UUIDs do banco, nunca batem com o seed local,
     // e misturar os dois violaria a regra de não mostrar dado fictício com dado real.
     whatsappConversas: (typeof MODO_SUPABASE !== 'undefined' && MODO_SUPABASE) ? [] : seedWhatsappConversas(),
+    // [WhatsApp V1.1] Instâncias reais (whatsapp_instancias) — sempre []
+    // em modo local (não existe o conceito ali) e carregado de verdade em
+    // carregarDadosSupabase(). Fica [] também em modo Supabase até a V1.2
+    // conectar a Evolution de verdade — a interface trata isso como
+    // "WhatsApp não conectado", nunca inventa uma conexão.
+    whatsappInstancias: [],
     // [V2] ids (pacientes reais ou demo) já marcados como "pós-venda realizado".
     // Estrutura temporária em localStorage — candidata a virar tabela `followups`
     // (ou equivalente) quando o banco real existir.
@@ -2042,6 +2048,7 @@ function normalizarEstado(db){
   db.pacientes = (Array.isArray(db.pacientes) ? db.pacientes : []).map(normalizarPaciente);
   db.theme = db.theme || 'system';
   if(!Array.isArray(db.whatsappConversas)) db.whatsappConversas = seedWhatsappConversas();
+  if(!Array.isArray(db.whatsappInstancias)) db.whatsappInstancias = [];
   if(!Array.isArray(db.posVendasConcluidos)) db.posVendasConcluidos = [];
   // [V2.1 — migração defensiva V2 → V2.1] preenche só o que for novo,
   // sem apagar nada que já exista num estado salvo pela V2.
@@ -4754,6 +4761,23 @@ function resolverContatoWhatsapp(pacienteId){
   return { nome:'Contato', telefone:'' };
 }
 
+// [WhatsApp V1.1] Mesma resolução acima, com UM fallback a mais: quando a
+// conversa não tem paciente_id associado (ou nenhum paciente bate — ver
+// Contexto/relatório da fundação Supabase: telefone duplicado nunca
+// associa automaticamente), usa os dados do PRÓPRIO contato vindos do
+// provider (telefone_e164/nome_contato) em vez do genérico "Contato" sem
+// telefone. Só usado pela tela de WhatsApp — nunca substitui
+// resolverContatoWhatsapp(pacienteId) acima, que o Pós-Consulta continua
+// chamando do jeito que já chamava.
+function resolverContatoConversaWhatsapp(c){
+  const base = resolverContatoWhatsapp(c.pacienteId);
+  if(base.nome !== 'Contato' || base.telefone) return base;
+  if(c.nomeContato || c.telefone){
+    return { nome: c.nomeContato || 'Contato não cadastrado', telefone: c.telefone || '' };
+  }
+  return base;
+}
+
 // [V2] Funções de navegação reutilizáveis entre módulos (item 9 do briefing).
 function abrirPaciente(pacienteId){
   const p = DB.pacientes.find(x=>x.id===pacienteId);
@@ -4903,7 +4927,7 @@ function fmtHoraCurta(iso){
 }
 
 function renderWhatsapp(){
-  const conversas = DB.whatsappConversas.map(c=>({ c, contato: resolverContatoWhatsapp(c.pacienteId), st: statusConversaWhatsapp(c) }));
+  const conversas = DB.whatsappConversas.map(c=>({ c, contato: resolverContatoConversaWhatsapp(c), st: statusConversaWhatsapp(c) }));
   const ordem = {atrasado:0, atencao:1, normal:2};
   conversas.sort((a,b)=>{
     const oa = a.st.aguardando? ordem[a.st.nivel] : 3;
@@ -4924,6 +4948,11 @@ function renderWhatsapp(){
   const novoContato = (DB.novoContatoWhatsappDemo && !DB.novoContatoWhatsappDemo.processado) ? DB.novoContatoWhatsappDemo : null;
   // [V2.1] atalho de conclusão contextual (item 10) — só aparece quando existe.
   const acaoInfo = selecionada ? acaoPendenteInfo(selecionada.c) : null;
+  // [WhatsApp V1.1] Nesta fase a tabela whatsapp_instancias sempre está
+  // vazia no Supabase real (nenhuma Evolution conectada ainda — V1.2).
+  // Em modo local/demo este conceito não existe, então nunca mostramos
+  // o aviso ali (preserva a demonstração exatamente como está).
+  const instanciaConectada = !MODO_SUPABASE || (DB.whatsappInstancias||[]).some(i=>i.status_conexao==='conectado');
 
   return `
   <div class="card" style="margin-bottom:14px;">
@@ -4934,6 +4963,11 @@ function renderWhatsapp(){
       </div>
       ${MODO_SUPABASE ? '' : `<button class="btn ghost sm" data-action="wa-simular-contato" title="Ferramenta de teste: simula uma mensagem chegando de um número qualquer">🧪 Simular contato manual</button>`}
     </div>
+    ${instanciaConectada ? '' : `
+      <div class="small" style="margin-top:10px;padding:8px 12px;border-radius:8px;background:var(--warn-bg);color:var(--warn);font-weight:700;">
+        ⚠️ WhatsApp não conectado — a integração com o provedor chega na próxima fase (V1.2). Conversas e mensagens abaixo já vêm do banco real, quando existirem.
+      </div>
+    `}
   </div>
   <div class="wa-layout">
     <div class="wa-list">
@@ -4974,10 +5008,17 @@ function renderWhatsapp(){
             <div class="wa-bubble ${m.autor}">${escapeHtml(m.texto)}<span class="hora">${fmtHoraCurta(m.hora)}</span></div>
           `).join('') : `<div class="empty">Nenhuma mensagem ainda. Envie a primeira mensagem abaixo.</div>`}
         </div>
+        ${MODO_SUPABASE ? `
+        <div class="wa-compose" title="Envio real chega na V1.2, junto da integração com o provedor de WhatsApp.">
+          <textarea id="wa-input" rows="1" placeholder="Envio indisponível até a integração com o WhatsApp (V1.2)…" disabled></textarea>
+          <button class="btn primary sm" data-action="wa-enviar" disabled>Enviar</button>
+        </div>
+        ` : `
         <div class="wa-compose">
           <textarea id="wa-input" rows="1" placeholder="Digite uma mensagem…"></textarea>
           <button class="btn primary sm" data-action="wa-enviar">Enviar</button>
         </div>
+        `}
       ` : `<div class="empty" style="margin:auto;">Selecione uma conversa ao lado.</div>`}
     </div>
   </div>`;
@@ -4988,6 +5029,10 @@ function bindWhatsappEvents(){
   });
   const enviarBtn = document.querySelector('[data-action="wa-enviar"]');
   if(enviarBtn) enviarBtn.addEventListener('click', ()=>{
+    // [WhatsApp V1.1] Defesa extra além do `disabled` no HTML: em modo
+    // Supabase não existe provedor real ainda (V1.2) — nunca gravar uma
+    // mensagem como se tivesse sido enviada de verdade.
+    if(MODO_SUPABASE) return;
     const input = document.getElementById('wa-input');
     const texto = input.value.trim();
     if(!texto) return;
@@ -6345,6 +6390,9 @@ async function carregarDadosSupabase(perfil){
     { data: ciclosRecorrenciaRows, error: errCiclosRec },
     { data: retornosRecorrenciaRows, error: errRetornosRec },
     { data: indicacoesRows, error: errIndic },
+    { data: waInstanciasRows, error: errWaInstancias },
+    { data: waConversasRows, error: errWaConversas },
+    { data: waMensagensRows, error: errWaMensagens },
   ] = await Promise.all([
     sb.from('pacientes_com_status').select('*'),
     sb.from('paciente_procedimentos').select('paciente_id, procedimento_id'),
@@ -6366,9 +6414,21 @@ async function carregarDadosSupabase(perfil){
     // [Indicações — Fase B2] authenticated só tem SELECT direto nesta
     // tabela (ver migration 20261023000003) — RLS já escopa por clínica.
     sb.from('indicacoes').select('id, paciente_indicado_id, indicador_paciente_id, indicador_nome_externo, tipo_indicador, legacy_id, created_at'),
+    // [WhatsApp V1.1] fundação — as 3 tabelas nascem vazias no Supabase
+    // real até a V1.2 (webhook/Evolution) existir; aqui só preparamos a
+    // leitura. RLS já escopa tudo por clínica, igual ao resto.
+    sb.from('whatsapp_instancias').select('id, provider, identificador_externo, telefone_e164, nome_exibicao, status_conexao'),
+    sb.from('whatsapp_conversas').select('id, instancia_id, paciente_id, telefone_e164, nome_contato, ultima_mensagem_paciente_em, ultima_mensagem_clinica_em, ultima_mensagem_em'),
+    // Sem .order() aqui de propósito — nem todo mock de teste já
+    // implementa esse método, e a ordenação cronológica é garantida de
+    // qualquer forma pelo .sort() explícito logo abaixo, ao agrupar por
+    // conversa (mais simples e sem acoplar a chamada real a um detalhe
+    // de infraestrutura de teste).
+    sb.from('whatsapp_mensagens').select('id, conversa_id, autor, tipo_conteudo, texto, status_envio, enviada_em'),
   ]);
 
-  const erro = errPac || errPP || errProc || errOrig || errMot || errProf || errAcoes || errClinica || errTiposRec || errCiclosRec || errRetornosRec || errIndic;
+  const erro = errPac || errPP || errProc || errOrig || errMot || errProf || errAcoes || errClinica || errTiposRec || errCiclosRec || errRetornosRec || errIndic
+    || errWaInstancias || errWaConversas || errWaMensagens;
   if(erro) throw erro;
 
   // [Supabase] Monta o DB da sessão a partir do estado padrão local — mantém
@@ -6429,6 +6489,30 @@ async function carregarDadosSupabase(perfil){
   // DB.equipeSupabase — todos já preenchidos nesta altura da função.
   DB.ciclosRecorrencia = (ciclosRecorrenciaRows||[]).map(mapCicloSupabaseParaCRM);
   DB._retornosRecorrenciaSupabase = (retornosRecorrenciaRows||[]).map(mapRetornoSupabaseParaCRM);
+
+  // [WhatsApp V1.1] Monta o MESMO formato que a tela já usa hoje em modo
+  // local ({id, pacienteId, mensagens:[{autor,texto,hora}]}) — zero
+  // mudança em statusConversaWhatsapp()/renderWhatsapp() para ler os
+  // dados reais. telefone/nomeContato só importam quando NÃO há
+  // paciente_id associado (ver resolverContatoWhatsapp()).
+  DB.whatsappInstancias = waInstanciasRows || [];
+  const waMensagensPorConversa = {};
+  (waMensagensRows||[]).forEach(m=>{
+    if(!waMensagensPorConversa[m.conversa_id]) waMensagensPorConversa[m.conversa_id] = [];
+    waMensagensPorConversa[m.conversa_id].push({ autor: m.autor, texto: m.texto || '', hora: m.enviada_em });
+  });
+  // Ordem cronológica garantida aqui em JS (nunca assumida da ordem bruta
+  // de retorno da consulta).
+  Object.values(waMensagensPorConversa).forEach(lista=>{
+    lista.sort((a,b)=> new Date(a.hora) - new Date(b.hora));
+  });
+  DB.whatsappConversas = (waConversasRows||[]).map(c=>({
+    id: c.id,
+    pacienteId: c.paciente_id || null,
+    telefone: c.telefone_e164 || '',
+    nomeContato: c.nome_contato || '',
+    mensagens: waMensagensPorConversa[c.id] || [],
+  }));
 
   render();
   bindRouteEvents();
