@@ -204,6 +204,22 @@ tr.clickable:hover{background:var(--ink-100);}
 :root[data-theme="dark"] .stat-tile .val{color:var(--gold-500);}
 @media(prefers-color-scheme:dark){:root:not([data-theme="light"]) .stat-tile .val{color:var(--gold-500);}}
 
+/* [Drill-down Fechados (Ganhos)] — só este card do Dashboard */
+.fechados-ganhos-wrap{position:relative;}
+.fechados-ganhos-card{cursor:pointer;}
+.fechados-ganhos-card .info-dot{font-size:11px;color:var(--text-muted);font-weight:400;letter-spacing:0;text-transform:none;}
+.fechados-ganhos-card:hover{box-shadow:var(--shadow-lg);}
+.fechados-ganhos-card:focus-visible{outline:2px solid var(--gold-500);outline-offset:2px;}
+.fechados-popover{position:absolute;top:100%;margin-top:8px;width:min(320px,calc(100vw - 32px));background:var(--paper);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow-lg);z-index:30;padding:14px 16px;}
+.fechados-popover[hidden]{display:none;}
+.fechados-popover-title{font-weight:700;font-size:13px;margin-bottom:8px;color:var(--ink-900);}
+.fechados-popover-lista{list-style:none;margin:0;padding:0;max-height:220px;overflow-y:auto;display:flex;flex-direction:column;gap:8px;}
+.fechados-popover-lista li{display:flex;flex-direction:column;border-bottom:1px solid var(--line);padding-bottom:6px;}
+.fechados-popover-lista li:last-child{border-bottom:none;padding-bottom:0;}
+.fechados-popover-lista .nome{font-weight:600;font-size:13px;color:var(--ink-900);word-break:break-word;}
+.fechados-popover-lista .valor{font-size:12px;color:var(--text-muted);}
+.fechados-popover-footer{display:flex;justify-content:space-between;gap:10px;margin-top:10px;padding-top:8px;border-top:1px solid var(--line);font-size:12px;font-weight:700;color:var(--ink-900);}
+
 /* kanban */
 .kanban-wrap{display:flex;gap:14px;overflow-x:auto;padding-bottom:12px;}
 .kanban-col{flex:0 0 268px;background:var(--bg);border:1px solid var(--line);border-radius:var(--radius);display:flex;flex-direction:column;max-height:calc(100vh - 210px);}
@@ -4218,9 +4234,44 @@ function mesesDisponiveis(){
   return meses;
 }
 
+// [Dashboard — drill-down "Fechados (Ganhos)"] Única fonte de verdade da
+// seleção de pacientes fechados num mês: aggregateMonth() (cartão/soma) e o
+// pop-up de detalhamento usam EXATAMENTE este array, nunca uma cópia
+// paralela do filtro — garante por construção que card, lista e total
+// financeiro nunca divirjam. Ordenado por data de fechamento mais recente
+// primeiro (sem data fica por último, nunca escondido).
+function fechadosDoMesDetalhado(key){
+  return DB.pacientes
+    .filter(p=>monthKey(p.dataFechamento)===key && (p.fechouTratamento==='Sim'||p.fechouTratamento==='Parcial'))
+    .slice()
+    .sort((a,b)=>(b.dataFechamento||'').localeCompare(a.dataFechamento||''));
+}
+// [Dashboard — drill-down] Conteúdo do pop-up: nome + valor são sempre
+// mostrados (valor NULL mostra "Valor não informado", nunca esconde o
+// paciente), data de fechamento é um complemento discreto quando existe.
+function renderFechadosPopoverConteudo(lista, valorTotal, mesKey){
+  const titulo = `Fechados em ${monthLabel(mesKey)}`;
+  if(!lista.length){
+    return `<div class="fechados-popover-title">${escapeHtml(titulo)}</div>
+      <div class="muted small">Nenhum fechamento registrado neste mês.</div>`;
+  }
+  return `
+    <div class="fechados-popover-title">${escapeHtml(titulo)}</div>
+    <ul class="fechados-popover-lista">
+      ${lista.map(p=>{
+        const valorTxt = (p.valorFechado===null||p.valorFechado===undefined) ? 'Valor não informado' : fmtMoeda(p.valorFechado);
+        const dataTxt = p.dataFechamento ? ` • ${fmtData(p.dataFechamento)}` : '';
+        return `<li><span class="nome">${escapeHtml(p.nome)}</span><span class="valor">${valorTxt}${dataTxt}</span></li>`;
+      }).join('')}
+    </ul>
+    <div class="fechados-popover-footer">
+      <span>${lista.length} fechamento${lista.length===1?'':'s'}</span>
+      <span>Total: ${fmtMoeda(valorTotal)}</span>
+    </div>`;
+}
 function aggregateMonth(key){
   const novos = DB.pacientes.filter(p=>monthKey(p.dataContato)===key);
-  const fechadosMes = DB.pacientes.filter(p=>monthKey(p.dataFechamento)===key && (p.fechouTratamento==='Sim'||p.fechouTratamento==='Parcial'));
+  const fechadosMes = fechadosDoMesDetalhado(key);
   const valorTotal = fechadosMes.reduce((s,p)=>s+(p.valorFechado||0),0);
   const taxa = novos.length? fechadosMes.length/novos.length : 0;
   const ticket = fechadosMes.length? valorTotal/fechadosMes.length : 0;
@@ -4255,6 +4306,10 @@ function renderDashboard(){
   // 'total' estiver selecionado, para não quebrar nem mudar a regra deles.
   const mesParaWidgetsAntigos = dashboardMesSelecionado==='total' ? meses[meses.length-1] : dashboardMesSelecionado;
   const atual = aggregateMonth(mesParaWidgetsAntigos);
+  // [Drill-down Fechados (Ganhos)] mesma chamada que alimenta atual.fechados
+  // /atual.valorTotal (ver aggregateMonth) — garante que a lista do pop-up
+  // seja sempre a mesma seleção lógica do número exibido no card.
+  const fechadosDetalhados = fechadosDoMesDetalhado(mesParaWidgetsAntigos);
   const funil = funilTotais(mesParaWidgetsAntigos);
   const maxNovos = Math.max(...meses.map(k=>aggregateMonth(k).novos), 1);
   // [V2.1] Os 3 componentes NOVOS (Origem, Procedimentos, Conversão) é que
@@ -4271,7 +4326,15 @@ function renderDashboard(){
   </div>
   <div class="grid cols-4">
     <div class="card stat-tile"><div class="lbl">Novos Pacientes</div><div class="val">${atual.novos}</div></div>
-    <div class="card stat-tile"><div class="lbl">Fechados (Ganhos)</div><div class="val">${atual.fechados}</div></div>
+    <div class="fechados-ganhos-wrap" data-pin="0" data-hover="0">
+      <div class="card stat-tile fechados-ganhos-card" tabindex="0" role="button" aria-haspopup="true" aria-expanded="false" aria-label="Fechados (Ganhos) — ver detalhamento dos pacientes fechados em ${escapeHtml(monthLabel(mesParaWidgetsAntigos))}">
+        <div class="lbl">Fechados (Ganhos) <span class="info-dot" aria-hidden="true">ⓘ</span></div>
+        <div class="val">${atual.fechados}</div>
+      </div>
+      <div class="fechados-popover" hidden role="dialog" aria-label="Detalhamento de fechados em ${escapeHtml(monthLabel(mesParaWidgetsAntigos))}">
+        ${renderFechadosPopoverConteudo(fechadosDetalhados, atual.valorTotal, mesParaWidgetsAntigos)}
+      </div>
+    </div>
     <div class="card stat-tile"><div class="lbl">Taxa de Conversão</div><div class="val">${(atual.taxa*100).toFixed(1)}%</div></div>
     <div class="card stat-tile"><div class="lbl">Valor Total Fechado</div><div class="val" style="font-size:20px;">${fmtMoeda(atual.valorTotal)}</div></div>
   </div>
@@ -4391,6 +4454,74 @@ function calcularFunilDuplo(mesFiltro){
 function bindDashboardEvents(){
   const sel = document.getElementById('mes-select');
   if(sel) sel.addEventListener('change', ()=>{ dashboardMesSelecionado = sel.value; render(); });
+
+  bindFechadosPopoverGlobalOnce();
+  const wrap = document.querySelector('.fechados-ganhos-wrap');
+  if(wrap){
+    // [Drill-down Fechados (Ganhos)] DOM é recriado do zero a cada render()
+    // — os dois flags (hover/pin) sempre nascem fechados aqui.
+    wrap.addEventListener('mouseenter', ()=>{ wrap.dataset.hover='1'; atualizarPopoverFechados(wrap); });
+    wrap.addEventListener('mouseleave', ()=>{ wrap.dataset.hover='0'; atualizarPopoverFechados(wrap); });
+    const card = wrap.querySelector('.fechados-ganhos-card');
+    if(card){
+      card.addEventListener('keydown', (e)=>{
+        if(e.key==='Enter' || e.key===' '){
+          e.preventDefault();
+          wrap.dataset.pin = wrap.dataset.pin==='1' ? '0' : '1';
+          atualizarPopoverFechados(wrap);
+        }
+      });
+    }
+  }
+}
+// [Drill-down Fechados (Ganhos)] Listeners de documento (clique fora / Esc)
+// ligados UMA ÚNICA VEZ (guarda idempotente) — o conteúdo do Dashboard é
+// recriado a cada render(), mas estes listeners são delegados e nunca
+// precisam ser reanexados, evitando acumular duplicatas a cada troca de mês.
+let _fechadosPopoverGlobalBound = false;
+function bindFechadosPopoverGlobalOnce(){
+  if(_fechadosPopoverGlobalBound) return;
+  _fechadosPopoverGlobalBound = true;
+  document.addEventListener('click', (e)=>{
+    const wrapClicado = e.target.closest('.fechados-ganhos-wrap');
+    document.querySelectorAll('.fechados-ganhos-wrap[data-pin="1"]').forEach(w=>{
+      if(w !== wrapClicado) fecharPopoverFechados(w, false);
+    });
+    if(wrapClicado && e.target.closest('.fechados-ganhos-card')){
+      wrapClicado.dataset.pin = wrapClicado.dataset.pin==='1' ? '0' : '1';
+      atualizarPopoverFechados(wrapClicado);
+    }
+  });
+  document.addEventListener('keydown', (e)=>{
+    if(e.key !== 'Escape') return;
+    document.querySelectorAll('.fechados-ganhos-wrap[data-pin="1"], .fechados-ganhos-wrap[data-hover="1"]').forEach(w=>{
+      fecharPopoverFechados(w, true);
+    });
+  });
+}
+function fecharPopoverFechados(wrap, refocus){
+  wrap.dataset.pin = '0'; wrap.dataset.hover = '0';
+  atualizarPopoverFechados(wrap);
+  if(refocus){ const card = wrap.querySelector('.fechados-ganhos-card'); if(card) card.focus(); }
+}
+function atualizarPopoverFechados(wrap){
+  const popover = wrap.querySelector('.fechados-popover');
+  const card = wrap.querySelector('.fechados-ganhos-card');
+  if(!popover || !card) return;
+  const aberto = wrap.dataset.pin==='1' || wrap.dataset.hover==='1';
+  popover.hidden = !aberto;
+  card.setAttribute('aria-expanded', aberto?'true':'false');
+  if(aberto) posicionarPopoverFechados(popover);
+}
+// [Drill-down Fechados (Ganhos)] Evita o pop-up vazar para fora da tela
+// perto da borda direita — ancora à esquerda por padrão, troca para a
+// direita só se detectar overflow real (getBoundingClientRect pós-layout).
+function posicionarPopoverFechados(popover){
+  popover.style.left = '0'; popover.style.right = 'auto';
+  const rect = popover.getBoundingClientRect();
+  if(rect.right > window.innerWidth - 12){
+    popover.style.left = 'auto'; popover.style.right = '0';
+  }
 }
 
 /* ============================================================
