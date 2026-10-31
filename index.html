@@ -2949,7 +2949,12 @@ function openPacienteModal(paciente){
             <div class="form-secao-body">
               <div class="grid cols-2">
                 <label class="field"><span class="lbl">Nome *</span><input required name="nome" value="${escapeHtml(p.nome)}"></label>
-                <label class="field"><span class="lbl">Telefone</span><input name="telefone" value="${escapeHtml(p.telefone)}"></label>
+                <label class="field">
+                  <span class="lbl">Telefone</span>
+                  <input name="telefone" data-input-telefone inputmode="tel" placeholder="(31) 99999-9999" value="${escapeHtml(p.telefone)}">
+                  <div class="small" data-telefone-erro hidden style="color:var(--danger);margin-top:4px;"></div>
+                  <div data-telefone-duplicado hidden style="margin-top:4px;padding:6px 10px;border-radius:8px;background:var(--warn-bg);color:var(--warn);font-size:12px;line-height:1.5;"></div>
+                </label>
                 <label class="field"><span class="lbl">Email</span><input type="email" name="email" value="${escapeHtml(p.email)}"></label>
                 <label class="field"><span class="lbl">Origem do Lead</span>
                   <select name="origem">
@@ -3144,6 +3149,7 @@ function openPacienteModal(paciente){
   </div>`;
 
   aplicarCondicionaisPacienteModal(modalRoot);
+  aplicarMascaraEValidacaoTelefone(modalRoot, isNew ? null : p.id);
   modalRoot.querySelectorAll('[data-close]').forEach(el=>el.addEventListener('click', closeModal));
   modalRoot.querySelector('[data-close-backdrop]').addEventListener('click', (e)=>{ if(e.target===e.currentTarget) closeModal(); });
   // [V2.1] Botão WhatsApp do modal — reaproveita abrirWhatsAppPaciente(),
@@ -3208,6 +3214,23 @@ function openPacienteModal(paciente){
     // real (mesma cautela do modo Supabase: nunca apaga histórico só por
     // reabrir e salvar sem mexer nos campos do funil).
     const nomeLocal = fd.get('nome').trim();
+
+    // [Telefone — padronização] Mesma função de normalização usada em todo
+    // o CRM (normalizarTelefoneE164BR) — telefone vazio é permitido, mas
+    // um valor preenchido que não normalize é bloqueado antes de salvar.
+    // CARVE-OUT histórico (mesmo racional da C1/data_envio_plano e da
+    // C2.3/Regra 4): só bloqueia numa TRANSIÇÃO real do campo (cadastro
+    // novo, ou o valor realmente mudou nesta edição) — nunca por reabrir e
+    // salvar um paciente histórico com telefone já inválido sem tocar
+    // nesse campo (item 10 do pedido: não alterar/bloquear dado antigo
+    // numa auditoria separada).
+    const telefoneLocalBruto = (fd.get('telefone')||'').trim();
+    const telefoneLocalMudou = isNew || telefoneLocalBruto !== (p.telefone||'').trim();
+    if(telefoneLocalBruto && !normalizarTelefoneE164BR(telefoneLocalBruto) && telefoneLocalMudou){
+      toast('Informe um telefone válido com DDD.');
+      return;
+    }
+
     const marcouConsultaLocal = fd.get('marcouConsulta');
     const marcouAntesLocal = isNew ? '' : (p.marcouConsulta || '');
     const compareceuAntesLocal = isNew ? '' : (p.compareceu || '');
@@ -3296,6 +3319,97 @@ function openPacienteModal(paciente){
     saveState(); closeModal(); render();
     toast(isNew? 'Paciente cadastrado.' : 'Paciente atualizado.');
   });
+}
+// [Telefone — padronização] Máscara ao vivo + validação + alerta de
+// duplicidade (não-bloqueante) no campo Telefone do modal de paciente.
+// Nunca reformata o valor já existente na carga inicial do modal (mesma
+// cautela de sempre com dado histórico — ver comentário da função
+// seguinte) — a máscara só entra em ação a partir do primeiro `input` ao
+// vivo do usuário. A consulta de duplicidade é feita uma vez na carga
+// (puramente informativa/leitura, sem gravar nada) e de novo a cada
+// `blur`/chegada a 10-11 dígitos — nunca a cada tecla.
+function aplicarMascaraEValidacaoTelefone(modalRoot, pacienteIdAtual){
+  const form = modalRoot.querySelector('#form-paciente');
+  if(!form) return;
+  const input = form.querySelector('[data-input-telefone]');
+  const elErro = form.querySelector('[data-telefone-erro]');
+  const elDuplicado = form.querySelector('[data-telefone-duplicado]');
+  if(!input) return;
+  // [carve-out histórico] valor com que o campo abriu (edição). Se o
+  // usuário nunca tocar no campo, não mostramos erro de formato sobre um
+  // telefone antigo que já estava assim antes desta edição — mesmo padrão
+  // usado em C1 (data_envio_plano) e C2.3 (Regra 1/2).
+  const valorInicial = input.value.trim();
+
+  const mostrarErro = (msg)=>{
+    if(!elErro) return;
+    elErro.hidden = !msg;
+    elErro.textContent = msg || '';
+  };
+  const limparDuplicado = ()=>{
+    if(!elDuplicado) return;
+    elDuplicado.hidden = true;
+    elDuplicado.innerHTML = '';
+  };
+  const ligarBotoesVerPaciente = ()=>{
+    if(!elDuplicado) return;
+    elDuplicado.querySelectorAll('[data-ver-paciente-duplicado]').forEach(btn=>{
+      btn.addEventListener('click', ()=>abrirPaciente(btn.dataset.verPacienteDuplicado));
+    });
+  };
+  // [item 8 do pedido] Só consulta o Supabase quando o telefone é válido —
+  // nunca a cada tecla. Modo local (sem Supabase) não tem esta checagem
+  // multi-tenant; o escopo desta rodada é a clínica real.
+  const consultarDuplicidade = async ()=>{
+    const valor = input.value.trim();
+    if(!valor){ limparDuplicado(); return; }
+    const e164 = normalizarTelefoneE164BR(valor);
+    if(!e164){ limparDuplicado(); return; }
+    if(!(typeof MODO_SUPABASE !== 'undefined' && MODO_SUPABASE)){ limparDuplicado(); return; }
+    const encontrados = await buscarPacientesComTelefoneSupabase(e164, pacienteIdAtual);
+    if(!elDuplicado) return;
+    // [corrida] se o campo mudou enquanto a consulta estava em voo, o
+    // resultado já é obsoleto — não sobrescreve o que o usuário vê agora.
+    if(normalizarTelefoneE164BR(input.value.trim()) !== e164) return;
+    if(encontrados.length){
+      elDuplicado.innerHTML = renderTelefoneDuplicadoConteudo(encontrados);
+      elDuplicado.hidden = false;
+      ligarBotoesVerPaciente();
+    } else {
+      limparDuplicado();
+    }
+  };
+  const validarFormato = ()=>{
+    const valor = input.value.trim();
+    if(!valor){ mostrarErro(''); return; }
+    // [carve-out histórico] mesmo valor com que o modal abriu, em edição
+    // (pacienteIdAtual preenchido) -> o usuário não tocou no campo; não
+    // acusa formato inválido sobre um telefone antigo que ele não mudou.
+    if(pacienteIdAtual && valor === valorInicial){ mostrarErro(''); return; }
+    mostrarErro(normalizarTelefoneE164BR(valor) ? '' : 'Informe um telefone válido com DDD.');
+  };
+
+  let debounceId = null;
+  input.addEventListener('input', ()=>{
+    input.value = aplicarMascaraTelefoneBR(input.value);
+    mostrarErro('');
+    limparDuplicado();
+    if(debounceId) clearTimeout(debounceId);
+    const qtdDigitos = input.value.replace(/\D/g,'').length;
+    if(qtdDigitos === 10 || qtdDigitos === 11){
+      debounceId = setTimeout(()=>{ validarFormato(); consultarDuplicidade(); }, 400);
+    }
+  });
+  input.addEventListener('blur', ()=>{
+    if(debounceId) clearTimeout(debounceId);
+    validarFormato();
+    consultarDuplicidade();
+  });
+
+  // Carga inicial: só a verificação de duplicidade (informativa, somente
+  // leitura) — nunca a máscara, nunca a mensagem de formato inválido,
+  // sobre um valor histórico que o usuário ainda não tocou.
+  consultarDuplicidade();
 }
 // [UX Paciente] Progressive disclosure dos blocos 02/03/04 do modal de
 // paciente — roda no render inicial (então Editar já abre com o estado
@@ -3510,48 +3624,42 @@ function closeModal(){ document.getElementById('modal-root').innerHTML=''; }
    frontend nunca os inventa nem envia.
    ============================================================ */
 
-// [Requisito 4] Consulta SEMPRE fresca ao Supabase (nunca só DB.pacientes
-// em memória, que pode estar desatualizado com outra sessão simultânea).
-async function verificarTelefoneDuplicadoSupabase(telefoneE164, pacienteIdAtual){
+// [Telefone — padronização] Consulta SEMPRE fresca ao Supabase (nunca só
+// DB.pacientes em memória, que pode estar desatualizado com outra sessão
+// simultânea). RLS já restringe à clínica do usuário autenticado — nenhum
+// filtro manual de clinica_id é necessário aqui (mesmo padrão do resto do
+// CRM). Retorna TODOS os pacientes com o mesmo telefone_e164 (não só o
+// primeiro) — telefone duplicado é legítimo (mãe/filho, irmãos) e o
+// alerta precisa listar todo mundo, nunca escolher um arbitrariamente.
+async function buscarPacientesComTelefoneSupabase(telefoneE164, pacienteIdAtual){
   let query = window.moriSupabase
     .from('pacientes_com_status')
     .select('id, nome')
-    .eq('telefone_e164', telefoneE164)
-    .limit(1);
+    .eq('telefone_e164', telefoneE164);
   if(pacienteIdAtual) query = query.neq('id', pacienteIdAtual);
   const { data, error } = await query;
   if(error){
     console.error('Falha ao verificar telefone duplicado.', error);
-    return null; // falha nesta checagem de UX não deve travar o salvamento
+    return []; // falha nesta checagem de UX não deve travar o cadastro
   }
-  return (data && data[0]) || null;
+  return data || [];
 }
 
-// Mini-modal sobreposto ao modal de paciente já aberto (não o substitui).
-// Resolve com 'abrir' | 'cadastrar' | 'cancelar'.
-function mostrarConfirmacaoTelefoneDuplicado(pacienteEncontrado){
-  return new Promise(resolve=>{
-    const overlay = document.createElement('div');
-    overlay.className = 'modal-backdrop';
-    overlay.innerHTML = `
-      <div class="modal" style="max-width:420px;">
-        <div class="modal-head"><h3>Telefone já cadastrado</h3></div>
-        <div class="modal-body">
-          <p>Já existe um paciente com este telefone: <b>${escapeHtml(pacienteEncontrado.nome)}</b></p>
-        </div>
-        <div class="modal-foot">
-          <button type="button" class="btn ghost" data-dup="cancelar">Cancelar</button>
-          <button type="button" class="btn gold" data-dup="abrir">Abrir Paciente Existente</button>
-          <button type="button" class="btn primary" data-dup="cadastrar">Cadastrar Mesmo Assim</button>
-        </div>
-      </div>`;
-    document.body.appendChild(overlay);
-    const finalizar = (escolha)=>{ overlay.remove(); resolve(escolha); };
-    overlay.addEventListener('click', (e)=>{ if(e.target===overlay) finalizar('cancelar'); });
-    overlay.querySelectorAll('[data-dup]').forEach(btn=>{
-      btn.addEventListener('click', ()=>finalizar(btn.getAttribute('data-dup')));
-    });
-  });
+// Conteúdo do aviso não-bloqueante exibido dentro do próprio modal de
+// paciente (nunca um modal/confirmação separada — telefone duplicado não
+// impede o cadastro, só informa). "Ver paciente" reaproveita a mesma
+// abrirPaciente() já usada em outras telas.
+function renderTelefoneDuplicadoConteudo(pacientes){
+  if(!pacientes.length) return '';
+  const titulo = pacientes.length === 1
+    ? 'Este telefone já está cadastrado'
+    : `Este telefone está associado a ${pacientes.length} pacientes`;
+  return `
+    <div style="font-weight:700;">${escapeHtml(titulo)}</div>
+    ${pacientes.length === 1 ? '<div>Encontramos este número associado a:</div>' : ''}
+    <ul style="margin:4px 0 0;padding-left:16px;">
+      ${pacientes.map(x=>`<li>${escapeHtml(x.nome)} <button type="button" class="btn ghost" style="padding:0 6px;font-size:11px;" data-ver-paciente-duplicado="${x.id}">Ver paciente</button></li>`).join('')}
+    </ul>`;
 }
 
 async function salvarPacienteSupabase(form, fd, procedimentosSelecionados, p, isNew){
@@ -3579,21 +3687,23 @@ async function salvarPacienteSupabase(form, fd, procedimentosSelecionados, p, is
   const telefoneOriginal = nuloSeVazio((fd.get('telefone')||'').trim());
   const telefoneE164 = normalizarTelefoneE164BR(telefoneOriginal);
 
-  // [Requisito 4] Só verifica duplicidade com telefone_e164 válido.
-  if(telefoneE164){
-    const encontrado = await verificarTelefoneDuplicadoSupabase(telefoneE164, isNew? null : p.id);
-    if(encontrado){
-      const escolha = await mostrarConfirmacaoTelefoneDuplicado(encontrado);
-      if(escolha==='abrir'){
-        closeModal();
-        const existente = DB.pacientes.find(x=>x.id===encontrado.id);
-        if(existente) openPacienteModal(existente);
-        else toast('Paciente encontrado, mas não está na lista carregada. Atualize a página.');
-        return;
-      }
-      if(escolha==='cancelar') return; // mantém o modal atual aberto, nada é enviado
-      // escolha === 'cadastrar' -> segue o fluxo normal abaixo, sem merge
-    }
+  // [Telefone — padronização] Telefone vazio é permitido; um valor
+  // preenchido que não normalize (ex.: "123", sequência sem DDD/tamanho
+  // válido) bloqueia o salvamento. Duplicidade NÃO bloqueia — já foi
+  // mostrada de forma não-bloqueante no próprio modal (ver
+  // aplicarMascaraEValidacaoTelefone()/data-telefone-duplicado) enquanto o
+  // usuário preenchia o campo; aqui não repetimos a consulta nem travamos
+  // o save por isso (mãe/filho/irmãos legitimamente compartilham telefone).
+  // CARVE-OUT histórico (mesmo racional da C1/data_envio_plano e da
+  // C2.3/Regra 4): só bloqueia numa TRANSIÇÃO real do campo (cadastro
+  // novo, ou o valor realmente mudou nesta edição) — nunca por reabrir e
+  // salvar um paciente histórico com telefone já inválido sem tocar nesse
+  // campo (item 10 do pedido: não bloquear/alterar dado antigo numa
+  // auditoria separada — só reportar).
+  const telefoneMudou = isNew || telefoneOriginal !== nuloSeVazio((p.telefone||'').trim());
+  if(telefoneOriginal && !telefoneE164 && telefoneMudou){
+    toast('Informe um telefone válido com DDD.');
+    return;
   }
 
   const origemNome = fd.get('origem') || '';
@@ -4848,6 +4958,24 @@ function normalizarTelefoneE164BR(telefoneOriginal){
   }
   return '+'+d;
 }
+// [Telefone — padronização] Máscara visual aplicada ao digitar/colar no
+// campo Telefone do cadastro de paciente (Novo e Editar). Usa EXATAMENTE
+// o mesmo critério de detecção de DDI que normalizarTelefoneE164BR() acima
+// (length 12/13 começando com "55") — nunca duas regras diferentes de
+// normalização dentro do mesmo CRM. Celular (11 dígitos) -> "(DD) DDDDD-DDDD";
+// fixo (10 dígitos) -> "(DD) DDDD-DDDD". Nunca aceita mais de 11 dígitos —
+// o excedente é descartado, não só escondido visualmente.
+function aplicarMascaraTelefoneBR(valorBruto){
+  let d = String(valorBruto||'').replace(/\D/g,'');
+  d = d.replace(/^0+/, '');
+  if(d.startsWith('55') && (d.length===12 || d.length===13)) d = d.slice(2);
+  d = d.slice(0,11);
+  if(d.length === 0) return '';
+  if(d.length <= 2) return `(${d}`;
+  if(d.length <= 6) return `(${d.slice(0,2)}) ${d.slice(2)}`;
+  if(d.length <= 10) return `(${d.slice(0,2)}) ${d.slice(2,6)}-${d.slice(6)}`;
+  return `(${d.slice(0,2)}) ${d.slice(2,7)}-${d.slice(7)}`;
+}
 function buscarPacientePorTelefone(telefoneOriginalOuNormalizado){
   const alvo = normalizarTelefone(telefoneOriginalOuNormalizado);
   if(!alvo) return null;
@@ -5293,8 +5421,10 @@ function renderRecorrencia(){
   </div>`;
 }
 
-// Mini-modal: Registrar retorno. Mesmo padrão de mostrarConfirmacaoTelefoneDuplicado
-// (overlay próprio, resolve com valores ou null se cancelado).
+// Mini-modal: Registrar retorno. Overlay próprio sobreposto ao modal já
+// aberto, resolve com valores ou null se cancelado (mesmo padrão de
+// mostrarConfirmacaoTelefoneDuplicado da Fase V2.1, hoje substituído por
+// um aviso não-bloqueante — ver aplicarMascaraEValidacaoTelefone()).
 function abrirModalRegistrarRetorno(ciclo){
   return new Promise(resolve=>{
     const hoje = hojeCivilClinica();
