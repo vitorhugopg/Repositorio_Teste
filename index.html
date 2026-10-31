@@ -2914,6 +2914,13 @@ function openPacienteModal(paciente){
   );
   const origensDisponiveis = (p.origem && !DB.origens.includes(p.origem)) ? [...DB.origens, p.origem] : DB.origens;
   const motivosDisponiveis = (p.motivoPerda && !DB.motivosPerda.includes(p.motivoPerda)) ? [...DB.motivosPerda, p.motivoPerda] : DB.motivosPerda;
+  // [Equipe — Gestão de Acesso] Mesmo padrão de origem/motivo — um
+  // responsável removido da equipe sai da lista de NOVAS atribuições,
+  // mas o paciente que já o tem continua mostrando o valor atual. Em
+  // modo local (sem Supabase) DB.responsaveisAtivos não existe -> cai no
+  // comportamento de sempre (DB.responsaveis, todos).
+  const responsaveisParaAtribuir = DB.responsaveisAtivos || DB.responsaveis;
+  const responsaveisDisponiveis = (p.responsavel && !responsaveisParaAtribuir.includes(p.responsavel)) ? [...responsaveisParaAtribuir, p.responsavel] : responsaveisParaAtribuir;
 
   // [Recorrência] Bloco 05 do modal — 100% Supabase, sem equivalente em
   // modo local (ver item 29/compatibilidade local do pedido).
@@ -2974,7 +2981,7 @@ function openPacienteModal(paciente){
               </label>
               <div class="grid cols-2">
                 <label class="field"><span class="lbl">Responsável</span>
-                  <select name="responsavel"><option value="">—</option>${DB.responsaveis.map(r=>`<option ${p.responsavel===r?'selected':''}>${escapeHtml(r)}</option>`).join('')}</select>
+                  <select name="responsavel"><option value="">—</option>${responsaveisDisponiveis.map(r=>`<option ${p.responsavel===r?'selected':''}>${escapeHtml(r)}</option>`).join('')}</select>
                 </label>
                 <label class="field"><span class="lbl">Data 1º Contato</span><input type="date" name="dataContato" value="${p.dataContato||''}"></label>
               </div>
@@ -3106,7 +3113,7 @@ function openPacienteModal(paciente){
                       <label class="field"><span class="lbl">Responsável</span>
                         <select name="recorrenciaResponsavel">
                           <option value="">—</option>
-                          ${DB.responsaveis.map(r=>`<option ${p.responsavel===r?'selected':''}>${escapeHtml(r)}</option>`).join('')}
+                          ${responsaveisDisponiveis.map(r=>`<option ${p.responsavel===r?'selected':''}>${escapeHtml(r)}</option>`).join('')}
                         </select>
                       </label>
                     </div>
@@ -5638,13 +5645,18 @@ function bindRecorrenciaEvents(){
 // mostra dado real (equipe/procedimentos/origens/motivos vindos do banco),
 // sem nenhuma informação de briefing/hipótese de cargo nem controle que
 // pareça gravar algo que hoje não é persistido em lugar nenhum.
-// [Config admin] Modelo de acesso: "pessoa da clínica" (profiles) e
-// "usuário com acesso ao CRM" são conceitos diferentes. `ativo` sozinho
-// NÃO significa acesso — só auth_user_id presente é login real. Mesma
-// regra de negócio já homologada no banco (Fase 0 / role nullable).
+// [Equipe — Gestão de Acesso] Modelo de acesso: "pessoa da clínica"
+// (profiles.ativo — situação de EQUIPE/emprego) e "acesso ao CRM"
+// (profiles.status_acesso — situação de LOGIN) são conceitos
+// DIFERENTES e independentes (ver migration 20261031000000 e o
+// relatório desta rodada). `status_acesso` é a única fonte de verdade
+// da situação de acesso — nunca derivado de `role`/`ativo` (a heurística
+// antiga rotulava incorretamente como "pendente" qualquer pessoa com
+// `role` pré-configurado, como a Mariana, que nunca recebeu convite).
 function situacaoAcessoPessoa(pessoa){
-  if(pessoa.auth_user_id) return pessoa.ativo ? 'ativo' : 'desativado';
-  if(pessoa.role && pessoa.ativo) return 'pendente';
+  if(pessoa.status_acesso === 'ativo') return 'ativo';
+  if(pessoa.status_acesso === 'pendente') return 'pendente';
+  if(pessoa.status_acesso === 'desativado') return 'desativado';
   return 'sem_acesso';
 }
 function rotuloSituacaoAcesso(situacao){
@@ -5660,12 +5672,57 @@ function badgeSituacaoAcesso(situacao){
   return `<span class="badge-status" style="${estilos[situacao]||estilos.sem_acesso}">${rotuloSituacaoAcesso(situacao)}</span>`;
 }
 function rotuloPermissao(role){
-  return { admin:'Administrador', dentista:'Dentista', secretaria:'Secretária' }[role] || '—';
+  // [Equipe — Gestão de Acesso] V1 só usa admin/usuario para controle de
+  // acesso (item 17 do pedido) — dentista/secretaria são valores legados
+  // de dados já existentes, mantidos só para não quebrar a exibição de
+  // profiles históricos que já tinham esses valores antes desta rodada.
+  return { admin:'Administrador', usuario:'Usuário', dentista:'Dentista', secretaria:'Secretária' }[role] || '—';
 }
 function badgeAtivo(ativo){
   return ativo
     ? `<span class="badge-status" style="background:var(--success-bg);color:var(--success);">Ativo</span>`
     : `<span class="badge-status" style="background:var(--ink-100);color:var(--text-muted);">Inativo</span>`;
+}
+
+// [Equipe — Gestão de Acesso, item 22 do pedido] Ação principal sempre
+// visível (muda com a situação) + menu discreto <details> para as ações
+// secundárias — evita poluir a tabela mesmo com até 5 ações possíveis
+// por linha. <details>/<summary> é nativo do browser (sem JS extra para
+// abrir/fechar), consistente com "manter o design atual" (item 22) sem
+// precisar inventar um novo componente global de UI.
+function linhaAcoesEquipe(p){
+  const situacao = situacaoAcessoPessoa(p);
+  const removida = !p.ativo; // "Remover da equipe" já foi executado antes.
+  const botoes = [`<button class="btn sm ghost" data-cfg-edit="pessoa" data-id="${p.id}">Editar</button>`];
+  const secundarias = [];
+
+  if(removida){
+    // Sem ações adicionais — já foi removida da equipe (item 13 do pedido).
+  } else if(situacao==='sem_acesso'){
+    botoes.push(`<button class="btn sm gold" data-equipe-acao="convidar" data-id="${p.id}">Convidar para acessar</button>`);
+    secundarias.push(`<button type="button" class="btn sm ghost" data-equipe-acao="remover" data-id="${p.id}">Remover da equipe</button>`);
+  } else if(situacao==='pendente'){
+    botoes.push(`<button class="btn sm" data-equipe-acao="reenviar" data-id="${p.id}">Reenviar convite</button>`);
+    secundarias.push(`<button type="button" class="btn sm ghost" data-equipe-acao="copiar_link" data-id="${p.id}">Copiar link de acesso</button>`);
+    secundarias.push(`<button type="button" class="btn sm ghost" data-equipe-acao="cancelar" data-id="${p.id}">Cancelar acesso</button>`);
+    secundarias.push(`<button type="button" class="btn sm ghost" data-equipe-acao="remover" data-id="${p.id}">Remover da equipe</button>`);
+  } else if(situacao==='ativo'){
+    botoes.push(`<button class="btn sm danger" data-equipe-acao="desativar" data-id="${p.id}">Desativar acesso</button>`);
+    secundarias.push(`<button type="button" class="btn sm ghost" data-equipe-acao="remover" data-id="${p.id}">Remover da equipe</button>`);
+  } else if(situacao==='desativado'){
+    botoes.push(`<button class="btn sm gold" data-equipe-acao="reativar" data-id="${p.id}">Reativar acesso</button>`);
+    secundarias.push(`<button type="button" class="btn sm ghost" data-equipe-acao="remover" data-id="${p.id}">Remover da equipe</button>`);
+  }
+
+  const menu = secundarias.length ? `
+    <details class="menu-acoes-equipe" style="display:inline-block;position:relative;">
+      <summary class="btn sm ghost" style="list-style:none;cursor:pointer;">⋯</summary>
+      <div style="position:absolute;right:0;top:100%;z-index:5;background:var(--paper);border:1px solid var(--line);border-radius:var(--radius-sm);box-shadow:var(--shadow-lg);padding:6px;display:flex;flex-direction:column;gap:4px;min-width:180px;margin-top:4px;">
+        ${secundarias.join('')}
+      </div>
+    </details>` : '';
+
+  return `<div style="display:flex;gap:6px;align-items:center;">${botoes.join('')}${menu}</div>`;
 }
 
 function renderConfigSupabase(){
@@ -5693,20 +5750,14 @@ function renderConfigSupabase(){
       <table>
         <thead><tr><th>Nome</th><th>Cargo</th><th>Permissão</th><th>Situação de acesso</th>${isAdmin?'<th>Ações</th>':''}</tr></thead>
         <tbody>
-        ${equipe.length? equipe.map(p=>{
-          const situacao = situacaoAcessoPessoa(p);
-          return `
+        ${equipe.length? equipe.map(p=>`
           <tr>
             <td>${escapeHtml(p.nome)}</td>
             <td>${escapeHtml(p.cargo||'—')}</td>
             <td>${rotuloPermissao(p.role)}</td>
-            <td>${badgeSituacaoAcesso(situacao)}</td>
-            ${isAdmin? `<td style="white-space:nowrap;display:flex;gap:6px;">
-              <button class="btn sm ghost" data-cfg-edit="pessoa" data-id="${p.id}">Editar</button>
-              ${situacao!=='ativo'? `<button class="btn sm" disabled title="Disponível na próxima etapa">Convidar para acessar</button>` : ''}
-            </td>` : ''}
-          </tr>`;
-        }).join('') : `<tr><td class="empty" colspan="${isAdmin?5:4}">Nenhum profile encontrado.</td></tr>`}
+            <td>${badgeSituacaoAcesso(situacaoAcessoPessoa(p))}</td>
+            ${isAdmin? `<td style="white-space:nowrap;">${linhaAcoesEquipe(p)}</td>` : ''}
+          </tr>`).join('') : `<tr><td class="empty" colspan="${isAdmin?5:4}">Nenhum profile encontrado.</td></tr>`}
         </tbody>
       </table>
       </div>
@@ -6007,6 +6058,188 @@ async function editarPessoaSupabase(id){
   toast('Pessoa atualizada.');
 }
 
+// ============================================================
+// [Equipe — Gestão de Acesso] Convite, link, reenvio, cancelamento,
+// desativação/reativação e remoção — toda operação administrativa real
+// (Supabase Auth) passa pela Edge Function `equipe-acesso`, nunca
+// diretamente do navegador (item 3 do pedido). O frontend só manda a
+// ação + o id do profile alvo; toda validação de permissão/clínica é
+// refeita no servidor (ver supabase/functions/equipe-acesso/index.ts) —
+// os botões abaixo escondidos/desabilitados são só UX, nunca a
+// segurança real.
+// ============================================================
+async function chamarEdgeFunctionEquipe(action, payload){
+  try{
+    const { data, error } = await window.moriSupabase.functions.invoke('equipe-acesso', { body: { action, ...payload } });
+    if(error){
+      let mensagem = 'Não foi possível completar a ação agora. Tente novamente.';
+      // [supabase-js] Erros HTTP (4xx/5xx) da função chegam como
+      // FunctionsHttpError, com o corpo JSON de erro acessível via
+      // error.context (a Response original) — tenta extrair a mensagem
+      // amigável que a Edge Function já formatou; nunca mostra o erro
+      // técnico cru para o usuário final (mesmo cuidado já aplicado em
+      // outras partes do CRM).
+      try{
+        if(error.context && typeof error.context.json === 'function'){
+          const corpo = await error.context.json();
+          if(corpo && corpo.error) mensagem = corpo.error;
+        }
+      }catch(_e){ /* mantém mensagem genérica */ }
+      console.error(`Falha na ação "${action}" da Edge Function equipe-acesso.`, error);
+      return { ok:false, error: mensagem };
+    }
+    if(data && data.error) return { ok:false, error: data.error };
+    return { ok:true, data };
+  }catch(e){
+    console.error(`Falha ao chamar a ação "${action}" da Edge Function equipe-acesso.`, e);
+    return { ok:false, error:'Não foi possível completar a ação agora. Tente novamente.' };
+  }
+}
+
+function abrirModalConvidarAcesso(pessoa){
+  return new Promise(resolve=>{
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-backdrop';
+    overlay.innerHTML = `
+      <div class="modal" style="max-width:420px;">
+        <div class="modal-head">
+          <h3>Convidar ${escapeHtml(pessoa.nome)}</h3>
+          <button type="button" class="modal-close" data-convite-close>✕</button>
+        </div>
+        <form id="form-convidar-acesso">
+          <div class="modal-body">
+            <label class="field"><span class="lbl">E-mail</span>
+              <input type="email" name="email" required autocomplete="off" value="${escapeHtml(pessoa.email||'')}">
+            </label>
+            <label class="field"><span class="lbl">Permissão</span>
+              <select name="role">
+                <option value="usuario">Usuário</option>
+                <option value="admin">Administrador</option>
+              </select>
+            </label>
+            <div class="small" data-convite-erro hidden style="color:var(--danger);margin-top:4px;"></div>
+          </div>
+          <div class="modal-foot">
+            <button type="button" class="btn ghost" data-convite-close>Cancelar</button>
+            <button type="submit" class="btn primary" data-convite-submit>Criar acesso</button>
+          </div>
+        </form>
+      </div>`;
+    document.body.appendChild(overlay);
+    const finalizar = ()=>{ overlay.remove(); resolve(); };
+    overlay.addEventListener('click', (e)=>{ if(e.target===overlay) finalizar(); });
+    overlay.querySelectorAll('[data-convite-close]').forEach(el=>el.addEventListener('click', finalizar));
+
+    const form = overlay.querySelector('#form-convidar-acesso');
+    const elErro = overlay.querySelector('[data-convite-erro]');
+    const btnSubmit = overlay.querySelector('[data-convite-submit]');
+    form.addEventListener('submit', async (e)=>{
+      e.preventDefault();
+      elErro.hidden = true;
+      const fd = new FormData(form);
+      const email = (fd.get('email')||'').trim();
+      const role = fd.get('role');
+      if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){
+        elErro.textContent = 'Informe um e-mail válido.';
+        elErro.hidden = false;
+        return;
+      }
+      btnSubmit.disabled = true;
+      btnSubmit.textContent = 'Criando acesso...';
+      const resultado = await chamarEdgeFunctionEquipe('invite', { target_profile_id: pessoa.id, email, role });
+      if(!resultado.ok){
+        elErro.textContent = resultado.error;
+        elErro.hidden = false;
+        btnSubmit.disabled = false;
+        btnSubmit.textContent = 'Criar acesso';
+        return;
+      }
+      await recarregarListasConfigSupabase();
+      render();
+      toast('Convite enviado por e-mail.');
+      finalizar();
+    });
+  });
+}
+
+// Confirmação + chamada da Edge Function + estado de carregamento no
+// próprio botão clicado (item 24 do pedido) — usado por todas as ações
+// de um único clique (reenviar/cancelar/desativar/reativar/remover).
+async function executarAcaoEquipe(botaoEl, { mensagemConfirmacao, textoCarregando, acao, targetId, mensagemSucesso }){
+  if(mensagemConfirmacao && !confirm(mensagemConfirmacao)) return;
+  const textoOriginal = botaoEl.textContent;
+  botaoEl.disabled = true;
+  botaoEl.textContent = textoCarregando;
+  const resultado = await chamarEdgeFunctionEquipe(acao, { target_profile_id: targetId });
+  if(!resultado.ok){
+    toast(resultado.error);
+    botaoEl.disabled = false;
+    botaoEl.textContent = textoOriginal;
+    return;
+  }
+  await recarregarListasConfigSupabase();
+  render();
+  toast(mensagemSucesso);
+}
+
+async function copiarLinkAcessoEquipe(botaoEl, targetId){
+  const textoOriginal = botaoEl.textContent;
+  botaoEl.disabled = true;
+  botaoEl.textContent = 'Gerando link...';
+  const resultado = await chamarEdgeFunctionEquipe('generate_link', { target_profile_id: targetId });
+  botaoEl.disabled = false;
+  botaoEl.textContent = textoOriginal;
+  if(!resultado.ok || !(resultado.data && resultado.data.link)){
+    // [Item 23 do pedido] Nunca mostra erro técnico cru do Supabase.
+    toast('Não foi possível gerar o link. Tente novamente.');
+    return;
+  }
+  try{
+    await navigator.clipboard.writeText(resultado.data.link);
+    toast('Link de acesso copiado.');
+  }catch(e){
+    console.error('Falha ao copiar o link de acesso para a área de transferência.', e);
+    toast('Não foi possível gerar o link. Tente novamente.');
+  }
+}
+
+function bindAcoesEquipe(){
+  document.querySelectorAll('[data-equipe-acao]').forEach(el=>{
+    el.addEventListener('click', ()=>{
+      const acao = el.dataset.equipeAcao;
+      const id = el.dataset.id;
+      const pessoa = (DB.equipeSupabase||[]).find(x=>x.id===id);
+      if(!pessoa) return;
+      if(acao==='convidar') return abrirModalConvidarAcesso(pessoa);
+      if(acao==='reenviar') return executarAcaoEquipe(el, {
+        acao:'resend_invite', targetId:id, textoCarregando:'Enviando...',
+        mensagemSucesso:'Convite reenviado por e-mail.',
+      });
+      if(acao==='copiar_link') return copiarLinkAcessoEquipe(el, id);
+      if(acao==='cancelar') return executarAcaoEquipe(el, {
+        acao:'cancel_invite', targetId:id, textoCarregando:'Cancelando...',
+        mensagemSucesso:'Convite cancelado.',
+        mensagemConfirmacao:`Cancelar o convite de ${pessoa.nome}? O link enviado deixará de funcionar. Você poderá convidar novamente depois.`,
+      });
+      if(acao==='desativar') return executarAcaoEquipe(el, {
+        acao:'deactivate_access', targetId:id, textoCarregando:'Desativando...',
+        mensagemSucesso:'Acesso desativado.',
+        mensagemConfirmacao:`Desativar o acesso de ${pessoa.nome}? Ela deixará de conseguir entrar no CRM. Você pode reativar depois.`,
+      });
+      if(acao==='reativar') return executarAcaoEquipe(el, {
+        acao:'reactivate_access', targetId:id, textoCarregando:'Reativando...',
+        mensagemSucesso:'Acesso reativado.',
+      });
+      // [Item 13 do pedido] Texto de confirmação exatamente como pedido.
+      if(acao==='remover') return executarAcaoEquipe(el, {
+        acao:'remove_from_team', targetId:id, textoCarregando:'Removendo...',
+        mensagemSucesso:'Pessoa removida da equipe.',
+        mensagemConfirmacao:`Remover ${pessoa.nome} da equipe?\n\nEla perderá o acesso ao CRM e deixará de aparecer como integrante ativo da equipe. O histórico das atividades realizadas por ela será preservado.`,
+      });
+    });
+  });
+}
+
 // Fábrica de CRUD para procedimentos/origens/motivos — as 3 tabelas têm a
 // mesma forma (clinica_id, nome, ativo), só procedimentos tem valor_medio
 // a mais. Evita escrever a mesma função 3 vezes.
@@ -6076,6 +6309,8 @@ function bindConfigEventsSupabase(){
 
   const isAdmin = DB.usuarioAtual.role === 'admin';
   if(!isAdmin) return; // sem botões administrativos renderizados -> nada mais para ligar
+
+  bindAcoesEquipe();
 
   document.querySelectorAll('[data-cfg-add]').forEach(el=>{
     el.addEventListener('click', ()=>{
@@ -6246,6 +6481,19 @@ function bindRouteEvents(){
    ============================================================ */
 const MODO_SUPABASE = !!(window.moriSupabase);
 
+// [Equipe — Gestão de Acesso] Captura o `type` do hash da URL de
+// convite/recovery ANTES de qualquer outra coisa — o próprio cliente
+// Supabase (detectSessionInUrl:true, em supabase-client.js) consome esse
+// hash ao estabelecer a sessão inicial; precisamos do valor original
+// para decidir, no boot (ver iniciarSupabase()), se mostramos a tela
+// normal de login/dashboard ou a tela "Criar seu acesso" do convidado.
+const TIPO_LINK_AUTH_INICIAL = (function(){
+  try{
+    const hash = new URLSearchParams((window.location.hash||'').replace(/^#/, ''));
+    return hash.get('type'); // 'invite' | 'recovery' | null
+  }catch(e){ return null; }
+})();
+
 function telaLogin(mensagemErro, carregando){
   return `
   <div class="login-shell">
@@ -6267,6 +6515,47 @@ function telaLogin(mensagemErro, carregando){
           ${carregando? 'Entrando…' : 'Entrar'}
         </button>
       </form>
+    </div>
+  </div>`;
+}
+
+// [Equipe — Gestão de Acesso, item 11 do pedido] O funcionário convidado
+// cria a PRÓPRIA senha aqui — o administrador nunca vê nem define senha
+// de ninguém (item 25: "não fazer o administrador criar senha").
+function telaCriarAcesso(mensagemErro, carregando){
+  return `
+  <div class="login-shell">
+    <div class="login-card">
+      <div class="brand-badge" style="margin:0 auto 12px;">CC</div>
+      <h1 style="text-align:center;font-size:18px;">Mori Ortodontia</h1>
+      <div class="sub" style="text-align:center;margin-bottom:20px;">Criar seu acesso</div>
+      <form id="form-criar-acesso">
+        <label class="field">
+          <span>Nova senha</span>
+          <input type="password" name="senha" required autocomplete="new-password" ${carregando?'disabled':''}>
+        </label>
+        <label class="field">
+          <span>Confirmar senha</span>
+          <input type="password" name="confirmarSenha" required autocomplete="new-password" ${carregando?'disabled':''}>
+        </label>
+        ${mensagemErro? `<div class="login-erro">${escapeHtml(mensagemErro)}</div>` : ''}
+        <button class="btn primary" type="submit" style="width:100%;margin-top:14px;" ${carregando?'disabled':''}>
+          ${carregando? 'Criando acesso…' : 'Criar meu acesso'}
+        </button>
+      </form>
+    </div>
+  </div>`;
+}
+
+// [Item 11 do pedido] Mensagens amigáveis para convite inválido/expirado
+// ou já concluído — nunca um erro técnico cru do Supabase.
+function telaConviteInvalido(mensagem){
+  return `
+  <div class="login-shell">
+    <div class="login-card">
+      <h1 style="text-align:center;font-size:18px;">Convite inválido</h1>
+      <p class="sub" style="text-align:center;">${escapeHtml(mensagem||'Este link de convite é inválido ou expirou. Peça para o administrador gerar um novo.')}</p>
+      <button class="btn ghost" id="btn-ir-para-login" style="width:100%;margin-top:12px;">Ir para o login</button>
     </div>
   </div>`;
 }
@@ -6331,7 +6620,56 @@ function renderGateSupabase(estado){
         renderGateSupabase({tipo:'erro-perfil', detalhe: e.message || 'Erro desconhecido.'});
       });
     });
+  } else if(estado.tipo==='criar-acesso'){
+    shell.innerHTML = telaCriarAcesso(estado.erro, estado.carregando);
+    const form = document.getElementById('form-criar-acesso');
+    if(form) form.addEventListener('submit', async (e)=>{
+      e.preventDefault();
+      const dados = new FormData(form);
+      await concluirCriacaoAcesso(dados.get('senha'), dados.get('confirmarSenha'));
+    });
+  } else if(estado.tipo==='convite-invalido'){
+    shell.innerHTML = telaConviteInvalido(estado.mensagem);
+    const btn = document.getElementById('btn-ir-para-login');
+    if(btn) btn.addEventListener('click', async ()=>{
+      await window.moriSupabase.auth.signOut();
+      history.replaceState(null, '', window.location.pathname + window.location.search);
+      renderGateSupabase({tipo:'login', erro:null, carregando:false});
+    });
   }
+}
+
+// [Equipe — Gestão de Acesso, item 11 do pedido] O próprio funcionário
+// convidado define a senha aqui (sessão já válida desde que abriu o
+// link de convite/recovery — ver TIPO_LINK_AUTH_INICIAL/iniciarSupabase).
+// Depois de definir a senha, chama a Edge Function (complete_invite)
+// para vincular auth_user_id ao profile certo — nunca confia em nada do
+// navegador para decidir qual profile é esse (ver Edge Function).
+async function concluirCriacaoAcesso(senha, confirmarSenha){
+  if(!senha || senha.length < 6){
+    renderGateSupabase({tipo:'criar-acesso', erro:'A senha precisa ter pelo menos 6 caracteres.', carregando:false});
+    return;
+  }
+  if(senha !== confirmarSenha){
+    renderGateSupabase({tipo:'criar-acesso', erro:'As senhas não coincidem.', carregando:false});
+    return;
+  }
+  renderGateSupabase({tipo:'criar-acesso', erro:null, carregando:true});
+  const { error: erroSenha } = await window.moriSupabase.auth.updateUser({ password: senha });
+  if(erroSenha){
+    console.error('Falha ao definir senha do convite.', erroSenha);
+    renderGateSupabase({tipo:'criar-acesso', erro:'Não foi possível definir sua senha agora. Tente novamente.', carregando:false});
+    return;
+  }
+  const resultado = await chamarEdgeFunctionEquipe('complete_invite', {});
+  if(!resultado.ok){
+    renderGateSupabase({tipo:'convite-invalido', mensagem: resultado.error});
+    return;
+  }
+  // Limpa o #type=invite/recovery da URL antes de seguir para o CRM —
+  // evita cair de novo nesta tela num refresh manual da página.
+  history.replaceState(null, '', window.location.pathname + window.location.search);
+  await carregarAposLogin();
 }
 
 async function autenticarSupabase(email, senha){
@@ -6396,6 +6734,14 @@ async function carregarAposLogin(){
     renderGateSupabase({tipo:'login', erro:null, carregando:false});
     return;
   }
+  // [Equipe — Gestão de Acesso] Não precisa (e não deve) repetir aqui o
+  // filtro de status_acesso='ativo': a RLS de profiles já exige
+  // `clinica_id in (select minhas_clinicas())` para QUALQUER leitura,
+  // inclusive desta própria linha — e minhas_clinicas() já passou a
+  // exigir status_acesso='ativo' (ver migration 20261031000000). Uma
+  // pessoa desativada/removida já recebe 0 linhas aqui por causa da RLS
+  // real, sem precisar duplicar a regra no frontend (que só filtraria
+  // uma cópia em memória nos testes, nunca os dados reais).
   const { data: perfil, error: erroPerfil } = await window.moriSupabase
     .from('profiles')
     .select('id, clinica_id, nome, cargo, role, ativo')
@@ -6445,7 +6791,20 @@ function aplicarListasAuxiliaresConfig(procRows, origensRows, motivosRows, profi
   DB.origens = DB.origensTodas.filter(o=>o.ativo).map(o=>o.nome);
   DB.motivosPerdaTodas = (motivosRows||[]).map(m=>({ id:m.id, nome:m.nome, ativo: m.ativo !== false }));
   DB.motivosPerda = DB.motivosPerdaTodas.filter(m=>m.ativo).map(m=>m.nome);
+  // DB.responsaveis permanece com TODOS os nomes (ativos ou não) — usado
+  // pelo filtro "Todos os responsáveis" da lista de Pacientes, que
+  // precisa continuar filtrando por um responsável histórico mesmo após
+  // ele ser removido da equipe (filtrar o passado é diferente de atribuir
+  // o futuro). Para a atribuição de NOVOS registros (item 13/18 do
+  // pedido: "deixar de aparecer em seletores de NOVOS registros"), use
+  // DB.responsaveisAtivos abaixo.
   DB.responsaveis = (profilesRows||[]).map(p=>p.nome);
+  // [Equipe — Gestão de Acesso] Só membros ATIVOS da equipe entram como
+  // opção para atribuir um responsável a um paciente NOVO ou ao editar
+  // (ver openPacienteModal, que também preserva o valor já selecionado
+  // mesmo que a pessoa tenha sido removida depois — mesmo padrão já
+  // usado para origem/procedimento).
+  DB.responsaveisAtivos = (profilesRows||[]).filter(p=>p.ativo!==false).map(p=>p.nome);
   // [Recorrência] mesmo padrão de procedimentos/origens/motivos — lista
   // configurável, só admin gerencia (ver Configurações).
   DB.tiposRecorrenciaTodos = (tiposRecorrenciaRows||[]).map(t=>({ id:t.id, nome:t.nome, frequenciaDias:t.frequencia_sugerida_dias ?? null, ativo: t.ativo !== false }));
@@ -6491,7 +6850,7 @@ async function recarregarListasConfigSupabase(){
     sb.from('procedimentos').select('id, nome, valor_medio, ativo'),
     sb.from('origens_lead').select('id, nome, ativo'),
     sb.from('motivos_perda').select('id, nome, ativo'),
-    sb.from('profiles').select('id, nome, cargo, role, ativo, auth_user_id'),
+    sb.from('profiles').select('id, nome, cargo, role, ativo, auth_user_id, email, status_acesso'),
     sb.from('tipos_recorrencia').select('id, nome, frequencia_sugerida_dias, ativo'),
   ]);
   const erro = errProc || errOrig || errMot || errProf || errTiposRec;
@@ -6529,7 +6888,7 @@ async function carregarDadosSupabase(perfil){
     sb.from('procedimentos').select('id, nome, valor_medio, ativo'),
     sb.from('origens_lead').select('id, nome, ativo'),
     sb.from('motivos_perda').select('id, nome, ativo'),
-    sb.from('profiles').select('id, nome, cargo, role, ativo, auth_user_id'),
+    sb.from('profiles').select('id, nome, cargo, role, ativo, auth_user_id, email, status_acesso'),
     // [Fase A] cache de ações comerciais já concluídas — ver acaoComercialConcluida().
     sb.from('acoes_comerciais').select('paciente_id, tipo, data_elegivel, data_conclusao, observacao'),
     // [Corte operacional / Recorrência] data_inicio_acoes_comerciais e
@@ -6666,7 +7025,21 @@ async function recarregarAcoesComerciaisSupabase(){
 
 async function iniciarSupabase(){
   const { data } = await window.moriSupabase.auth.getSession();
-  if(data && data.session){
+  const temSessao = !!(data && data.session);
+  // [Equipe — Gestão de Acesso] Link de convite/recovery tem prioridade
+  // sobre o fluxo normal — mesmo que exista uma sessão de OUTRA pessoa
+  // ainda válida neste navegador, um link de convite recém-aberto
+  // estabelece uma sessão NOVA (do convidado) que substitui a anterior;
+  // é essa nova sessão que getSession() já retorna aqui.
+  if(TIPO_LINK_AUTH_INICIAL === 'invite' || TIPO_LINK_AUTH_INICIAL === 'recovery'){
+    if(temSessao){
+      renderGateSupabase({tipo:'criar-acesso', erro:null, carregando:false});
+    } else {
+      renderGateSupabase({tipo:'convite-invalido', mensagem:null});
+    }
+    return;
+  }
+  if(temSessao){
     await carregarAposLogin();
   } else {
     renderGateSupabase({tipo:'login', erro:null, carregando:false});
