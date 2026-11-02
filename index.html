@@ -5692,7 +5692,17 @@ function badgeAtivo(ativo){
 // precisar inventar um novo componente global de UI.
 function linhaAcoesEquipe(p){
   const situacao = situacaoAcessoPessoa(p);
-  const removida = !p.ativo; // "Remover da equipe" já foi executado antes.
+  // [Correção — bug reportado na homologação] "removida da equipe" é um
+  // estado POSITIVO e explícito (só existe depois de remove_from_team
+  // de verdade setar `ativo=false`) — nunca um fallback para qualquer
+  // valor que não seja estritamente `true`. `!p.ativo` tratava
+  // `ativo===null`/`undefined` exatamente como `ativo===false`,
+  // escondendo "Convidar para acessar" de uma pessoa ativa da equipe
+  // (reproduzido: uma pessoa com `ativo:null` e `status_acesso:null`
+  // mostrava corretamente o badge "Sem acesso", mas só "Editar" nas
+  // ações). `role`/`status_acesso`/`email`/`auth_user_id`/
+  // `convite_auth_user_id` nunca entram nesta decisão — só `ativo`.
+  const removida = p.ativo === false;
   const botoes = [`<button class="btn sm ghost" data-cfg-edit="pessoa" data-id="${p.id}">Editar</button>`];
   const secundarias = [];
 
