@@ -3,3 +3,7 @@
 .env.local
 .env.*.local
 supabase-local-config.js
+
+# Cache local do Supabase CLI (gerado por `supabase link`/`functions deploy`
+# etc.) — nunca contém segredo, mas também nunca deve ser versionado.
+supabase/.temp/
