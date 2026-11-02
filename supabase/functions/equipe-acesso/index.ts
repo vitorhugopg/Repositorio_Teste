@@ -237,30 +237,52 @@ async function acaoGenerateLink(admin, chamador, body) {
     throw { publico: 'Esta pessoa não tem um convite pendente.', status: 409 };
   }
 
-  // [Item 10 do pedido] Tenta o link oficial de convite; se o Supabase
-  // recusar por já existir um usuário (comportamento não totalmente
-  // documentado para um convite ainda não confirmado — ver relatório),
-  // cai para 'recovery', que a comunidade reporta funcionar para
-  // qualquer usuário existente, confirmado ou não, e que leva à mesma
-  // tela de criação de senha no frontend (o tipo do link não importa
-  // para o nosso fluxo — só nos importa que uma sessão válida se forme).
-  let linkGerado = null;
-  let erroInvite = null;
-  ({ data: linkGerado, error: erroInvite } = await admin.auth.admin.generateLink({
+  // [Correção pedida pelo administrador] Convite e recuperação de senha
+  // são fluxos deliberadamente separados — generate_link NUNCA usa
+  // type:'recovery'. Confirmado lendo o código-fonte oficial do GoTrue
+  // (supabase/auth, internal/api/mail.go, adminGenerateLink — branch
+  // `case mail.InviteVerification`, e internal/api/invite.go, mesmo
+  // racional): gerar um link de convite (`type:'invite'`) para um
+  // e-mail que já tem um usuário Auth PENDENTE (ainda não confirmado)
+  // NÃO é erro — o servidor reutiliza o MESMO usuário, sobrescreve o
+  // token de confirmação anterior (invalidando o link antigo) e retorna
+  // um novo `action_link` válido. Essa chamada só falha de verdade se o
+  // usuário já estiver CONFIRMADO (não deveria acontecer para um
+  // profile que acabamos de validar como status_acesso='pendente') ou
+  // por uma falha técnica passageira — nunca por "já existir um
+  // usuário pendente", que é exatamente o caso normal de uso aqui.
+  const gerarLinkDeConvite = () => admin.auth.admin.generateLink({
     type: 'invite',
     email: alvo.email,
     options: { redirectTo: appBaseUrl() },
-  }));
-  if (erroInvite || !linkGerado) {
-    const { data: linkRecovery, error: erroRecovery } = await admin.auth.admin.generateLink({
-      type: 'recovery',
-      email: alvo.email,
-      options: { redirectTo: appBaseUrl() },
-    });
-    if (erroRecovery || !linkRecovery) {
-      throw { publico: 'Não foi possível gerar o link. Tente novamente.', status: 502, interno: erroRecovery || erroInvite };
+  });
+
+  let { data: linkGerado, error: erroGerar } = await gerarLinkDeConvite();
+
+  if (erroGerar || !linkGerado) {
+    // [Rede de segurança — só entra aqui numa falha técnica real, nunca
+    // no caminho normal] Recria o convite pendente do zero, usando
+    // SOMENTE o mecanismo oficial de convite (nunca recovery) — mesma
+    // estratégia já usada em resend_invite: invalida/remove o usuário
+    // Auth pendente anterior e convida de novo.
+    if (alvo.convite_auth_user_id) {
+      const { error: erroDelete } = await admin.auth.admin.deleteUser(alvo.convite_auth_user_id);
+      if (erroDelete && erroDelete.status !== 404) {
+        throw { publico: 'Não foi possível gerar o link. Tente novamente.', status: 502, interno: erroDelete };
+      }
     }
-    linkGerado = linkRecovery;
+    ({ data: linkGerado, error: erroGerar } = await gerarLinkDeConvite());
+    if (erroGerar || !linkGerado) {
+      throw { publico: 'Não foi possível gerar o link. Tente novamente.', status: 502, interno: erroGerar };
+    }
+    // A recriação pode ter gerado um novo auth.users.id — mantém
+    // convite_auth_user_id apontando para o usuário Auth que o link
+    // retornado realmente referencia (nunca para o antigo, já apagado).
+    const novoAuthUserId = linkGerado.user && linkGerado.user.id;
+    if (novoAuthUserId && novoAuthUserId !== alvo.convite_auth_user_id) {
+      const { error: erroUpdateId } = await admin.from('profiles').update({ convite_auth_user_id: novoAuthUserId }).eq('id', alvo.id);
+      if (erroUpdateId) throw { publico: 'Link gerado, mas houve erro ao atualizar o perfil. Avise o suporte técnico.', status: 500, interno: erroUpdateId };
+    }
   }
 
   const actionLink = linkGerado.properties && linkGerado.properties.action_link;
