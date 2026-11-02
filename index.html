@@ -6029,11 +6029,19 @@ async function adicionarPessoaSupabase(){
     clinica_id: DB.usuarioAtual.clinicaId,
     nome: valores.nome.trim(),
     cargo: (valores.cargo||'').trim() || null,
-    // [Regra de negócio já aprovada] pessoa recém-criada é só "pessoa da
-    // clínica" — sem acesso ao CRM até o convite (etapa futura).
+    // [Equipe — Gestão de Acesso] `ativo` é EXCLUSIVAMENTE situação de
+    // equipe/emprego (ver migration 20261031000000) — uma pessoa
+    // recém-adicionada já É um membro ativo da equipe (aparece como
+    // "Responsável" em novos registros, mesmo padrão já usado para
+    // Thamiris), só ainda SEM ACESSO ao CRM. "Sem acesso" vem de
+    // `status_acesso` ficar NULL, nunca de `ativo=false` — colocar
+    // `ativo:false` aqui era o bug: fazia `linhaAcoesEquipe` tratar a
+    // pessoa como "removida da equipe" e escondia o botão "Convidar
+    // para acessar". `role` continua NULL aqui de propósito — só é
+    // definido no modal de convite (ver acaoInvite na Edge Function).
     auth_user_id: null,
     role: null,
-    ativo: false,
+    ativo: true,
   });
   if(error){ console.error('Falha ao adicionar pessoa.', error); toast('Não foi possível adicionar a pessoa. Tente novamente.'); return; }
   await recarregarListasConfigSupabase();
