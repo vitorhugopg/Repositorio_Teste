@@ -2783,7 +2783,21 @@ function bindGlobalEvents(){
 /* ============================================================
    5) PACIENTES — CRUD + filtros
    ============================================================ */
-let filtroPacientes = {origem:'',procedimento:'',responsavel:'',status:'',busca:''};
+// [Filtro de data — Pacientes] `dataCampo` sempre tem um valor (qual
+// critério está selecionado: dataContato "Data de Cadastro" ou
+// dataConsulta "Data da Consulta") — quem liga/desliga o filtro de
+// período é `dataMes` ('' = Todos os períodos, padrão inicial).
+let filtroPacientes = {origem:'',procedimento:'',responsavel:'',status:'',busca:'',dataCampo:'dataContato',dataMes:''};
+
+// [Filtro de data — Pacientes] Meses com dado real no campo escolhido —
+// reaproveita monthKey() já usado no Dashboard, mas aqui a lista vem dos
+// dados de verdade (não de um intervalo fixo como mesesDisponiveis() do
+// Dashboard), porque o critério pode ser dataContato OU dataConsulta.
+function mesesComDadosPara(campo){
+  const chaves = new Set();
+  DB.pacientes.forEach(p=>{ const k = monthKey(p[campo]); if(k) chaves.add(k); });
+  return [...chaves].sort();
+}
 
 function pacientesFiltrados(){
   return DB.pacientes.filter(p=>{
@@ -2792,6 +2806,10 @@ function pacientesFiltrados(){
     if(filtroPacientes.responsavel && p.responsavel!==filtroPacientes.responsavel) return false;
     if(filtroPacientes.status && status!==filtroPacientes.status) return false;
     if(filtroPacientes.procedimento && !(p.procedimentos||[]).includes(filtroPacientes.procedimento)) return false;
+    // [Filtro de data] monthKey('') é '' — nunca é igual a um mês real
+    // selecionado, então paciente sem a data escolhida some sozinho
+    // quando há período específico, sem checagem extra.
+    if(filtroPacientes.dataMes && monthKey(p[filtroPacientes.dataCampo])!==filtroPacientes.dataMes) return false;
     if(filtroPacientes.busca){
       const q = filtroPacientes.busca.toLowerCase();
       if(!p.nome.toLowerCase().includes(q) && !(p.telefone||'').includes(q)) return false;
@@ -2811,6 +2829,14 @@ function renderPacientes(){
       <select data-filter="procedimento"><option value="">Todos os procedimentos</option>${DB.procedimentos.map(p=>`<option value="${escapeHtml(p.nome)}" ${filtroPacientes.procedimento===p.nome?'selected':''}>${escapeHtml(p.nome)}</option>`).join('')}</select>
       <select data-filter="responsavel"><option value="">Todos os responsáveis</option>${DB.responsaveis.map(r=>`<option value="${escapeHtml(r)}" ${filtroPacientes.responsavel===r?'selected':''}>${escapeHtml(r)}</option>`).join('')}</select>
       <select data-filter="status"><option value="">Todos os status</option>${statusOptions.map(s=>`<option value="${escapeHtml(s)}" ${filtroPacientes.status===s?'selected':''}>${escapeHtml(s)}</option>`).join('')}</select>
+      <select data-filter="dataCampo" aria-label="Filtrar por data">
+        <option value="dataContato" ${filtroPacientes.dataCampo==='dataContato'?'selected':''}>Data de Cadastro</option>
+        <option value="dataConsulta" ${filtroPacientes.dataCampo==='dataConsulta'?'selected':''}>Data da Consulta</option>
+      </select>
+      <select data-filter="dataMes" aria-label="Período">
+        <option value="">Todos os períodos</option>
+        ${mesesComDadosPara(filtroPacientes.dataCampo).map(k=>`<option value="${k}" ${filtroPacientes.dataMes===k?'selected':''}>${monthLabel(k)}</option>`).join('')}
+      </select>
       <span class="muted small">${lista.length} de ${DB.pacientes.length} pacientes</span>
     </div>
     <div class="table-wrap pacientes-scroll">
@@ -2885,6 +2911,12 @@ function bindPacientesEvents(){
   document.querySelectorAll('[data-filter]').forEach(el=>{
     el.addEventListener(el.tagName==='INPUT'?'input':'change', ()=>{
       filtroPacientes[el.dataset.filter] = el.value;
+      // [Filtro de data] a lista de meses é por campo (dataContato ou
+      // dataConsulta) — trocar o critério invalida um mês já selecionado
+      // que só existia para o campo anterior (senão o período "preso"
+      // continuaria filtrando por baixo dos panos sem aparecer marcado
+      // no select, que cairia visualmente em "Todos os períodos").
+      if(el.dataset.filter==='dataCampo') filtroPacientes.dataMes = '';
       render();
     });
   });
