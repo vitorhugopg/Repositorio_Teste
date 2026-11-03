@@ -4520,7 +4520,7 @@ function renderDashboard(){
   </div>
 
   <div class="card" style="margin-top:16px;">
-    <h3>Conversão <span class="muted small">("Vendido" = Fechou Tratamento Sim ou Parcial · ${dashboardMesSelecionado==='total'?'total geral':monthLabel(dashboardMesSelecionado)})</span></h3>
+    <h3>Comparativo de Conversão <span class="muted small">("Vendido" = Fechou Tratamento Sim ou Parcial · ${dashboardMesSelecionado==='total'?'total geral':monthLabel(dashboardMesSelecionado)})</span></h3>
     <div class="grid cols-2">
       <div class="funnel-card">
         <div class="funnel-top">${funilDuplo.novosLeads} Novos Leads</div>
@@ -4533,20 +4533,21 @@ function renderDashboard(){
         <div class="funnel-bottom">${funilDuplo.vendidosCompareceram} Vendidos</div>
       </div>
     </div>
-    <div class="muted small" style="margin-top:8px;">Ao selecionar um mês, considera a COORTE daquele período: os leads que chegaram (ou compareceram) naquele mês, e quantos deles fecharam — não importa quando fecharam.</div>
+    <div class="muted small" style="margin-top:8px;">Compara os novos leads e comparecimentos do período com os tratamentos fechados no mês selecionado.</div>
   </div>`;
 }
 // [V2.1] Os 3 componentes abaixo aceitam um filtro de período opcional
 // ('total' ou uma chave 'YYYY-MM' de mesesDisponiveis()). Sem filtro (ou
 // 'total'), consideram a base inteira — igual ao comportamento original.
 //
-// IMPORTANTE (coorte, não "evento no mês"): diferente do restante do
-// Dashboard (que já existia antes desta rodada e usa "o fechamento
-// aconteceu neste mês"), aqui um mês filtra pela DATA DE ORIGEM do lead
-// (1º contato) ou do comparecimento — e dentro desse grupo, olha se
-// fechou depois, não importa quando. É a regra pedida especificamente
-// para este bloco de Conversão; os indicadores mensais antigos (Resumo do
-// mês / Evolução / Funil de Conversão já existente) NÃO mudaram.
+// [Comparativo de Conversão] "Vendidos" reaproveita a MESMA fonte lógica
+// de "Fechados (Ganhos)" do Resumo do mês (fechadosDoMesDetalhado(), a
+// mesma chamada usada por aggregateMonth()) — fechamento aconteceu NO mês
+// selecionado, igual ao resto do Dashboard. Não é mais uma coorte que
+// persegue o fechamento futuro de quem chegou/compareceu naquele mês —
+// isso garante, por construção (mesma função, não uma regra duplicada),
+// que "Vendidos" nos dois lados do comparativo e "Fechados (Ganhos)" no
+// topo sempre mostrem o mesmo número para o mês selecionado.
 function contagemPorOrigem(mesFiltro){
   const base = (mesFiltro && mesFiltro!=='total') ? DB.pacientes.filter(p=>monthKey(p.dataContato)===mesFiltro) : DB.pacientes;
   const mapa = {};
@@ -4561,18 +4562,21 @@ function contagemPorProcedimento(mesFiltro){
 }
 function calcularFunilDuplo(mesFiltro){
   const filtrar = mesFiltro && mesFiltro!=='total';
-  const cohortLeads = filtrar ? DB.pacientes.filter(p=>monthKey(p.dataContato)===mesFiltro) : DB.pacientes;
-  const cohortCompareceram = filtrar
-    ? DB.pacientes.filter(p=>p.compareceu==='Sim' && monthKey(p.dataConsulta)===mesFiltro)
-    : DB.pacientes.filter(p=>p.compareceu==='Sim');
-  const novosLeads = cohortLeads.length;
-  const vendidos = cohortLeads.filter(isVendido).length;
-  const compareceram = cohortCompareceram.length;
-  const vendidosCompareceram = cohortCompareceram.filter(isVendido).length;
+  const novosLeads = filtrar
+    ? DB.pacientes.filter(p=>monthKey(p.dataContato)===mesFiltro).length
+    : DB.pacientes.length;
+  const compareceram = filtrar
+    ? DB.pacientes.filter(p=>p.compareceu==='Sim' && monthKey(p.dataConsulta)===mesFiltro).length
+    : DB.pacientes.filter(p=>p.compareceu==='Sim').length;
+  // [Mesma fonte de "Fechados (Ganhos)"] Para um mês, é literalmente o
+  // mesmo array que alimenta atual.fechados (ver aggregateMonth) — nunca
+  // uma segunda regra. Para "Total Geral", é a extensão natural sem
+  // filtro de mês (mesmo isVendido já usado nesta função/no subtítulo).
+  const vendidos = filtrar ? fechadosDoMesDetalhado(mesFiltro).length : DB.pacientes.filter(isVendido).length;
   return {
-    novosLeads, vendidos, compareceram, vendidosCompareceram,
+    novosLeads, vendidos, compareceram, vendidosCompareceram: vendidos,
     taxa1: novosLeads? vendidos/novosLeads : 0,
-    taxa2: compareceram? vendidosCompareceram/compareceram : 0,
+    taxa2: compareceram? vendidos/compareceram : 0,
   };
 }
 function bindDashboardEvents(){
