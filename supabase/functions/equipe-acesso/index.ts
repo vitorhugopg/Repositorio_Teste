@@ -128,6 +128,55 @@ async function carregarPerfilAlvoNaMesmaClinica(admin, chamador, targetProfileId
   return alvo;
 }
 
+// ------------------------------------------------------------
+// [Correção — ativação de usuários] Antes de QUALQUER ação sobre um
+// convite pendente (reenviar, gerar link), verificamos o estado REAL do
+// usuário Auth referenciado por convite_auth_user_id — nunca decidimos
+// "o que fazer com ele" só a partir do que está em profiles. Isso evita
+// o bug que afetou Mariana: tratar como "ainda não confirmado" alguém
+// que já abriu o link e já tem sessão (email_confirmed_at preenchido),
+// e por isso jamais apagar essa conta.
+// ------------------------------------------------------------
+async function carregarUsuarioAuthDoAlvo(admin, alvo) {
+  if (!alvo.convite_auth_user_id) return null;
+  const { data, error } = await admin.auth.admin.getUserById(alvo.convite_auth_user_id);
+  if (error) {
+    // 404/"user not found" = o vínculo está desatualizado (conta não
+    // existe mais) — tratamos como "sem usuário Auth ainda", não como
+    // falha. Qualquer outro erro é uma falha técnica real, que não
+    // podemos simplesmente ignorar (decidiríamos no escuro).
+    if (error.status === 404 || /not.*found/i.test(error.message || '')) return null;
+    throw { publico: 'Não foi possível verificar o estado atual do convite agora. Tente novamente.', status: 502, interno: error };
+  }
+  return (data && data.user) || null;
+}
+
+function contaJaIniciouAtivacao(authUser) {
+  // "Iniciou a ativação" = já abriu um link e o GoTrue já confirmou o
+  // e-mail dela — isso acontece ANTES de definir senha. A partir daqui a
+  // conta tem história real (pode até já ter uma sessão aberta no
+  // navegador da pessoa) e nunca mais deve ser apagada automaticamente.
+  return !!(authUser && (authUser.email_confirmed_at || authUser.confirmed_at));
+}
+
+function contaBloqueada(authUser) {
+  if (!authUser || !authUser.banned_until) return false;
+  const ate = new Date(authUser.banned_until).getTime();
+  return Number.isFinite(ate) && ate > Date.now();
+}
+
+// Limpeza best-effort de um usuário Auth RECÉM-CRIADO por esta própria
+// chamada quando o passo seguinte (vincular ao profile) falha. Diferente
+// de apagar a conta de alguém que já usou o link: aqui o usuário não tem
+// nenhuma história (acabou de ser criado, ninguém nunca o usou) e, sem o
+// vínculo em profiles, ele ficaria orfão e inacessível por qualquer
+// fluxo do CRM — item "falhas parciais não deixem o sistema em um
+// estado inconsistente" do pedido.
+async function limparUsuarioOrfao(admin, authUserId) {
+  if (!authUserId) return;
+  try { await admin.auth.admin.deleteUser(authUserId); } catch (_e) { /* best-effort */ }
+}
+
 async function existeOutroAdminAtivo(admin, clinicaId, idExcluido) {
   const { data, error } = await admin
     .from('profiles')
@@ -189,7 +238,16 @@ async function acaoInvite(admin, chamador, body) {
     .from('profiles')
     .update({ email, role, status_acesso: 'pendente', convite_auth_user_id: convite.user.id })
     .eq('id', alvo.id);
-  if (erroUpdate) throw { publico: 'Convite criado, mas houve erro ao vincular ao perfil. Avise o suporte técnico.', status: 500, interno: erroUpdate };
+  if (erroUpdate) {
+    // [Correção — falha parcial não deixa estado inconsistente] O
+    // usuário Auth acabou de ser criado agora mesmo, ninguém nunca abriu
+    // o link dele — sem o vínculo em profiles ele fica órfão e
+    // inacessível por qualquer fluxo do CRM. Como não há história real
+    // para preservar, desfazemos a criação em vez de deixar para o
+    // suporte consertar manualmente.
+    await limparUsuarioOrfao(admin, convite.user.id);
+    throw { publico: 'Não foi possível concluir o convite agora. Tente novamente.', status: 500, interno: erroUpdate };
+  }
 
   logAcao('invite', { clinica_id: chamador.clinica_id, chamador_id: chamador.id, alvo_id: alvo.id });
   return { ok: true, status_acesso: 'pendente' };
@@ -201,33 +259,78 @@ async function acaoResendInvite(admin, chamador, body) {
     throw { publico: 'Esta pessoa não tem um convite pendente para reenviar.', status: 409 };
   }
 
-  // [Item 10 do pedido — "não fingir que um link expirado continua
-  // válido"] Reenviar sempre substitui o convite anterior por um novo
-  // (apaga o usuário Auth pendente anterior, nunca usado, e cria outro)
-  // — garante um e-mail novo de verdade, sem depender do comportamento
-  // ambíguo do Supabase para "convidar de novo o mesmo e-mail ainda não
-  // confirmado" (ver relatório desta rodada).
-  if (alvo.convite_auth_user_id) {
-    const { error: erroDelete } = await admin.auth.admin.deleteUser(alvo.convite_auth_user_id);
-    if (erroDelete && erroDelete.status !== 404) {
-      throw { publico: 'Não foi possível reenviar agora. Tente novamente.', status: 502, interno: erroDelete };
-    }
+  // [Correção — ativação de usuários] NUNCA mais apaga o usuário Auth
+  // antes de decidir o que fazer. Primeiro verificamos o estado real
+  // dele (pode não existir mais, pode nunca ter sido aberto, ou pode já
+  // ter sido confirmado por quem recebeu o convite) e só então agimos —
+  // cada caso tem uma ação diferente, nenhuma delas envolve excluir uma
+  // conta que já tem história.
+  const authUser = await carregarUsuarioAuthDoAlvo(admin, alvo);
+
+  if (contaBloqueada(authUser)) {
+    throw { publico: 'Esta pessoa está com o acesso bloqueado no momento. Verifique o status de acesso antes de reenviar.', status: 409 };
   }
 
-  const { data: convite, error: erroConvite } = await admin.auth.admin.inviteUserByEmail(alvo.email, {
+  if (!authUser) {
+    // Vínculo desatualizado (conta não existe mais) ou primeiro convite
+    // de fato nunca chegou a criar um usuário Auth válido — convida do
+    // zero. Nada para apagar: não há conta anterior.
+    const { data: convite, error: erroConvite } = await admin.auth.admin.inviteUserByEmail(alvo.email, {
+      redirectTo: appBaseUrl(),
+    });
+    if (erroConvite || !convite || !convite.user) {
+      throw { publico: 'Não foi possível reenviar agora. Tente novamente.', status: 502, interno: erroConvite };
+    }
+    const { error: erroUpdate } = await admin
+      .from('profiles')
+      .update({ convite_auth_user_id: convite.user.id })
+      .eq('id', alvo.id);
+    if (erroUpdate) {
+      await limparUsuarioOrfao(admin, convite.user.id);
+      throw { publico: 'Não foi possível reenviar agora. Tente novamente.', status: 500, interno: erroUpdate };
+    }
+    logAcao('resend_invite', { clinica_id: chamador.clinica_id, chamador_id: chamador.id, alvo_id: alvo.id, via: 'invite_novo' });
+    return { ok: true };
+  }
+
+  if (!contaJaIniciouAtivacao(authUser)) {
+    // Ainda não abriu nenhum link — reenviar é seguro: o GoTrue reaproveita
+    // o MESMO usuário Auth e invalida o token/link anterior (comportamento
+    // oficial documentado para convite a um e-mail ainda não confirmado).
+    // Continua sem precisar excluir nada.
+    const { data: convite, error: erroConvite } = await admin.auth.admin.inviteUserByEmail(alvo.email, {
+      redirectTo: appBaseUrl(),
+    });
+    if (erroConvite || !convite || !convite.user) {
+      throw { publico: 'Não foi possível reenviar agora. Tente novamente.', status: 502, interno: erroConvite };
+    }
+    if (convite.user.id !== alvo.convite_auth_user_id) {
+      const { error: erroUpdate } = await admin
+        .from('profiles')
+        .update({ convite_auth_user_id: convite.user.id })
+        .eq('id', alvo.id);
+      if (erroUpdate) throw { publico: 'Convite reenviado, mas houve erro ao atualizar o perfil. Avise o suporte técnico.', status: 500, interno: erroUpdate };
+    }
+    logAcao('resend_invite', { clinica_id: chamador.clinica_id, chamador_id: chamador.id, alvo_id: alvo.id, via: 'invite_reaproveitado' });
+    return { ok: true };
+  }
+
+  // Já confirmou o e-mail (abriu o link, iniciou a ativação) mas ainda
+  // não definiu senha/concluiu o cadastro — exatamente o caso de Mariana.
+  // Reenviar um "convite" aqui não é a ferramenta certa (o GoTrue trata
+  // um e-mail já confirmado como já registrado) e jamais apaga a conta:
+  // envia um e-mail de recuperação de senha para a MESMA conta, que ela
+  // pode usar para terminar de definir a senha e cair na mesma tela
+  // "Criar seu acesso" (TIPO_LINK_AUTH_INICIAL já trata type=recovery
+  // igual a type=invite no frontend).
+  const { error: erroRecovery } = await admin.auth.resetPasswordForEmail(alvo.email, {
     redirectTo: appBaseUrl(),
   });
-  if (erroConvite || !convite || !convite.user) {
-    throw { publico: 'Não foi possível reenviar agora. Tente novamente.', status: 502, interno: erroConvite };
+  if (erroRecovery) {
+    throw { publico: 'Não foi possível reenviar agora. Tente novamente.', status: 502, interno: erroRecovery };
   }
 
-  const { error: erroUpdate } = await admin
-    .from('profiles')
-    .update({ convite_auth_user_id: convite.user.id })
-    .eq('id', alvo.id);
-  if (erroUpdate) throw { publico: 'Convite reenviado, mas houve erro ao atualizar o perfil. Avise o suporte técnico.', status: 500, interno: erroUpdate };
-
-  logAcao('resend_invite', { clinica_id: chamador.clinica_id, chamador_id: chamador.id, alvo_id: alvo.id });
+  logAcao('resend_invite', { clinica_id: chamador.clinica_id, chamador_id: chamador.id, alvo_id: alvo.id, via: 'recovery_conta_existente' });
   return { ok: true };
 }
 
@@ -237,58 +340,55 @@ async function acaoGenerateLink(admin, chamador, body) {
     throw { publico: 'Esta pessoa não tem um convite pendente.', status: 409 };
   }
 
-  // [Correção pedida pelo administrador] Convite e recuperação de senha
-  // são fluxos deliberadamente separados — generate_link NUNCA usa
-  // type:'recovery'. Confirmado lendo o código-fonte oficial do GoTrue
-  // (supabase/auth, internal/api/mail.go, adminGenerateLink — branch
-  // `case mail.InviteVerification`, e internal/api/invite.go, mesmo
-  // racional): gerar um link de convite (`type:'invite'`) para um
-  // e-mail que já tem um usuário Auth PENDENTE (ainda não confirmado)
-  // NÃO é erro — o servidor reutiliza o MESMO usuário, sobrescreve o
-  // token de confirmação anterior (invalidando o link antigo) e retorna
-  // um novo `action_link` válido. Essa chamada só falha de verdade se o
-  // usuário já estiver CONFIRMADO (não deveria acontecer para um
-  // profile que acabamos de validar como status_acesso='pendente') ou
-  // por uma falha técnica passageira — nunca por "já existir um
-  // usuário pendente", que é exatamente o caso normal de uso aqui.
-  const gerarLinkDeConvite = () => admin.auth.admin.generateLink({
-    type: 'invite',
+  // [Correção — ativação de usuários] generate_link NUNCA mais usa
+  // deleteUser() como mecanismo de recuperação. Em vez de tentar
+  // type:'invite' e só "remediar" depois de falhar, verificamos ANTES o
+  // estado real do usuário Auth e escolhemos o tipo de link certo desde
+  // o início:
+  //  - ainda não confirmou (nunca abriu nenhum link) -> type:'invite',
+  //    que reaproveita o mesmo usuário e invalida o link anterior;
+  //  - já confirmou o e-mail mas não concluiu o cadastro (caso de
+  //    Mariana) -> type:'invite' falharia (GoTrue trata e-mail já
+  //    confirmado como já registrado); usamos type:'recovery', que gera
+  //    um novo link válido PARA A MESMA conta, sem excluir nada.
+  const authUser = await carregarUsuarioAuthDoAlvo(admin, alvo);
+
+  if (contaBloqueada(authUser)) {
+    throw { publico: 'Esta pessoa está com o acesso bloqueado no momento. Verifique o status de acesso antes de gerar um novo link.', status: 409 };
+  }
+
+  const tipoLink = contaJaIniciouAtivacao(authUser) ? 'recovery' : 'invite';
+  const { data: linkGerado, error: erroGerar } = await admin.auth.admin.generateLink({
+    type: tipoLink,
     email: alvo.email,
     options: { redirectTo: appBaseUrl() },
   });
-
-  let { data: linkGerado, error: erroGerar } = await gerarLinkDeConvite();
-
   if (erroGerar || !linkGerado) {
-    // [Rede de segurança — só entra aqui numa falha técnica real, nunca
-    // no caminho normal] Recria o convite pendente do zero, usando
-    // SOMENTE o mecanismo oficial de convite (nunca recovery) — mesma
-    // estratégia já usada em resend_invite: invalida/remove o usuário
-    // Auth pendente anterior e convida de novo.
-    if (alvo.convite_auth_user_id) {
-      const { error: erroDelete } = await admin.auth.admin.deleteUser(alvo.convite_auth_user_id);
-      if (erroDelete && erroDelete.status !== 404) {
-        throw { publico: 'Não foi possível gerar o link. Tente novamente.', status: 502, interno: erroDelete };
-      }
-    }
-    ({ data: linkGerado, error: erroGerar } = await gerarLinkDeConvite());
-    if (erroGerar || !linkGerado) {
-      throw { publico: 'Não foi possível gerar o link. Tente novamente.', status: 502, interno: erroGerar };
-    }
-    // A recriação pode ter gerado um novo auth.users.id — mantém
-    // convite_auth_user_id apontando para o usuário Auth que o link
-    // retornado realmente referencia (nunca para o antigo, já apagado).
-    const novoAuthUserId = linkGerado.user && linkGerado.user.id;
-    if (novoAuthUserId && novoAuthUserId !== alvo.convite_auth_user_id) {
-      const { error: erroUpdateId } = await admin.from('profiles').update({ convite_auth_user_id: novoAuthUserId }).eq('id', alvo.id);
-      if (erroUpdateId) throw { publico: 'Link gerado, mas houve erro ao atualizar o perfil. Avise o suporte técnico.', status: 500, interno: erroUpdateId };
+    throw { publico: 'Não foi possível gerar o link. Tente novamente.', status: 502, interno: erroGerar };
+  }
+
+  // [Vínculo auth.users <-> profiles validado] Só é esperado um
+  // auth.users.id novo quando authUser era null (type:'invite' criando o
+  // usuário por não existir nenhum ainda) — nos outros casos o id
+  // retornado deve ser sempre o mesmo que já tínhamos.
+  const idRetornado = linkGerado.user && linkGerado.user.id;
+  if (idRetornado && idRetornado !== alvo.convite_auth_user_id) {
+    const { error: erroUpdateId } = await admin.from('profiles').update({ convite_auth_user_id: idRetornado }).eq('id', alvo.id);
+    if (erroUpdateId) {
+      // O usuário Auth só é "órfão de verdade" (sem história) se não
+      // havia nenhum authUser antes desta chamada — só nesse caso é
+      // seguro desfazer a criação; se já existia authUser, idRetornado
+      // nunca deveria ter mudado (sinal de inconsistência, não limpamos
+      // nada automaticamente).
+      if (!authUser) await limparUsuarioOrfao(admin, idRetornado);
+      throw { publico: 'Link gerado, mas houve erro ao atualizar o perfil. Avise o suporte técnico.', status: 500, interno: erroUpdateId };
     }
   }
 
   const actionLink = linkGerado.properties && linkGerado.properties.action_link;
   if (!actionLink) throw { publico: 'Não foi possível gerar o link. Tente novamente.', status: 502 };
 
-  logAcao('generate_link', { clinica_id: chamador.clinica_id, chamador_id: chamador.id, alvo_id: alvo.id });
+  logAcao('generate_link', { clinica_id: chamador.clinica_id, chamador_id: chamador.id, alvo_id: alvo.id, tipo: tipoLink });
   // [Item 20 do pedido] O link NUNCA é persistido no banco — só retorna
   // nesta resposta HTTP, direto para o navegador do administrador copiar.
   return { ok: true, link: actionLink };
@@ -437,9 +537,16 @@ async function acaoCompleteInvite(admin, req) {
     .update({ auth_user_id: uid, status_acesso: 'ativo', convite_auth_user_id: null })
     .eq('id', pendente.id);
   if (erroUpdate) {
-    // [Item 8 do pedido] Violação do índice único de auth_user_id cai
-    // aqui — nunca deixa dois profiles com o mesmo usuário Auth.
-    throw { publico: 'Não foi possível concluir o acesso. Fale com o administrador.', status: 409, interno: erroUpdate };
+    // [Item 8 do pedido] Violação do índice único de auth_user_id
+    // (código 23505 do Postgres) cai aqui — nunca deixa dois profiles
+    // com o mesmo usuário Auth. Diferenciamos essa causa específica de
+    // uma falha técnica passageira (rede, timeout) para não dizer
+    // "fale com o administrador" quando simplesmente tentar de novo
+    // resolveria.
+    if (erroUpdate.code === '23505') {
+      throw { publico: 'Este usuário já está vinculado a outro perfil. Fale com o administrador.', status: 409, interno: erroUpdate };
+    }
+    throw { publico: 'Não foi possível concluir o acesso agora. Tente novamente.', status: 502, interno: erroUpdate };
   }
 
   logAcao('complete_invite', { clinica_id: pendente.clinica_id, alvo_id: pendente.id });

@@ -6699,6 +6699,35 @@ function renderGateSupabase(estado){
 // Depois de definir a senha, chama a Edge Function (complete_invite)
 // para vincular auth_user_id ao profile certo — nunca confia em nada do
 // navegador para decidir qual profile é esse (ver Edge Function).
+// [Correção — ativação de usuários, item "mensagens de erro específicas
+// e úteis"] updateUser({password}) pode falhar por vários motivos bem
+// diferentes entre si (sessão expirada, política de senha do projeto,
+// limite de tentativas, falha passageira) — mostrar sempre a mesma frase
+// genérica escondia qual era o problema real tanto da pessoa quanto de
+// quem for investigar depois. Cada causa reconhecível aqui tem seu
+// próprio texto; o que não reconhecemos cai no texto genérico, nunca é
+// inventado.
+function mensagemErroDefinirSenha(erro){
+  const msg = (erro && erro.message) || '';
+  const nome = (erro && erro.name) || '';
+  if(nome === 'AuthSessionMissingError' || /session/i.test(msg)){
+    return { sessaoExpirada:true, texto:'Sua sessão deste link expirou ou não é mais válida. Peça um novo link de acesso ao administrador e abra-o novamente.' };
+  }
+  if(/at least|should be at least|no m[ií]nimo/i.test(msg)){
+    return { sessaoExpirada:false, texto:'A senha não atende ao tamanho mínimo exigido pelo sistema. Tente uma senha mais longa.' };
+  }
+  if(/weak|leaked|pwned|easy to guess/i.test(msg)){
+    return { sessaoExpirada:false, texto:'Esta senha já apareceu em vazamentos conhecidos na internet. Escolha uma senha diferente.' };
+  }
+  if(/different from the old/i.test(msg)){
+    return { sessaoExpirada:false, texto:'A nova senha precisa ser diferente da senha anterior.' };
+  }
+  if((erro && erro.status === 429) || /rate limit/i.test(msg)){
+    return { sessaoExpirada:false, texto:'Muitas tentativas em sequência. Aguarde um minuto e tente novamente.' };
+  }
+  return { sessaoExpirada:false, texto:'Não foi possível definir sua senha agora. Tente novamente em alguns instantes. Se persistir, peça um novo link ao administrador.' };
+}
+
 async function concluirCriacaoAcesso(senha, confirmarSenha){
   if(!senha || senha.length < 6){
     renderGateSupabase({tipo:'criar-acesso', erro:'A senha precisa ter pelo menos 6 caracteres.', carregando:false});
@@ -6712,7 +6741,16 @@ async function concluirCriacaoAcesso(senha, confirmarSenha){
   const { error: erroSenha } = await window.moriSupabase.auth.updateUser({ password: senha });
   if(erroSenha){
     console.error('Falha ao definir senha do convite.', erroSenha);
-    renderGateSupabase({tipo:'criar-acesso', erro:'Não foi possível definir sua senha agora. Tente novamente.', carregando:false});
+    const { sessaoExpirada, texto } = mensagemErroDefinirSenha(erroSenha);
+    if(sessaoExpirada){
+      // Sem sessão válida não há como tentar de novo nesta mesma tela —
+      // manda para a tela de convite inválido, que já oferece o caminho
+      // de voltar ao login/pedir novo link, em vez de deixar a pessoa
+      // tentando de novo uma senha num formulário que nunca vai funcionar.
+      renderGateSupabase({tipo:'convite-invalido', mensagem: texto});
+      return;
+    }
+    renderGateSupabase({tipo:'criar-acesso', erro: texto, carregando:false});
     return;
   }
   const resultado = await chamarEdgeFunctionEquipe('complete_invite', {});
