@@ -368,6 +368,7 @@ option.opcao-indisponivel{color:#999;font-style:italic;}
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="supabase-local-config.js"></script>
 <script src="supabase-client.js"></script>
+<script src="auth-link.js"></script>
 
 <script>
 /* ============================================================
@@ -6541,12 +6542,16 @@ const MODO_SUPABASE = !!(window.moriSupabase);
 // hash ao estabelecer a sessão inicial; precisamos do valor original
 // para decidir, no boot (ver iniciarSupabase()), se mostramos a tela
 // normal de login/dashboard ou a tela "Criar seu acesso" do convidado.
-const TIPO_LINK_AUTH_INICIAL = (function(){
+const LINK_AUTH_INICIAL = (function(){
+  // [Correção — links expirados/usados] Além do `type`, captura também o
+  // erro que o Supabase põe no hash quando recusa o link (ex: otp_expired).
+  // Antes, esse caso não tinha `type=` e caía no login sem nenhuma explicação.
   try{
-    const hash = new URLSearchParams((window.location.hash||'').replace(/^#/, ''));
-    return hash.get('type'); // 'invite' | 'recovery' | null
-  }catch(e){ return null; }
+    if(window.MoriAuthLink) return window.MoriAuthLink.interpretarLinkAuth(window.location.hash, window.location.search);
+  }catch(e){}
+  return { tipo:null, temToken:false, erro:null };
 })();
+const TIPO_LINK_AUTH_INICIAL = LINK_AUTH_INICIAL.tipo; // 'invite' | 'recovery' | null
 
 function telaLogin(mensagemErro, carregando){
   return `
@@ -7123,6 +7128,13 @@ async function iniciarSupabase(){
   // ainda válida neste navegador, um link de convite recém-aberto
   // estabelece uma sessão NOVA (do convidado) que substitui a anterior;
   // é essa nova sessão que getSession() já retorna aqui.
+  // [Correção — links expirados/usados] O Supabase recusou o link: mostra
+  // a causa em vez de cair no login sem explicação. Só vale na abertura
+  // inicial da página (a URL é limpa ao sair desta tela).
+  if(LINK_AUTH_INICIAL.erro){
+    renderGateSupabase({tipo:'convite-invalido', mensagem: window.MoriAuthLink.mensagemErroLinkAuth(LINK_AUTH_INICIAL.erro)});
+    return;
+  }
   if(TIPO_LINK_AUTH_INICIAL === 'invite' || TIPO_LINK_AUTH_INICIAL === 'recovery'){
     if(temSessao){
       renderGateSupabase({tipo:'criar-acesso', erro:null, carregando:false});
