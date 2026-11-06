@@ -353,6 +353,17 @@ option.opcao-indisponivel{color:#999;font-style:italic;}
 .login-card{width:100%;max-width:360px;background:var(--paper);border-radius:var(--radius);box-shadow:var(--shadow-lg);padding:28px 24px;}
 .login-card .field{display:block;margin-top:14px;font-size:13px;font-weight:700;color:var(--text-muted);}
 .login-card .field input{display:block;width:100%;margin-top:6px;padding:10px 12px;border-radius:var(--radius-sm);border:1px solid var(--line);background:var(--paper);color:var(--text);font-family:inherit;font-size:14px;}
+.senha-wrap{position:relative;display:block;margin-top:6px;}
+.senha-wrap input{margin-top:0 !important;padding-right:46px !important;}
+.btn-olho-senha{position:absolute;top:0;right:0;height:100%;min-width:44px;display:flex;align-items:center;justify-content:center;padding:0;border:0;background:transparent;color:var(--text-muted);cursor:pointer;border-radius:0 var(--radius-sm) var(--radius-sm) 0;}
+@media (pointer:coarse){.senha-wrap input{min-height:44px;}}
+.btn-olho-senha:hover{color:var(--text);}
+.btn-olho-senha:focus-visible{outline:2px solid var(--info);outline-offset:-2px;}
+.btn-olho-senha:disabled{opacity:.5;cursor:default;}
+.btn-olho-senha svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;pointer-events:none;}
+.btn-olho-senha .ico-olho-oculto{display:none;}
+.btn-olho-senha[aria-pressed="true"] .ico-olho{display:none;}
+.btn-olho-senha[aria-pressed="true"] .ico-olho-oculto{display:block;}
 .login-erro{margin-top:12px;padding:10px 12px;border-radius:var(--radius-sm);background:var(--danger-bg);color:var(--danger);font-size:13px;}
 </style>
 </head>
@@ -6553,6 +6564,40 @@ const LINK_AUTH_INICIAL = (function(){
 })();
 const TIPO_LINK_AUTH_INICIAL = LINK_AUTH_INICIAL.tipo; // 'invite' | 'recovery' | null
 
+// [Usabilidade] Campo de senha com botão de mostrar/ocultar. Oculta por
+// padrão; só alterna o `type` do input no navegador — não lê, guarda nem
+// registra o valor digitado. Usado por todos os formulários de senha.
+function campoSenha(nome, autocomplete, carregando, rotulo){
+  const dis = carregando ? 'disabled' : '';
+  return `<span class="senha-wrap">
+            <input type="password" name="${nome}" required autocomplete="${autocomplete}" aria-label="${rotulo}" ${dis}>
+            <button type="button" class="btn-olho-senha" data-alternar-senha aria-label="Mostrar senha" aria-pressed="false" ${dis}>
+              <svg class="ico-olho" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z"/><circle cx="12" cy="12" r="3"/></svg>
+              <svg class="ico-olho-oculto" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M17.94 17.94A10.9 10.9 0 0 1 12 19c-7 0-11-7-11-7a19.8 19.8 0 0 1 5.06-5.94M9.9 4.24A10.4 10.4 0 0 1 12 5c7 0 11 7 11 7a19.9 19.9 0 0 1-3.17 4.19M14.12 14.12A3 3 0 1 1 9.88 9.88"/><path d="M1 1l22 22"/></svg>
+            </button>
+          </span>`;
+}
+
+// Delegação de eventos: as telas de acesso são redesenhadas via innerHTML,
+// então um único listener no documento cobre login e criação de acesso.
+// mousedown/pointerdown com preventDefault evita que o campo perca o foco
+// (no celular, o teclado não fecha ao tocar no olho).
+document.addEventListener('mousedown', function(e){
+  if(e.target.closest && e.target.closest('[data-alternar-senha]')) e.preventDefault();
+});
+document.addEventListener('click', function(e){
+  const btn = e.target.closest && e.target.closest('[data-alternar-senha]');
+  if(!btn || btn.disabled) return;
+  const input = btn.parentElement.querySelector('input');
+  if(!input) return;
+  const mostrar = input.type === 'password';
+  const ini = input.selectionStart, fim = input.selectionEnd;
+  input.type = mostrar ? 'text' : 'password';
+  try{ if(ini!=null) input.setSelectionRange(ini, fim); }catch(_e){}
+  btn.setAttribute('aria-pressed', mostrar ? 'true' : 'false');
+  btn.setAttribute('aria-label', mostrar ? 'Ocultar senha' : 'Mostrar senha');
+});
+
 function telaLogin(mensagemErro, carregando){
   return `
   <div class="login-shell">
@@ -6567,7 +6612,7 @@ function telaLogin(mensagemErro, carregando){
         </label>
         <label class="field">
           <span>Senha</span>
-          <input type="password" name="senha" required autocomplete="current-password" ${carregando?'disabled':''}>
+          ${campoSenha('senha','current-password',carregando,'Senha')}
         </label>
         ${mensagemErro? `<div class="login-erro">${escapeHtml(mensagemErro)}</div>` : ''}
         <button class="btn primary" type="submit" style="width:100%;margin-top:14px;" ${carregando?'disabled':''}>
@@ -6591,11 +6636,11 @@ function telaCriarAcesso(mensagemErro, carregando){
       <form id="form-criar-acesso">
         <label class="field">
           <span>Nova senha</span>
-          <input type="password" name="senha" required autocomplete="new-password" ${carregando?'disabled':''}>
+          ${campoSenha('senha','new-password',carregando,'Nova senha')}
         </label>
         <label class="field">
           <span>Confirmar senha</span>
-          <input type="password" name="confirmarSenha" required autocomplete="new-password" ${carregando?'disabled':''}>
+          ${campoSenha('confirmarSenha','new-password',carregando,'Confirmar senha')}
         </label>
         ${mensagemErro? `<div class="login-erro">${escapeHtml(mensagemErro)}</div>` : ''}
         <button class="btn primary" type="submit" style="width:100%;margin-top:14px;" ${carregando?'disabled':''}>
