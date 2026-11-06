@@ -124,6 +124,13 @@ nav.nav{padding:6px 10px;flex:1;}
 
 .sidebar-foot{padding:14px 18px 18px;font-size:11.5px;color:#7fa2a7;border-top:1px solid rgba(255,255,255,.08);}
 
+.sidebar-foot .btn-sair-crm{display:flex;align-items:center;gap:8px;width:100%;margin-top:10px;min-height:40px;padding:8px 12px;border-radius:10px;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.06);color:#eaf3f3;font:inherit;font-size:13px;font-weight:700;cursor:pointer;}
+.sidebar-foot .btn-sair-crm:hover{background:rgba(255,255,255,.12);color:#fff;}
+.sidebar-foot .btn-sair-crm:focus-visible{outline:2px solid var(--gold-500);outline-offset:2px;}
+.sidebar-foot .btn-sair-crm:disabled{opacity:.6;cursor:default;}
+.sidebar-foot .btn-sair-crm svg{width:18px;height:18px;flex:0 0 auto;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;}
+@media (pointer:coarse){.sidebar-foot .btn-sair-crm{min-height:44px;}}
+
 .main{flex:1;min-width:0;display:flex;flex-direction:column;}
 .topbar{
   display:flex;align-items:center;justify-content:space-between;
@@ -2633,6 +2640,10 @@ function render(){
       <div class="sidebar-foot">
         ${escapeHtml(DB.usuarioAtual.nome)} · ${escapeHtml(DB.usuarioAtual.cargo)}<br>
         ${MODO_SUPABASE ? 'Conectado ao Supabase.' : 'Dados salvos localmente neste navegador.'}
+        ${MODO_SUPABASE ? `<button type="button" class="btn-sair-crm" data-action="sair-crm">
+          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg>
+          <span>Sair do CRM</span>
+        </button>` : ''}
       </div>
     </aside>
     <div class="main">
@@ -2699,6 +2710,8 @@ function bindGlobalEvents(){
     DB.theme = DB.theme==='dark' ? 'light' : (DB.theme==='light' ? 'system' : 'dark');
     saveState(); render();
   });
+  const sairBtn = document.querySelector('[data-action="sair-crm"]');
+  if(sairBtn) sairBtn.addEventListener('click', ()=>sairDoCRM(sairBtn));
   const novoBtn = document.querySelector('[data-action="novo-paciente"]');
   if(novoBtn) novoBtn.addEventListener('click', ()=>openPacienteModal(null));
 
@@ -6867,6 +6880,50 @@ function mapPacienteSupabaseParaCRM(row, refs){
     // local, que aplica exatamente a mesma fórmula sobre os campos acima.
     statusBanco: row.status || '',
   };
+}
+
+// [Logout] "Sair do CRM" (menu lateral). Reaproveita o mesmo
+// auth.signOut() já usado nas telas de convite inválido/sem perfil.
+// Só considera a saída concluída se o signOut NÃO retornar erro: em caso
+// de erro a pessoa continua conectada, vê uma mensagem clara e pode tentar
+// de novo. Ao concluir, apaga da memória os dados da clínica/pacientes,
+// fecha modais e volta ao login — nada protegido fica na tela. (Em modo
+// Supabase nada é gravado em localStorage, ver saveState().)
+let SAINDO_DO_CRM = false;
+async function sairDoCRM(botao){
+  if(SAINDO_DO_CRM) return;
+  SAINDO_DO_CRM = true;
+  const rotulo = botao ? botao.querySelector('span') : null;
+  const textoOriginal = rotulo ? rotulo.textContent : '';
+  if(botao){ botao.disabled = true; botao.setAttribute('aria-busy','true'); }
+  if(rotulo) rotulo.textContent = 'Saindo…';
+  let erro = null;
+  try{
+    // scope:'local' encerra só a sessão deste navegador (não derruba
+    // a pessoa em outros aparelhos).
+    const resp = await window.moriSupabase.auth.signOut({ scope: 'local' });
+    erro = (resp && resp.error) || null;
+  }catch(e){
+    erro = e || new Error('signOut falhou');
+  }
+  if(erro){
+    console.error('Falha ao encerrar a sessão.', erro);
+    SAINDO_DO_CRM = false;
+    if(botao){ botao.disabled = false; botao.removeAttribute('aria-busy'); }
+    if(rotulo) rotulo.textContent = textoOriginal;
+    toast('Não foi possível sair agora. Você continua conectado. Verifique sua conexão e tente novamente.');
+    return;
+  }
+  try{ closeModal(); }catch(_e){}
+  const toastRoot = document.getElementById('toast-root');
+  if(toastRoot) toastRoot.innerHTML = '';
+  DB = buildInitialState();
+  DB.pacientes = [];
+  ROUTE = 'dashboard';
+  ROUTE_PARAM = null;
+  history.replaceState(null, '', window.location.pathname + window.location.search);
+  SAINDO_DO_CRM = false;
+  renderGateSupabase({tipo:'login', erro:null, carregando:false});
 }
 
 async function carregarAposLogin(){
